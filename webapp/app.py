@@ -37,6 +37,7 @@ from models import (
     RecommendRequest, RecommendResponse,
     PredictResponseRequest, PredictResponseResponse,
     ChatRequest, ChatResponse,
+    UnifyNamesRequest, UnifyNamesResponse,
     HealthResponse, ModelInfo, ErrorResponse
 )
 from api import WebOfMicrobesAPI
@@ -206,6 +207,34 @@ async def predict_response(
         return await api.predict_response(request)
     except Exception as e:
         logger.error(f"Prediction failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+@app.post("/unify_names", response_model=UnifyNamesResponse, tags=["Name Resolution"])
+async def unify_names(
+    request: UnifyNamesRequest,
+    authenticated: bool = Depends(verify_auth)
+):
+    """
+    Resolve user-provided names to model vocabulary using LLM.
+
+    **Parameters:**
+    - `microbe_names`: List of microbe/genus names (user input, any format)
+    - `metabolite_names`: List of metabolite names (user input, any format)
+
+    **Returns:**
+    - Resolved names with confidence indicators and alternatives
+    - Falls back to simple fuzzy matching if LLM unavailable
+    """
+    if api is None:
+        raise HTTPException(status_code=503, detail="Models not loaded")
+
+    try:
+        return await api.unify_names(request)
+    except Exception as e:
+        logger.error(f"Name unification failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

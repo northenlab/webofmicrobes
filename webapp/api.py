@@ -17,6 +17,7 @@ from models import (
     RecommendRequest, RecommendResponse, Recommendation,
     PredictResponseRequest, PredictResponseResponse, CommunityPrediction,
     ChatRequest, ChatResponse, ChatChoice, ChatMessage, ChatUsage,
+    UnifyNamesRequest, UnifyNamesResponse, ResolvedName,
     HealthResponse, ModelInfo, FunctionalGroup
 )
 from config import Config, FUNCTIONAL_GROUPS
@@ -205,6 +206,208 @@ class WebOfMicrobesAPI:
             unknown=unknown,
             llm_interpretation=llm_interpretation
         )
+
+    # =========================================================================
+    # /unify_names endpoint
+    # =========================================================================
+
+    async def unify_names(self, request: UnifyNamesRequest) -> UnifyNamesResponse:
+        """Use LLM to resolve microbe/metabolite names to controlled vocabulary."""
+        if not self.synthesizer:
+            # Fallback to simple matching if LLM unavailable
+            return self._simple_name_matching(request)
+
+        try:
+            # Build prompt with available vocabularies
+            microbes_resolved = []
+            metabolites_resolved = []
+
+            # Get available genera and metabolites from model
+            available_genera = sorted(set(org.split()[0] for org in self.recommender.gnn.organisms))
+            available_metabolites = sorted(self.recommender.gnn.metabolites)
+
+            # Resolve microbe names
+            if request.microbe_names:
+                microbe_prompt = f"""Resolve these user-provided microbe names to the closest match in our model vocabulary:
+
+User input: {', '.join(request.microbe_names)}
+
+Available genera in model (first 50): {', '.join(available_genera[:50])}
+
+For each input name, provide:
+1. The best match from available genera (or "not_found" if no good match)
+2. Confidence: high/medium/low
+3. Brief note if needed
+
+Respond in JSON format:
+[{{"input": "...", "resolved": "...", "confidence": "...", "note": "..."}}]
+"""
+
+                llm_response = self.synthesizer._call_llm(microbe_prompt)
+                # Parse JSON response (with error handling)
+                import json
+                try:
+                    parsed = json.loads(llm_response.strip())
+                    for item in parsed:
+                        microbes_resolved.append(ResolvedName(
+                            input_name=item.get('input', ''),
+                            resolved_name=item.get('resolved') if item.get('resolved') != 'not_found' else None,
+                            confidence=item.get('confidence', 'low'),
+                            alternatives=[],
+                            note=item.get('note')
+                        ))
+                except:
+                    # Fallback to simple matching
+                    for name in request.microbe_names:
+                        match = self._find_closest_genus(name, available_genera)
+                        microbes_resolved.append(match)
+
+            # Resolve metabolite names
+            if request.metabolite_names:
+                metabolite_prompt = f"""Resolve these user-provided metabolite names to the closest match in our model vocabulary:
+
+User input: {', '.join(request.metabolite_names)}
+
+Available metabolites in model (first 50): {', '.join(available_metabolites[:50])}
+
+For each input name, provide:
+1. The best match from available metabolites (or "not_found" if no good match)
+2. Confidence: high/medium/low
+3. Brief note if needed
+
+Respond in JSON format:
+[{{"input": "...", "resolved": "...", "confidence": "...", "note": "..."}}]
+"""
+
+                llm_response = self.synthesizer._call_llm(metabolite_prompt)
+                # Parse JSON response (with error handling)
+                try:
+                    parsed = json.loads(llm_response.strip())
+                    for item in parsed:
+                        metabolites_resolved.append(ResolvedName(
+                            input_name=item.get('input', ''),
+                            resolved_name=item.get('resolved') if item.get('resolved') != 'not_found' else None,
+                            confidence=item.get('confidence', 'low'),
+                            alternatives=[],
+                            note=item.get('note')
+                        ))
+                except:
+                    # Fallback to simple matching
+                    for name in request.metabolite_names:
+                        match = self._find_closest_metabolite(name, available_metabolites)
+                        metabolites_resolved.append(match)
+
+            return UnifyNamesResponse(
+                microbes=microbes_resolved,
+                metabolites=metabolites_resolved
+            )
+
+        except Exception as e:
+            logger.error(f"Name unification failed: {e}")
+            # Return simple matching as fallback
+            return self._simple_name_matching(request)
+
+    def _simple_name_matching(self, request: UnifyNamesRequest) -> UnifyNamesResponse:
+        """Fallback simple fuzzy matching for names."""
+        available_genera = sorted(set(org.split()[0] for org in self.recommender.gnn.organisms))
+        available_metabolites = sorted(self.recommender.gnn.metabolites)
+
+        microbes_resolved = []
+        for name in request.microbe_names:
+            match = self._find_closest_genus(name, available_genera)
+            microbes_resolved.append(match)
+
+        metabolites_resolved = []
+        for name in request.metabolite_names:
+            match = self._find_closest_metabolite(name, available_metabolites)
+            metabolites_resolved.append(match)
+
+        return UnifyNamesResponse(
+            microbes=microbes_resolved,
+            metabolites=metabolites_resolved
+        )
+
+    def _find_closest_genus(self, input_name: str, available_genera: List[str]) -> ResolvedName:
+        """Find closest genus match using simple string matching."""
+        input_lower = input_name.lower().strip()
+
+        # Exact match (case-insensitive)
+        for genus in available_genera:
+            if genus.lower() == input_lower:
+                return ResolvedName(
+                    input_name=input_name,
+                    resolved_name=genus,
+                    confidence="high",
+                    alternatives=[],
+                    note=None
+                )
+
+        # Starts with match
+        starts_with = [g for g in available_genera if g.lower().startswith(input_lower)]
+        if starts_with:
+            return ResolvedName(
+                input_name=input_name,
+                resolved_name=starts_with[0],
+                confidence="medium" if len(starts_with) == 1 else "low",
+                alternatives=starts_with[1:3],
+                note=f"Matched by prefix" if len(starts_with) > 1 else None
+            )
+
+        # Contains match
+        contains = [g for g in available_genera if input_lower in g.lower()]
+        if contains:
+            return ResolvedName(
+                input_name=input_name,
+                resolved_name=contains[0],
+                confidence="low",
+                alternatives=contains[1:3],
+                note="Fuzzy match"
+            )
+
+        # No match
+        return ResolvedName(
+            input_name=input_name,
+            resolved_name=None,
+            confidence="low",
+            alternatives=available_genera[:5],
+            note=f"Not found. Available genera: {', '.join(available_genera[:5])}"
+        )
+
+    def _find_closest_metabolite(self, input_name: str, available_metabolites: List[str]) -> ResolvedName:
+        """Find closest metabolite match using simple string matching."""
+        input_lower = input_name.lower().strip()
+
+        # Exact match (case-insensitive)
+        for metabolite in available_metabolites:
+            if metabolite.lower() == input_lower:
+                return ResolvedName(
+                    input_name=input_name,
+                    resolved_name=metabolite,
+                    confidence="high",
+                    alternatives=[],
+                    note=None
+                )
+
+        # Contains match
+        contains = [m for m in available_metabolites if input_lower in m.lower() or m.lower() in input_lower]
+        if contains:
+            return ResolvedName(
+                input_name=input_name,
+                resolved_name=contains[0],
+                confidence="medium" if len(contains) == 1 else "low",
+                alternatives=contains[1:3],
+                note="Fuzzy match" if len(contains) > 1 else None
+            )
+
+        # No match
+        return ResolvedName(
+            input_name=input_name,
+            resolved_name=None,
+            confidence="low",
+            alternatives=available_metabolites[:5],
+            note=f"Not found. Example metabolites: {', '.join(available_metabolites[:5])}"
+        )
+
 
     # =========================================================================
     # /v1/chat/completions endpoint (OpenAI-compatible)

@@ -659,6 +659,191 @@
         .api-callout a:hover {
             text-decoration: underline;
         }
+
+        /* Two-column validation UI */
+        .validation-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 20px;
+            padding: 20px;
+            background: var(--bg-subtle);
+            border-radius: var(--radius);
+        }
+
+        .validation-column {
+            background: var(--bg);
+            padding: 16px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+
+        .validation-column h4 {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            letter-spacing: 0.05em;
+        }
+
+        .validation-item {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .validation-item:last-child {
+            border-bottom: none;
+        }
+
+        .validation-item .input-text {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .validation-item .resolved-text {
+            color: var(--text);
+            font-weight: 500;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .validation-item .confidence {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .confidence.high {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+
+        .confidence.medium {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+
+        .confidence.low {
+            background: #FEE2E2;
+            color: #991B1B;
+        }
+
+        /* Chat window */
+        .chat-window {
+            position: fixed;
+            bottom: 0;
+            right: 24px;
+            width: 400px;
+            max-height: 600px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-bottom: none;
+            border-radius: var(--radius) var(--radius) 0 0;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            transform: translateY(calc(100% - 48px));
+            transition: transform 0.3s ease;
+        }
+
+        .chat-window.expanded {
+            transform: translateY(0);
+        }
+
+        .chat-header {
+            padding: 12px 16px;
+            background: var(--text);
+            color: var(--bg);
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: var(--radius) var(--radius) 0 0;
+        }
+
+        .chat-toggle {
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            max-height: 400px;
+            min-height: 200px;
+        }
+
+        .chat-message {
+            margin-bottom: 16px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-message.user {
+            text-align: right;
+        }
+
+        .chat-message.assistant {
+            text-align: left;
+        }
+
+        .chat-bubble {
+            display: inline-block;
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .chat-message.user .chat-bubble {
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        .chat-message.assistant .chat-bubble {
+            background: var(--bg-subtle);
+            color: var(--text);
+        }
+
+        .chat-input-container {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-input-container input {
+            flex: 1;
+        }
+
+        .chat-input-container button {
+            padding: 10px 16px;
+        }
+
+        @media (max-width: 768px) {
+            .chat-window {
+                right: 12px;
+                width: calc(100% - 24px);
+                max-width: 400px;
+            }
+
+            .validation-columns {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -794,14 +979,8 @@
 
                     <div class="form-grid">
                         <div class="field">
-                            <label>Challenge</label>
-                            <select id="challenge">
-                                <option value="custom">Custom target</option>
-                                <option value="nitrogen_fixation">Promote nitrogen fixation</option>
-                                <option value="phosphate_solubilization">Promote phosphate solubilization</option>
-                                <option value="plant_growth_promotion">Promote plant growth (PGPR)</option>
-                                <option value="aromatic_degradation">Promote aromatic degradation</option>
-                            </select>
+                            <label>Goal</label>
+                            <input type="text" id="goal" placeholder="e.g., Promote nitrogen fixation in corn rhizosphere">
                         </div>
 
                         <div class="field">
@@ -826,7 +1005,7 @@
                         </div>
 
                         <div class="field">
-                            <label>Metabolite candidates <span class="label-hint">(optional filter)</span></label>
+                            <label>Environmental metabolites <span class="label-hint">(optional filter)</span></label>
                             <textarea id="metabolites" rows="3" placeholder="Leave blank to search all, or specify metabolites"></textarea>
                         </div>
                     </div>
@@ -1276,7 +1455,7 @@
         }
 
         function clearForm() {
-            document.getElementById('challenge').value = 'custom';
+            document.getElementById('goal').value = '';
             document.getElementById('background').value = '';
             document.getElementById('target').value = '';
             document.getElementById('community').value = '';
@@ -1396,6 +1575,180 @@
             document.getElementById('enrich-context').value = '';
             document.getElementById('enrichment-results').classList.remove('visible');
         }
+    
+
+        // Chat window functions
+        let chatExpanded = false;
+        let chatHistory = [];
+
+        function toggleChat() {
+            const chatWindow = document.getElementById('chat-window');
+            const chatToggle = document.getElementById('chat-toggle');
+            chatExpanded = !chatExpanded;
+            
+            if (chatExpanded) {
+                chatWindow.classList.add('expanded');
+                chatToggle.textContent = '▼';
+            } else {
+                chatWindow.classList.remove('expanded');
+                chatToggle.textContent = '▲';
+            }
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message to chat
+            addChatMessage('user', message);
+            chatHistory.push({role: 'user', content: message});
+            
+            // Clear input
+            input.value = '';
+            
+            // Show loading
+            const loadingId = addChatMessage('assistant', 'Thinking...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'webofmicrobes',
+                        messages: chatHistory
+                    })
+                });
+                
+                const data = await response.json();
+                const assistantMessage = data.choices[0].message.content;
+                
+                // Remove loading message
+                document.getElementById(loadingId).remove();
+                
+                // Add assistant response
+                addChatMessage('assistant', assistantMessage);
+                chatHistory.push({role: 'assistant', content: assistantMessage});
+                
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+                addChatMessage('assistant', 'Sorry, I encountered an error. Please try again.');
+                console.error('Chat error:', error);
+            }
+        }
+
+        function addChatMessage(role, content) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            const messageId = 'msg-' + Date.now();
+            messageDiv.id = messageId;
+            messageDiv.className = `chat-message ${role}`;
+            messageDiv.innerHTML = `<div class="chat-bubble">${content}</div>`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return messageId;
+        }
+
+        // Name validation functions
+        async function validateNames(microbeNames, metaboliteNames) {
+            try {
+                const response = await fetch(`${API_BASE}/unify_names`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        microbe_names: microbeNames,
+                        metabolite_names: metaboliteNames
+                    })
+                });
+                
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Name validation error:', error);
+                return null;
+            }
+        }
+
+        function showValidationUI(microbes, metabolites) {
+            // Create or update validation columns
+            let validationDiv = document.getElementById('validation-results');
+            
+            if (!validationDiv) {
+                validationDiv = document.createElement('div');
+                validationDiv.id = 'validation-results';
+                validationDiv.className = 'validation-columns';
+                
+                // Insert after form grid in prebiotic recommender
+                const formGrid = document.querySelector('#recommender-results').parentElement.querySelector('.form-grid');
+                formGrid.after(validationDiv);
+            }
+            
+            let html = '';
+            
+            // Microbes column
+            if (microbes && microbes.length > 0) {
+                html += '<div class="validation-column"><h4>Microbe Names</h4>';
+                microbes.forEach(item => {
+                    const confidenceClass = item.confidence || 'low';
+                    html += `
+                        <div class="validation-item">
+                            <div class="input-text">Input: ${item.input_name}</div>
+                            <div class="resolved-text">
+                                ${item.resolved_name || 'Not found'}
+                                <span class="confidence ${confidenceClass}">${confidenceClass}</span>
+                            </div>
+                            ${item.note ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${item.note}</div>` : ''}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            // Metabolites column
+            if (metabolites && metabolites.length > 0) {
+                html += '<div class="validation-column"><h4>Metabolite Names</h4>';
+                metabolites.forEach(item => {
+                    const confidenceClass = item.confidence || 'low';
+                    html += `
+                        <div class="validation-item">
+                            <div class="input-text">Input: ${item.input_name}</div>
+                            <div class="resolved-text">
+                                ${item.resolved_name || 'Not found'}
+                                <span class="confidence ${confidenceClass}">${confidenceClass}</span>
+                            </div>
+                            ${item.note ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${item.note}</div>` : ''}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            validationDiv.innerHTML = html;
+            validationDiv.style.display = 'grid';
+        }
+
+
     </script>
+
+    <!-- Chat Window -->
+    <div class="chat-window" id="chat-window">
+        <div class="chat-header" onclick="toggleChat()">
+            <span>Ask a Question</span>
+            <span class="chat-toggle" id="chat-toggle">▲</span>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <div class="chat-message assistant">
+                <div class="chat-bubble">
+                    Hi! I can help you understand predictions, recommend metabolites, or answer questions about soil microbiome engineering.
+                </div>
+            </div>
+        </div>
+        <div class="chat-input-container">
+            <input type="text" id="chat-input" placeholder="Ask about predictions..." onkeypress="if(event.key==='Enter')sendChatMessage()">
+            <button class="btn-primary" onclick="sendChatMessage()">Send</button>
+        </div>
+    </div>
+
 </body>
 </html>

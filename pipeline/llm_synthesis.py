@@ -416,3 +416,118 @@ To test with actual LLM:
 
 if __name__ == '__main__':
     main()
+
+    def validate_predictions_with_kg(
+        self,
+        predictions: List[Dict],
+        genus: str,
+        kg_pathways: Optional[Dict] = None
+    ) -> List[Dict]:
+        """
+        Validate predictions against KG pathway data.
+
+        Args:
+            predictions: List of metabolite predictions with affinities
+            genus: Target genus name
+            kg_pathways: Knowledge graph pathway data for the genus
+
+        Returns:
+            Predictions enriched with validation flags
+        """
+        validated = []
+
+        for pred in predictions:
+            validated_pred = pred.copy()
+            metabolite = pred.get('metabolite', '')
+            affinity = pred.get('affinity', 0)
+
+            # Default: no validation issues
+            validated_pred['kg_validated'] = True
+            validated_pred['kg_warning'] = None
+
+            # If KG data available, check for conflicts
+            if kg_pathways:
+                # Check if metabolite makes biological sense
+                # For example: amino acid degradation pathways
+                if 'amino acid' in metabolite.lower() or metabolite in [
+                    'glutamic acid', 'aspartic acid', 'alanine', 'leucine',
+                    'valine', 'isoleucine', 'phenylalanine', 'tyrosine'
+                ]:
+                    # Check for amino acid metabolism pathways
+                    has_aa_pathways = any('amino acid' in str(p).lower()
+                                         for p in kg_pathways.values())
+                    if not has_aa_pathways and abs(affinity) > 3.0:
+                        validated_pred['kg_validated'] = False
+                        validated_pred['kg_warning'] = f"High affinity for {metabolite} but no amino acid metabolism pathways found in KG"
+
+                # Check for aromatic compounds
+                if any(arom in metabolite.lower() for arom in ['benzoate', 'phenol', 'catechol', 'dopamine', 'tyrosine']):
+                    has_aromatic_pathways = any('aromatic' in str(p).lower() or 'catechol' in str(p).lower()
+                                               for p in kg_pathways.values())
+                    if not has_aromatic_pathways and abs(affinity) > 3.0:
+                        validated_pred['kg_validated'] = False
+                        validated_pred['kg_warning'] = f"High affinity for aromatic compound {metabolite} but no aromatic degradation pathways in KG"
+
+                # Check for sugars
+                if any(sugar in metabolite.lower() for sugar in ['glucose', 'fructose', 'sucrose', 'maltose']):
+                    has_carb_pathways = any('carbohydrate' in str(p).lower() or 'glycolysis' in str(p).lower()
+                                           for p in kg_pathways.values())
+                    if not has_carb_pathways and abs(affinity) > 3.0:
+                        validated_pred['kg_validated'] = False
+                        validated_pred['kg_warning'] = f"High affinity for sugar {metabolite} but limited carbohydrate metabolism pathways in KG"
+
+            validated.append(validated_pred)
+
+        return validated
+
+    def flag_unlikely_predictions(
+        self,
+        community_predictions: List[Dict]
+    ) -> Dict[str, Any]:
+        """
+        Flag predictions that seem unlikely based on ecological theory.
+
+        Args:
+            community_predictions: List of genus predictions with affinities and directions
+
+        Returns:
+            Dictionary with flags and warnings
+        """
+        benefited = [p for p in community_predictions if p.get('direction') == 'benefited']
+        harmed = [p for p in community_predictions if p.get('direction') == 'harmed']
+
+        flags = {
+            'all_benefit': False,
+            'none_harmed': False,
+            'warnings': []
+        }
+
+        # Flag 1: All microbes benefit (violates niche partitioning)
+        if len(benefited) == len(community_predictions) and len(benefited) > 2:
+            flags['all_benefit'] = True
+            flags['warnings'].append(
+                "Warning: All microbes predicted to increase. This contradicts exometabolite "
+                "niche partitioning theory. The metabolite profile may not be selective."
+            )
+
+        # Flag 2: No microbes harmed (suspicious if community > 3)
+        if len(harmed) == 0 and len(community_predictions) > 3:
+            flags['none_harmed'] = True
+            flags['warnings'].append(
+                "Note: No microbes predicted to decrease. This is unusual for larger communities "
+                "and may indicate limited metabolite diversity or modeling limitations."
+            )
+
+        # Flag 3: Extreme dominance (one microbe >>  others)
+        if benefited:
+            max_affinity = max(abs(p.get('affinity', 0)) for p in benefited)
+            avg_affinity = sum(abs(p.get('affinity', 0)) for p in benefited) / len(benefited)
+
+            if max_affinity > 3 * avg_affinity and max_affinity > 5.0:
+                dominant = [p for p in benefited if abs(p.get('affinity', 0)) == max_affinity][0]
+                flags['warnings'].append(
+                    f"Note: {dominant.get('genus', 'Unknown')} shows dominant response "
+                    f"(affinity={dominant.get('affinity', 0):.1f}). Consider if this aligns with your goal."
+                )
+
+        return flags
