@@ -1,0 +1,23 @@
+{
+  "num_microbes": 17367,
+  "num_metabolites": 779,
+  "num_edges": 82841,
+  "edge_types": [
+    "('microbe', 'biolink:consumes', 'metabolite')",
+    "('microbe', 'biolink:produces', 'metabolite')",
+    "('microbe', 'biolink:associated_with_resistance_to', 'metabolite')",
+    "('microbe', 'biolink:subclass_of', 'microbe')",
+    "('microbe', 'biolink:associated_with_sensitivity_to', 'metabolite')"
+  ],
+  "edge_counts": {
+    "('microbe', 'biolink:consumes', 'metabolite')": 68328,
+    "('microbe', 'biolink:produces', 'metabolite')": 2121,
+    "('microbe', 'biolink:associated_with_resistance_to', 'metabolite')": 1261,
+    "('microbe', 'biolink:subclass_of', 'microbe')": 8798,
+    "('microbe', 'biolink:associated_with_sensitivity_to', 'metabolite')": 2333
+  },
+  "source": "KG-Microbe (filtered to HILIC standards)",
+  "standards_inchi_keys": 817,
+  "standards_chebi_ids": 782,
+  "filtering_note": "Only metabolites with ChEBI IDs matching standards are included"
+}
