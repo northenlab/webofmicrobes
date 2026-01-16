@@ -1,6 +1,4 @@
 Id,Organism Id,Compound Id,Env,Project Id,Fold,Log2 Fold Change,Assertion Code
-1,EB106-06-01-XG185,short filename,NLDM,Biggs_NLDM_S1,,,ND
-2,EB106-06-01-XG185,short samplename,NLDM,Biggs_NLDM_S1,,,ND
 3,EB106-06-01-XG185,0000_indole-3-pyruvic_acid,NLDM,Biggs_NLDM_S1,18.937083350299783,4.243142241951163,5
 4,EB106-06-01-XG185,0001_thymine,NLDM,Biggs_NLDM_S1,2.2740840119011327,1.185285552961159,2
 5,EB106-06-01-XG185,0002_2_4-dihydroxypteridine,NLDM,Biggs_NLDM_S1,,,ND
