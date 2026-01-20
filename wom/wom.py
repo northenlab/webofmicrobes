@@ -9,6 +9,16 @@ import numpy as np
 from config import CACHE_FILES
 from rapidfuzz import fuzz, process  # or thefuzz, or simple difflib
 
+# Add to wom.py
+
+from gtdb import (
+    get_gtdb,
+    predict_embedding_phylogenetic,
+    predict_metabolites_phylogenetic,
+)
+
+
+
 logger = logging.getLogger(__name__)
 
 # Lazy-loaded singletons
@@ -38,7 +48,7 @@ def _load_models():
 # Taxonomy-level queries
 # ============================================================
 
-def what_consumes(
+def consumed_by(
     genus: str = None,
     family: str = None,
     order: str = None,
@@ -101,14 +111,14 @@ def what_consumes(
     return pd.DataFrame(results)
 
 
-def what_secretes(
+def secreted_by(
     genus: str = None,
     family: str = None,
     order: str = None,
     top_k: int = 20,
 ) -> pd.DataFrame:
     """What metabolites are secreted by organisms in this taxonomic group?"""
-    # Same pattern as what_consumes, using "secreted" model
+    # Same pattern as consumed_by, using "secreted" model
     exo = _load_exo()
     models = _load_models()
     
@@ -152,7 +162,7 @@ def what_secretes(
     
     return pd.DataFrame(results)
 
-def who_secretes(chebi_id: int = None, compound_name: str = None, top_k: int = 20) -> pd.DataFrame:
+def secretes(chebi_id: int = None, compound_name: str = None, top_k: int = 20) -> pd.DataFrame:
     """Which organisms secrete this metabolite?"""
     models = _load_models()
     exo = _load_exo()
@@ -238,7 +248,7 @@ def similar_organisms(organism_id: str, top_k: int = 10, by: str = "consumed") -
 # Metabolite-level queries
 # ============================================================
 
-def who_consumes(chebi_id: int = None, compound_name: str = None, top_k: int = 20) -> pd.DataFrame:
+def consumes(chebi_id: int = None, compound_name: str = None, top_k: int = 20) -> pd.DataFrame:
     """Which organisms consume this metabolite?"""
     models = _load_models()
     exo = _load_exo()
@@ -270,6 +280,128 @@ def who_consumes(chebi_id: int = None, compound_name: str = None, top_k: int = 2
     
     return pd.DataFrame(results)
 
+### novel taxa queries ###
+
+
+def predict_consumption_novel(
+    taxonomy: dict[str, str],
+    top_k: int = 10,
+) -> pd.DataFrame:
+    """
+    Predict consumption for an organism not in training data.
+    
+    Uses phylogenetic neighbors from GTDB to infer metabolite preferences.
+    
+    Args:
+        taxonomy: {"genus": "Pseudomonas", "family": "Pseudomonadaceae", ...}
+        top_k: Number of metabolites to return
+    
+    Returns:
+        DataFrame with chebi_id, chebi_name, score, confidence, method, neighbors
+    """
+    models = _load_models()
+    wrapper = models["consumed"]
+    gtdb = get_gtdb().load()
+    
+    df = predict_metabolites_phylogenetic(taxonomy, wrapper, gtdb, top_k)
+    
+    if df.empty:
+        return df
+    
+    # Add metabolite names
+    exo = _load_exo()
+    chebi_lookup = exo[["chebi_id", "chebi_name"]].drop_duplicates().set_index("chebi_id")["chebi_name"].to_dict()
+    df["chebi_name"] = df["chebi_id"].map(chebi_lookup)
+    
+    # Reorder columns
+    cols = ["chebi_id", "chebi_name", "score", "confidence", "method", "n_neighbors", "min_distance"]
+    return df[[c for c in cols if c in df.columns]]
+
+
+def predict_secretion_novel(
+    taxonomy: dict[str, str],
+    top_k: int = 10,
+) -> pd.DataFrame:
+    """
+    Predict secretion for an organism not in training data.
+    
+    Uses phylogenetic neighbors from GTDB to infer metabolite preferences.
+    
+    Args:
+        taxonomy: {"genus": "Pseudomonas", "family": "Pseudomonadaceae", ...}
+        top_k: Number of metabolites to return
+    
+    Returns:
+        DataFrame with chebi_id, chebi_name, score, confidence, method, neighbors
+    """
+    models = _load_models()
+    wrapper = models["secreted"]
+    gtdb = get_gtdb().load()
+    
+    df = predict_metabolites_phylogenetic(taxonomy, wrapper, gtdb, top_k)
+    
+    if df.empty:
+        return df
+    
+    # Add metabolite names
+    exo = _load_exo()
+    chebi_lookup = exo[["chebi_id", "chebi_name"]].drop_duplicates().set_index("chebi_id")["chebi_name"].to_dict()
+    df["chebi_name"] = df["chebi_id"].map(chebi_lookup)
+    
+    # Reorder columns
+    cols = ["chebi_id", "chebi_name", "score", "confidence", "method", "n_neighbors", "min_distance"]
+    return df[[c for c in cols if c in df.columns]]
+
+
+def get_phylogenetic_context(
+    taxonomy: dict[str, str],
+    model_type: str = "consumed",
+) -> dict:
+    """
+    Get detailed phylogenetic context for a query taxon.
+    
+    Useful for explaining predictions to users.
+    
+    Args:
+        taxonomy: {"genus": "SomeGenus", ...}
+        model_type: "consumed" or "secreted"
+    
+    Returns:
+        {
+            "query": {"genus": ..., "family": ...},
+            "gtdb_lineage": {...} or None,
+            "in_database": bool,
+            "neighbors": [...],
+            "confidence": float,
+        }
+    """
+    models = _load_models()
+    wrapper = models[model_type]
+    gtdb = get_gtdb().load()
+    
+    query_genus = taxonomy.get("genus")
+    
+    # Check if exact match exists
+    in_database = False
+    if query_genus and wrapper.taxonomy_embeddings:
+        in_database = query_genus in wrapper.taxonomy_embeddings.get("genus", {})
+    
+    # Get GTDB lineage
+    gtdb_lineage = None
+    if query_genus:
+        gtdb_lineage = gtdb.get_lineage(query_genus, "genus")
+    
+    # Get prediction context
+    result = predict_embedding_phylogenetic(taxonomy, wrapper, gtdb)
+    
+    return {
+        "query": taxonomy,
+        "gtdb_lineage": gtdb_lineage,
+        "in_database": in_database,
+        "neighbors": result["neighbors"],
+        "confidence": result["confidence"],
+        "method": result["method"],
+    }
 
 # ============================================================
 # Community queries
@@ -310,7 +442,47 @@ def cross_feeding_potential(organism_a: str, organism_b: str, top_k: int = 10) -
         "b_feeds_a": [{"chebi_id": cid, "chebi_name": _chebi_id_to_name(cid)} for cid in list(b_to_a)[:top_k]],
     }
 
-
+def predict_consumption_novel(
+    taxonomy: dict,
+    top_k: int = 10,
+) -> pd.DataFrame:
+    """
+    Predict consumption for an organism not in training data.
+    
+    Args:
+        taxonomy: {"genus": "Burkholderia", "family": "Burkholderiaceae", ...}
+    
+    Falls back through: genus → family → order → class
+    """
+    models = _load_models()
+    wrapper = models["consumed"]
+    
+    # Try most specific to least specific
+    for rank in ["genus", "family", "order", "class"]:
+        tax_name = taxonomy.get(rank)
+        if tax_name and tax_name in wrapper.taxonomy_embeddings.get(rank, {}):
+            emb = wrapper.taxonomy_embeddings[rank][tax_name]
+            matched_rank = rank
+            break
+    else:
+        return pd.DataFrame(columns=["chebi_id", "chebi_name", "score", "based_on"])
+    
+    # Score metabolites
+    metabolite_embs = wrapper.model.metabolite_embeddings.weight.detach().numpy()
+    scores = metabolite_embs @ emb
+    top_indices = np.argsort(scores)[::-1][:top_k]
+    
+    results = []
+    for idx in top_indices:
+        chebi_id = wrapper.idx_to_metabolite[idx]
+        results.append({
+            "chebi_id": chebi_id,
+            "chebi_name": _chebi_id_to_name(chebi_id),
+            "score": float(scores[idx]),
+            "based_on": f"{matched_rank}: {tax_name}",
+        })
+    
+    return pd.DataFrame(results)
 # ============================================================
 # Helpers
 # ============================================================

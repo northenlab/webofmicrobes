@@ -1,5 +1,6 @@
 """BPR recommendation models for metabolite preferences."""
 
+import json
 import logging
 import pickle
 from collections import defaultdict
@@ -17,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
-
 
 
 class BPRModel(nn.Module):
@@ -75,6 +75,8 @@ class BPRModelWrapper:
         self.microbe_taxonomy = metadata["microbe_taxonomy"]
         self.positives = metadata["positives"]
         self.preference_type = metadata.get("preference_type", "consumed")
+        self.taxonomy_embeddings = metadata.get("taxonomy_embeddings")
+        
     
     def predict(self, microbe_id: str, top_k: int = 10) -> list[tuple[int, float]]:
         """
@@ -154,6 +156,111 @@ def _sample_triplets(positives: dict, n_metabolites: int, batch_size: int):
 def _bpr_loss(pos_scores, neg_scores):
     """BPR loss: maximize margin between positive and negative."""
     return -torch.log(torch.sigmoid(pos_scores - neg_scores) + 1e-8).mean()
+
+
+def save_metadata(metadata: dict, base_path: Path) -> None:
+    """
+    Save metadata to JSON + NPZ format.
+    
+    Args:
+        metadata: Model metadata dict
+        base_path: Path without extension (will create .json and .npz)
+    """
+    simple = {}
+    arrays = {}
+    
+    for k, v in metadata.items():
+        if k == "taxonomy_embeddings" and v is not None:
+            # Flatten nested dict of arrays
+            for rank, embeddings in v.items():
+                for name, arr in embeddings.items():
+                    # Use double underscore as separator since names might have underscores
+                    safe_name = name.replace("__", "___")  # Escape existing double underscores
+                    arrays[f"tax__{rank}__{safe_name}"] = arr
+        elif k == "positives":
+            # Convert int keys to str, sets to lists
+            simple[k] = {str(key): list(val) for key, val in v.items()}
+        elif k == "idx_to_microbe":
+            simple[k] = {str(key): val for key, val in v.items()}
+        elif k == "idx_to_metabolite":
+            simple[k] = {str(key): val for key, val in v.items()}
+        elif k == "metabolite_to_idx":
+            # Int keys (chebi_id)
+            simple[k] = {str(key): val for key, val in v.items()}
+        elif isinstance(v, np.ndarray):
+            arrays[k] = v
+        else:
+            simple[k] = v
+    
+    json_path = base_path.with_suffix(".json")
+    npz_path = base_path.with_suffix(".npz")
+    
+    with open(json_path, "w") as f:
+        json.dump(simple, f, indent=2)
+    
+    if arrays:
+        np.savez_compressed(npz_path, **arrays)
+    
+    logger.info(f"  Saved metadata to {json_path.name} + {npz_path.name}")
+
+
+def load_metadata(base_path: Path) -> dict:
+    """
+    Load metadata from JSON + NPZ format.
+    
+    Args:
+        base_path: Path without extension
+    
+    Returns:
+        Reconstructed metadata dict
+    """
+    json_path = base_path.with_suffix(".json")
+    npz_path = base_path.with_suffix(".npz")
+    
+    with open(json_path) as f:
+        metadata = json.load(f)
+    
+    # Restore int keys
+    if "positives" in metadata:
+        metadata["positives"] = {
+            int(k): set(v) for k, v in metadata["positives"].items()
+        }
+    
+    if "idx_to_microbe" in metadata:
+        metadata["idx_to_microbe"] = {
+            int(k): v for k, v in metadata["idx_to_microbe"].items()
+        }
+    
+    if "idx_to_metabolite" in metadata:
+        metadata["idx_to_metabolite"] = {
+            int(k): v for k, v in metadata["idx_to_metabolite"].items()
+        }
+    
+    if "metabolite_to_idx" in metadata:
+        metadata["metabolite_to_idx"] = {
+            int(k): v for k, v in metadata["metabolite_to_idx"].items()
+        }
+    
+    # Load arrays and reconstruct taxonomy_embeddings
+    taxonomy_embeddings = {"genus": {}, "family": {}, "order": {}, "class": {}}
+    
+    if npz_path.exists():
+        arrays = np.load(npz_path)
+        
+        for key in arrays.files:
+            if key.startswith("tax__"):
+                # Parse: tax__rank__name
+                _, rank, name = key.split("__", 2)
+                name = name.replace("___", "__")  # Unescape
+                taxonomy_embeddings[rank][name] = arrays[key]
+            else:
+                metadata[key] = arrays[key]
+    
+    # Only include taxonomy_embeddings if we found any
+    has_tax_embeddings = any(len(v) > 0 for v in taxonomy_embeddings.values())
+    metadata["taxonomy_embeddings"] = taxonomy_embeddings if has_tax_embeddings else None
+    
+    return metadata
 
 
 def train_bpr_model(
@@ -251,6 +358,30 @@ def train_bpr_model(
     return model, metadata
 
 
+def compute_taxonomy_embeddings(wrapper: BPRModelWrapper, exo: pd.DataFrame) -> dict[str, dict[str, np.ndarray]]:
+    """Average microbe embeddings by taxonomic level."""
+    embeddings = wrapper.model.microbe_embeddings.weight.detach().numpy()
+    
+    tax_embeddings = {}
+    for rank in ["genus", "family", "order", "class"]:
+        tax_embeddings[rank] = {}
+        
+        for tax_name in exo[rank].dropna().unique():
+            org_ids = exo[exo[rank] == tax_name]["organism_id"].unique()
+            indices = [
+                wrapper.microbe_to_idx[o] 
+                for o in org_ids 
+                if o in wrapper.microbe_to_idx
+            ]
+            
+            if indices:
+                tax_embeddings[rank][tax_name] = embeddings[indices].mean(axis=0)
+        
+        logger.info(f"    {rank}: {len(tax_embeddings[rank])} embeddings")
+    
+    return tax_embeddings
+
+
 def build_bpr_models(df: pd.DataFrame, force: bool = False) -> dict[str, BPRModelWrapper]:
     """
     Build BPR models for consumption and secretion.
@@ -262,30 +393,57 @@ def build_bpr_models(df: pd.DataFrame, force: bool = False) -> dict[str, BPRMode
     
     for pref_type in ["consumed", "secreted"]:
         model_path = CACHE_FILES["bpr_model"].parent / f"bpr_{pref_type}_model.pt"
-        meta_path = CACHE_FILES["bpr_model"].parent / f"bpr_{pref_type}_metadata.pkl"
+        meta_base = CACHE_FILES["bpr_model"].parent / f"bpr_{pref_type}_metadata"
+        json_path = meta_base.with_suffix(".json")
         
-        if not force and model_path.exists() and meta_path.exists():
-            logger.info(f"Loading cached BPR model ({pref_type})")
-            with open(meta_path, "rb") as f:
+        # Check for legacy pickle format and migrate
+        legacy_pkl = CACHE_FILES["bpr_model"].parent / f"bpr_{pref_type}_metadata.pkl"
+        if legacy_pkl.exists() and not json_path.exists():
+            logger.info(f"Migrating {pref_type} metadata from pickle to JSON+NPZ...")
+            with open(legacy_pkl, "rb") as f:
                 metadata = pickle.load(f)
+            save_metadata(metadata, meta_base)
+            legacy_pkl.unlink()  # Remove old pickle
+            logger.info(f"  Removed legacy {legacy_pkl.name}")
+        
+        if not force and model_path.exists() and json_path.exists():
+            logger.info(f"Loading cached BPR model ({pref_type})")
+            metadata = load_metadata(meta_base)
             model = BPRModel(
                 metadata["n_microbes"],
                 metadata["n_metabolites"],
                 metadata["embedding_dim"]
             )
             model.load_state_dict(torch.load(model_path, weights_only=True))
+            models[pref_type] = BPRModelWrapper(model, metadata)
         else:
+            if df is None:
+                raise ValueError(f"No cached model for {pref_type} and no dataframe provided")
+            
             logger.info(f"Training BPR model ({pref_type})...")
             try:
                 model, metadata = train_bpr_model(df, preference_type=pref_type)
+                
+                # Create wrapper first so we can compute taxonomy embeddings
+                wrapper = BPRModelWrapper(model, metadata)
+                
+                # Compute taxonomy embeddings
+                logger.info(f"  Computing taxonomy embeddings...")
+                tax_embeddings = compute_taxonomy_embeddings(wrapper, df)
+                
+                # Add to metadata and update wrapper
+                metadata["taxonomy_embeddings"] = tax_embeddings
+                wrapper.taxonomy_embeddings = tax_embeddings
+                
+                # Save
                 torch.save(model.state_dict(), model_path)
-                with open(meta_path, "wb") as f:
-                    pickle.dump(metadata, f)
+                save_metadata(metadata, meta_base)
+                
+                models[pref_type] = wrapper
+                
             except ValueError as e:
                 logger.warning(f"  Skipping {pref_type}: {e}")
                 continue
-        
-        models[pref_type] = BPRModelWrapper(model, metadata)
     
     return models
 

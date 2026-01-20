@@ -7,6 +7,10 @@ from pathlib import Path
 from model import build_bpr_models, plot_all_embeddings
 from config import CACHE_DIR
 
+from gtdb import get_gtdb
+
+
+
 # Add parent to path so we can import sibling modules when run directly
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -18,6 +22,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("wom")
 
+def build_gtdb():
+    """Pre-download and cache GTDB taxonomy."""
+    logger.info("Building GTDB taxonomy cache...")
+    gtdb = get_gtdb()
+    gtdb.load(force_download=False)
+    logger.info(f"  {len(gtdb.df)} genomes loaded")
 
 def main():
     logger.info("Initializing Web of Microbes")
@@ -26,6 +36,11 @@ def main():
     import kg
     import pref
     
+    logger.info("=" * 60)
+    logger.info("Step 1: Building GTDB graph")
+    logger.info("=" * 60)
+    build_gtdb()
+
     # Step 1: Build knowledge graph
     logger.info("=" * 60)
     logger.info("Step 1: Building knowledge graph")
