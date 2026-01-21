@@ -14,8 +14,8 @@ import os
 
 BIG_DATA_DIR = Path('/pscratch/sd/b/bpb/wom_data_cache')
 RAW_DIR = BIG_DATA_DIR / "raw"
-CACHE_DIR = BIG_DATA_DIR / "cache"
-
+# CACHE_DIR = BIG_DATA_DIR / "cache"
+CACHE_DIR = Path("./cache")
 DATA_DIR = Path("./data")
 
 MAPPINGS_DIR = DATA_DIR / "mappings"
