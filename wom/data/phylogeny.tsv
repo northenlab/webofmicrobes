@@ -1,125 +1,225 @@
-Kingdom	Class	Order	Family	Genus	Species	Isolate
-Bacteria	Betaproteobacteria	Burkholderiales	Comamonadaceae 	Variovorax 		GW821-FHT05G03
-Bacteria	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Cupriavidus		GW822-FHT05A05
-Bacteria	Betaproteobacteria	Burkholderiales	Comamonadaceae 	Comamonas		GW456-R20
-Bacteria	Gammaproteobacteria	Enterobacterales	Enterobacteriaceae	Escherichia		BW25113
-Bacteria	Betaproteobacteria	Burkholderiales	Comamonadaceae 	Hydrogenophaga		GW460-11-11-14-LB1
-Bacteria	Betaproteobacteria	Burkholderiales	Oxalobacteraceae	Janthinobacterium 		GW821-FHT05H10
-Bacteria	Betaproteobacteria	Burkholderiales	Oxalobacteraceae 	Pseudoduganella		GW821-FHT05F08
-Bacteria	Bacteroidia	Sphingobacteriales	Sphingobacteriaceae	Pedobacter		GW460-11-11-14-LB5
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW300-N1B4
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW300-N2A2
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW300-N2C3
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW300-N2E3
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW300-N2F2
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW507-14TSA
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		GW101-3H06
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		GW456-L15
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		GW460-E12
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		GW704-E3
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		GW821-FHT05B07
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		GW821-FHT05D12
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		GW823-FHT05G12
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		MLSB5-FHT05B04
-Bacteria	Gammaproteobacteria	Xanthomonadales	Rhodanobacteraceae	Rhodanobacter		FW104-10B1
-Bacteria	Gammaproteobacteria	Enterobacterales 	Yersiniaceae 	Serratia		MT049
-Bacteria	Bacilli	Bacillales	Bacillaceae			CPT56D-587-MTF
-Bacteria	Actinomycetia	Actinomycetales	Microbacteriaceae	Microbacterium		EB106-03-01-XG64
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Cupriavidus		EB106-05-01-XG147
-Bacteria	Bacilli	Bacillales	Bacillaceae			EB106-06-01-XG185
-Bacteria	Bacilli	Bacillales	Bacillaceae			EB106-07-01-XG149
-Bacteria	Bacilli	Bacillales				EB106-08-02-XG196
-Bacteria	Bacilli	Bacillales				EB106-09-02-XG168
-Bacteria	Alphaproteobacteria	Rhizobiales	Rhizobiaceae	Allorhizobium		EB271-A4-7B
-Bacteria	Gammaproteobacteria	Xanthomonadales	Rhodanobacteraceae	Rhodanobacter		FW104-10B01
-Bacteria	Alphaproteobacteria	Caulobacterales	Caulobacteraceae	Brevundimonas		FW104-16D08
-Bacteria	Gammaproteobacteria	Xanthomonadales	Rhodanobacteraceae	Rhodanobacter		FW104-R3
-Bacteria	Gammaproteobacteria	Xanthomonadales	Rhodanobacteraceae	Rhodanobacter		FW104-R5
-Bacteria	Gammaproteobacteria	Xanthomonadales	Rhodanobacteraceae	Rhodanobacter		FW104-T7
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW215-T2
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW300-N1A1
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW300-N2E2
-Bacteria						FW303-A3
-Bacteria	Actinomycetia	Mycobacteriales	Mycobacteriaceae	Rhodococcus		FW305-104
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Undibacterium		FW305-107
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW305-113
-Bacteria	Actinomycetia	Actinomycetales	Micrococcaceae	Paenarthrobacter		FW305-123
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW305-127
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW305-17
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW305-3
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Hydrogenophaga		FW305-3-2-15-A-LB1
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW305-3-2-15-C-LB1
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW305-3-2-15-C-TSA3
-Bacteria	Gammaproteobacteria	Xanthomonadales	Xanthomonadaceae	Stenotrophomonas		FW305-3-2-15-E-LB1
-Bacteria	Bacteroidia	Sphingobacteriales	Sphingobacteriaceae	Pedobacter		FW305-3-2-15-E-R2A2
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW305-3-2-15-E-TSA4
-Bacteria	Alphaproteobacteria	Sphingomonadales	Sphingomonadaceae	Sphingobium		FW305-3-2-15-F-TSA7
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW305-53
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW305-70
-Bacteria	Alphaproteobacteria	Rhizobiales	Rhizobiaceae	Ensifer		FW305-C-10-9
-Bacteria	Alphaproteobacteria	Sphingomonadales	Sphingomonadaceae	Novosphingobium		FW305-C-30-35
-Bacteria	Alphaproteobacteria	Caulobacterales	Caulobacteraceae	Caulobacter		FW305-C-30-S16
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW305-E2
-Bacteria	Alphaproteobacteria	Rhizobiales	Xanthobacteraceae	Bradyrhizobium		FW305-F6
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Paraburkholderia		FW306-02-B
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW306-02-D09B
-Bacteria	Alphaproteobacteria	Sphingomonadales	Sphingomonadaceae	Sphingomonas		FW306-05-A
-Bacteria	Actinomycetia	Actinomycetales	Micrococcaceae	Pseudarthrobacter		FW306-05-C
-Bacteria	Alphaproteobacteria	Rhizobiales	Beijerinckiaceae	Methylobacterium		FW306-05-D
-Bacteria	Bacteroidia	Sphingobacteriales	Sphingobacteriaceae	Mucilaginibacter		FW306-07-L
-Bacteria	Gammaproteobacteria	Xanthomonadales	Xanthomonadaceae	Lysobacter		FW306-1B-D06B
-Bacteria	Actinomycetia	Actinomycetales	Micrococcaceae	MA-N2		FW306-1B-G06A
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Burkholderia		FW306-1C-G01B
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		FW507-12TSA
-Bacteria	Bacilli	Bacillales	Bacillaceae			FW507-14D01
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Cupriavidus		FW507-4G11
-Bacteria	Gammaproteobacteria	Burkholderiales	Chromobacteriaceae	Pseudogulbenkiania		FW507-F1
-Bacteria	Gammaproteobacteria	Xanthomonadales	Rhodanobacteraceae	Rhodanobacter		FW510-R10
-Bacteria	Gammaproteobacteria	Xanthomonadales	Rhodanobacteraceae	Rhodanobacter		FW510-R12
-Bacteria	Gammaproteobacteria	Xanthomonadales	Rhodanobacteraceae	Rhodanobacter		FW510-T8
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Acidovorax		GW101-11A03
-Bacteria	Alphaproteobacteria	Rhizobiales	Rhizobiaceae	Ensifer		GW101-20A05
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Acidovorax		GW101-20D03
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Hydrogenophaga		GW101-3F08
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Acidovorax		GW101-3H11
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Giesbergeria		GW247-4R2A
-Bacteria	Bacilli	Bacillales				GW247-5R2A
-Bacteria						GW247-6R2A
-Bacteria	Bacteroidia	Flavobacteriales	Flavobacteriaceae	Flavobacterium		GW456-11-11-14-LB4
-Bacteria	Bacteroidia	Sphingobacteriales	Sphingobacteriaceae	Pedobacter		GW456-11-11-14-TSB4
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Acidovorax		GW456-A8
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Comamonas		GW456-E5
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		GW456-L13
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Comamonas		GW456-R20
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Acidovorax		GW458-11-26-14-TSB4
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Castellaniella		GW458-11-26-14-TSB5
-Bacteria	Bacteroidia	Cytophagales	Spirosomaceae	Arcicella		GW458-12-2-14-TSB2
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Acidovorax		GW460-11-11-14-LB4
-Bacteria	Bacteroidia	Sphingobacteriales	Sphingobacteriaceae	Pedobacter		GW460-11-11-14-TSB4
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Variovorax		GW460-12-1-14-LB1
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Janthinobacterium		GW460-12-1-14-LB5
-Bacteria	Alphaproteobacteria	Rhizobiales	Beijerinckiaceae	Methylobacterium		GW460-12-10-14-LB3
-Bacteria	Alphaproteobacteria	Rhizobiales	Beijerinckiaceae	Methylobacterium		GW460-12-10-14-LB3
-Bacteria	Gammaproteobacteria	Pseudomonadales	Moraxellaceae	Acinetobacter		GW460-4
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		GW460-8
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		GW460-C3
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		GW704-F2
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Xylophilus		GW821-FHT01B05
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		GW821-FHT02G11
-Bacteria	Gammaproteobacteria	Burkholderiales	Rhodocyclaceae	Azonexus		GW821-FHT04F04
-Bacteria						GW821-FHT05A03
-Bacteria	Gammaproteobacteria	Enterobacterales	Enterobacteriaceae	Erwinia		GW821-FHT05B06
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Rhodoferax		GW822-FHT02A01
-Bacteria	Gammaproteobacteria	Burkholderiales	Rhodocyclaceae	Zoogloea		GW822-FHT05C07
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Comamonas		GW822-FHT05D05
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		GW823-FHT01D03
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Acidovorax		GW823-FHT05C09
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Acidovorax		GW823-FHT05D11
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Rhodoferax		MLSD5-FHT05A06
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Rhodoferax		MLSD5-FHT05A06
-Bacteria	Alphaproteobacteria	Rhizobiales	Xanthobacteraceae	Afipia		MLSD5-FHT05B12
-Bacteria	Alphaproteobacteria	Rhizobiales	Xanthobacteraceae	Afipia		MLSD5-FHT05B12
-Bacteria	Gammaproteobacteria	Burkholderiales	Burkholderiaceae	Cupriavidus		MPBC4-4
-Bacteria	Gammaproteobacteria	Burkholderiales	Rhodocyclaceae	Azospira		MPR-LB4
-Bacteria	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas		MPR-R2A5
-Bacteria	Actinomycetia	Actinomycetales	Microbacteriaceae	Microbacterium		MPR-TSA4
+Kingdom	Phylum	Class	Order	Family	Genus	Isolate	Closest relative in NCBI 16S database	Similarity (%)
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Acidovorax	GW101-11A03	Acidovorax delafieldii strain 133	98
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Acidovorax	GW101-20D03	Acidovorax soli strain BL21	99
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Acidovorax	GW101-3H11	Acidovorax soli strain BL21	99
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Acidovorax	GW456-A8	Acidovorax delafildii	98
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Acidovorax	GW458-11-26-14-TSB4	Acidovorax sp.	100
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Acidovorax	GW460-11-11-14-LB4	Acidovorax sp.	99.9
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Acidovorax	GW823-FHT05C09	Acidovorax facilis strain CCUG 2113	99.2
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Acidovorax	GW101-3E06	Acidovorax defluvii strain BSB411	97
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Acidovorax	CS28	Acidovorax-CS28	NA
+Bacteria	Pseudomonadota	Gammaproteobacteria	Moraxellales	Moraxellaceae	Acinetobacter	GW460-4	Acinetobacter soli str. B1	97
+Bacteria	Pseudomonadota	Gammaproteobacteria	Aeromonadales	Aeromonadaceae	Aeromonas	CS26	Aeromonas-CS26	NA
+Bacteria	Pseudomonadota	Gammaproteobacteria	Aeromonadales	Aeromonadaceae	Aeromonas	CS44	Aeromonas-CS44	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Nitrobacteraceae	Afipia	MLSD5-FHT05B12	Afipia broomeae strain F186	99.1
+Bacteria	Bacteroidota	Cytophagia	Cytophagales	Flectobacillaceae	Arcicella	GW458-12-2-14-TSB2	Arcicella aquatica	99.2
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Micrococcaceae	Arthrobacter	ArthrobacterOAP107	NA	NA
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Micrococcaceae	Arthrobacter	FW305-123	Arthrobacter aurescens TC1	98
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Micrococcaceae	Arthrobacter	FW306-05-C	Arthrobacter liuii strain DSXY973	99
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Micrococcaceae	Arthrobacter	FW306-1B-G06A	Arthrobacter bambusae strain THG-GM18	95
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Micrococcaceae	Arthrobacter	Arthrobacternitrophenolicus	Arthrobacter nitrophenolicus	
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Micrococcaceae	Arthrobacter	Arthrobactersp_D1B45	NA	NA
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Micrococcaceae	Arthrobacter	iso2_AS	Arthrobacter sp. FB24	NA
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Micrococcaceae	Arthrobacter	CS23	Arthrobacter-CS23	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Rhodocyclales	Rhodocyclaceae	Azospira	MPR-TSA4	Azospira oryzae strain 6a3	99
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	CPT56D-587-MTF	Bacillus cereus	98.82
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	EB106-06-01-XG185	Bacillus cereus strain ANP221	99
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	EB106-07-01-XG149	Bacillus thuringiensis strain EI-18	99
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	EB106-08-02-XG196	Bacillus sp. strain 30.1	99
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	FW507-14D01	Bacillus megaterium strain NBRC 15308	100
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	FW507-8R2A	Bacillus sp.	99.7
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	Bacillusmegaterium	Bacillus megaterium	
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	Bacillussp_D1B51	NA	NA
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	Bacillussp_L2B47	NA	NA
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	iso10_BM	Bacillus mycoides 273	NA
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	iso11_BK	Bacillus kribbensis BT080	NA
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	iso12_BP	Bacillus panaciterrae	NA
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	iso21_BL	Bacillus licheniformis Gibson 46	NA
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	iso8_BS	Bacillus soli NBRC 102451	NA
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Bacillus	iso9_BM	Bacillus megaterium QM B1551	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Boseaceae	Bosea	BoseaOAE506	NA	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Boseaceae	Bosea	Boseasp_L1B56	NA	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Boseaceae	Bosea	CS8	Bosea-CS8	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Nitrobacteraceae	Bradyrhizobium	FW305-F6	Bradyrhizobium japonicum strain 3I1b6	99
+Bacteria	Bacillota	Bacilli	Bacillales	Paenibacillaceae	Brevibacillus	BrevibacillusOAP136	NA	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Caulobacterales	Caulobacteraceae	Brevundimonas	GW456-12-10-14-LB3	Brevundimonas sp.	100
+Bacteria	Pseudomonadota	Alphaproteobacteria	Caulobacterales	Caulobacteraceae	Brevundimonas	GW458-11-26-14-TSB5	Brevundimonas sp.	100
+Bacteria	Pseudomonadota	Alphaproteobacteria	Caulobacterales	Caulobacteraceae	Brevundimonas	CS74	Brevundimonas-CS74	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Caulobacterales	Caulobacteraceae	Brevundimonas	Bl	Brevundimonas-TB2	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Caulobacterales	Caulobacteraceae	Brevundimonas	Bb	Brevundimonas-Lembiez	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Burkholderia	FW306-1C-G01B	Burkholderia ambifaira strain AMMD	99
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Burkholderia	BurkholderiaP16	Burkholderia P17	
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Burkholderia	BurkholderiaisoA	Burkholderia isolate A	
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Burkholderia	BurkholderiaisoB	Burkholderia isolate B	
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Burkholderia	FW306-02-B	Burkholderia rhynchosiae strain WSM3937	99
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Alcaligenaceae	Castellaniella	FW104-16D08	Castellaniella hirudinis strain E103	98
+Bacteria	Pseudomonadota	Alphaproteobacteria	Caulobacterales	Caulobacteraceae	Caulobacter	FW305-C-30-S16	Caulobacter sp. ECN-2008 partial 16S rRNA gene	99.85
+Bacteria	Pseudomonadota	Alphaproteobacteria	Caulobacterales	Caulobacteraceae	Caulobacter	CaulobacterIsoA	Caulobacter Isolate A	
+Bacteria	Pseudomonadota	Alphaproteobacteria	Caulobacterales	Caulobacteraceae	Caulobacter	CaulobacterisoB	Caulobacter isolate B	
+Bacteria	Bacteroidota	Chitinophagia	Chitinophagales	Chitinophagaceae	Chitinophaga	ChitinophagaOAE865	NA	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Neisseriales	Chromobacteriaceae	Chromobacterium	FW507-F1	Chromobacterium sp. str. 2002	99.79
+Bacteria	Bacteroidota	Flavobacteriia	Flavobacteriales	Weeksellaceae	Chryseobacterium	Chryseobacterium	Chryseobacterium	
+Bacteria	Bacteroidota	Flavobacteriia	Flavobacteriales	Weeksellaceae	Chryseobacterium	ChryseobacteriumrhizosphaeraeisoA	Chryseobacterium rhizosphaerae isolate A	
+Bacteria	Bacteroidota	Flavobacteriia	Flavobacteriales	Weeksellaceae	Chryseobacterium	ChryseobacteriumrhizosphaeraeisoB	Chryseobacterium rhizosphaerae isolate B	
+Bacteria	Bacteroidota	Flavobacteriia	Flavobacteriales	Weeksellaceae	Chryseobacterium	CS45	Chryseobacterium-CS45	NA
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Microbacteriaceae	Clavibacter	GW821-FHT05A03	Clavibacter michiganensis subsp. phaseoli strain LPPA 982	99.49
+Bacteria	Actinomycetota	Actinomycetes	Mycobacteriales	Corynebacteriaceae	Corynebacterium	iso4_CC	Corynebacterium callunae -	NA
+Bacteria	Actinomycetota	Actinomycetes	Mycobacteriales	Corynebacteriaceae	Corynebacterium	iso6_CE	Corynebacterium efficiens YS-314	NA
+Bacteria	Actinomycetota	Actinomycetes	Mycobacteriales	Corynebacteriaceae	Corynebacterium	iso7_CT	Corynebacterium terpenotabidum NBRC 14764	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Cupriavidus	FW305-3-2-15-E-R2A2	Cupriavidus basilensis	99.9
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Cupriavidus	FW507-4G11	Cupriavidus basilensis strain DSM 11853	99
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Cupriavidus	GW460-LB6	Cupriavidus necator str. N-1	99
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Cupriavidus	GW822-FHT05A05	Cupriavidus metallidurans CH34	99.35
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Cupriavidus	MPBC4-4	Cupriavidus basilensis strain DSM 11853	99
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Cupriavidus	CS19	Cupriavidus-CS19	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Cupriavidus	CS43	Cupriavidus-CS43	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Cupriavidus	CS88	Cupriavidus-CS88	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Curvibacter	MLSD5-FHT05A06	Curvibacter delicatus strain NBRC 14919	98.49
+Bacteria	Pseudomonadota	Betaproteobacteria	Rhodocyclales	Rhodocyclaceae	Azospira	MPR-LB4	Dechlorosoma suillum PS	99
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Delftia	GW456-E5	Delftia acidovorans	99
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Delftia	GW456-R20	Delftia acidovorans	99
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Delftia	GW456-R20	Delftia acidovorans	99
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Delftia	GW822-FHT05D05	Delftia acidovorans strain NBRC 14950	100
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Rhizobiaceae	Ensifer	FW305-C-10-9	Ensifer adhaerens strain NBRC 100388 16S ribosomal RNA, partial sequence	99.48
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Rhizobiaceae	Ensifer	GW101-20A05	Ensifer adhaerens	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Enterobacterales	Erwiniaceae	Erwinia	GW821-FHT05B06	Erwinia billingiae strain Billing E63	98.42
+Bacteria	Pseudomonadota	Gammaproteobacteria	Enterobacterales	Enterobacteriaceae	Escherichia	BW25113		
+Bacteria	Pseudomonadota	Betaproteobacteria	Rhodocyclales	Azonexaceae	Ferribacterium	GW821-FHT04F04	Ferribacterium limneticum strain cda-1	99.16
+Bacteria	Bacteroidota	Flavobacteriia	Flavobacteriales	Flavobacteriaceae	Flavobacterium	GW456-11-11-14-LB4	Flavobacterium sp.	99.9
+Bacteria	Bacteroidota	Flavobacteriia	Flavobacteriales	Flavobacteriaceae	Flavobacterium	Flavobacterium	Flavobacterium	
+Bacteria	Bacteroidota	Flavobacteriia	Flavobacteriales	Flavobacteriaceae	Flavobacterium	Flavobacteriumpectinovorum	Flavobacterium pectinovorum	
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Microbacteriaceae	Gottfriedia	BacillusOAE603	NA	NA
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Microbacteriaceae	Gryllotalpicola	iso13_GG	Gryllotalpicola ginsengisoli DCY26	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Oxalobacteraceae	Herbaspirillum	FW303-A3	Herbaspirillum massiliense strain JC206	97
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Hydrogenophaga	FW305-3-2-15-A-LB1	Hydrogenophaga sp.	99.9
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Hydrogenophaga	GW101-3F08	Hydrogenophaga taeniospiralis strain 2K1	99.2
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Hydrogenophaga	GW460-11-11-14-LB1	Hydrogenophaga sp.	99.9
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Intrasporangiaceae	Janibacter	iso15_JT	Janibacter terrae CS12	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Oxalobacteraceae	Janthinobacterium	GW460-12-1-14-LB5	Janthinobacterium sp.	100
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Oxalobacteraceae	Janthinobacterium	Janthinobacterium	Janthinobacterium	
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Oxalobacteraceae	Janthinobacterium	JanthinobacteriumlividumIsoA	Janthinobacterium lividum isolate A	
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Oxalobacteraceae	Janthinobacterium	JanthinobacteriumlividumisoB	Janthinobacterium lividum isolate B	
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Oxalobacteraceae	Janthinobacterium	GW821-FHT05H10	Janthinobacterium lividum strain DSM 1522	99.64
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Lysinibacillus	EB106-09-02-XG168	Lysinibacillus sp. strain Brt-P	99
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Lysinibacillus	GW247-5R2A	Lysinibacillus fusiformis strain NBRC15717	99
+Bacteria	Bacillota	Bacilli	Bacillales	Bacillaceae	Lysinibacillus	GW247-6R2A	Lysinibacillus fusiformis strain NBRC15717	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Lysobacterales	Lysobacteraceae	Lysobacter	FW306-1B-D06B	Lysobacter soli strain DCY21	98
+Bacteria	Pseudomonadota	Gammaproteobacteria	Lysobacterales	Lysobacteraceae	Lysobacter	LysobacterOAE881	NA	NA
+Bacteria	Actinomycetota	Actinomycetes	Propionibacteriales	Nocardioidaceae	Marmoricola	MarmoricolaOAE513	NA	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Oxalobacteraceae 	Massilia	GW821-FHT05F08	Massilia buxea strain A9	98.34
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Oxalobacteraceae 	Massilia	CS77	Massilia-CS77	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Phyllobacteriaceae	Mesorhizobium	Ml	Mesorhizobium japonicum-MAFF303099	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Methylobacteriaceae	Methylobacterium	FW306-05-D	Methylobacterium goesingense strain iEll3	99
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Methylobacteriaceae	Methylobacterium	GW460-12-10-14-LB3	Methylobacterium fujisawaense	100
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Methylobacteriaceae	Methylobacterium	GW460-12-10-14-LB3	Methylobacterium fujisawaense	100
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Methylobacteriaceae	Methylobacterium	MethylobacteriumOAE515	NA	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Methylobacteriaceae	Methylobacterium	Methylobacteriumsp_D1B20	NA	NA
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Microbacteriaceae	Microbacterium	EB106-03-01-XG64	Microbacterium sp. HP8G	99
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Microbacteriaceae	Microbacterium	FW305-3-2-15-F-LB2	Microbacterium hominis	99.7
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Microbacteriaceae	Microbacterium	CS52	Microbacterium-CS52	NA
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Microbacteriaceae	Microbacterium	MsL	Microbacterium-TB13L	NA
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Microbacteriaceae	Microbacterium	MsD	Microbacterium-TB13D	NA
+Bacteria	Cyanobacteriota	Cyanophyceae	Oscillatoriales	Microcolaceae	Microcoleus	Microcoleusvaginatus_PCC9802	NA	NA
+Bacteria	Actinomycetota	Actinomycetes	Geodermatophilales	Geodermatophilaceae	Modestobacter	Modestobactersp_L1B44	NA	NA
+Bacteria	Bacteroidota	Sphingobacteriia	Sphingobacteriales	Sphingobacteriaceae	Mucilaginibacter	FW306-07-L	Mucilaginibacter defluvii strain A5	99
+Bacteria	Bacteroidota	Sphingobacteriia	Sphingobacteriales	Sphingobacteriaceae	Mucilaginibacter	MucilaginibacterOAE612	NA	NA
+Bacteria	Actinomycetota	Actinomycetes	Mycobacteriales	Mycobacteriaceae	Mycolicibacterium	iso18_MG	Mycolicibacterium gilvum Spyr1	NA
+Bacteria	Actinomycetota	Actinomycetes	Mycobacteriales	Mycobacteriaceae	Mycolicibacterium	iso16_MC	Mycolicibacterium chubuense	NA
+Bacteria	Actinomycetota	Actinomycetes	Mycobacteriales	Mycobacteriaceae	Mycolicibacterium	iso17_MC	Mycolicibacterium chubuense NBB4	NA
+Bacteria	Actinomycetota	Actinomycetes	Mycobacteriales	Mycobacteriaceae	Mycolicibacterium	iso19_MR	Mycolicibacterium rutilum Czh-117	NA
+Bacteria	Bacteroidota	Chitinophagia	Chitinophagales	Chitinophagaceae	Niastella	NiastellaOAS944	NA	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Sphingomonadales	Sphingomonadaceae	Novosphingobium	FW305-C-30-35	Novosphingobium sp. strain FW305-C-240A 16S ribosomal RNA gene, partial sequence	98.8
+Bacteria	Bacillota	Bacilli	Bacillales	Paenibacillaceae	Paenibacillus	PaenibacillusOAE614	NA	NA
+Bacteria	Bacillota	Bacilli	Bacillales	Paenibacillaceae	Paenibacillus	Paenibacilluscastaneae	Paenibacillus castaneae	
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Paraburkholderia	BurkholderiaOAS925	NA	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Paraburkholderia	Paraburkholderiacaledonica	Paraburkholderia caledonica	
+Bacteria	Bacteroidota	Sphingobacteriia	Sphingobacteriales	Sphingobacteriaceae	Pedobacter	GW456-11-11-14-TSB4	Pedobacter koreensis	99.8
+Bacteria	Bacteroidota	Sphingobacteriia	Sphingobacteriales	Sphingobacteriaceae	Pedobacter	GW460-11-11-14-LB5	Pedobacter soli strain 15-51	98
+Bacteria	Bacteroidota	Sphingobacteriia	Sphingobacteriales	Sphingobacteriaceae	Pedobacter	GW460-11-11-14-TSB4	Pedobacter soli strain 15-51	98
+Bacteria	Bacteroidota	Sphingobacteriia	Sphingobacteriales	Sphingobacteriaceae	Pedobacter	PedobacterisoA	Pedobacter isolate A	
+Bacteria	Bacteroidota	Sphingobacteriia	Sphingobacteriales	Sphingobacteriaceae	Pedobacter	PedobacterisoB	Pedobacter isolate B	
+Bacteria	Pseudomonadota	Alphaproteobacteria	Caulobacterales	Caulobacteraceae	Phenylobacterium	GW123-8A04	Phenylobacterium falsum strain AC-49	99
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Phyllobacteriaceae	Phyllobacterium	Phyllobacterium	Phyllobacterium	
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Micrococcaceae	Pseudarthrobacter	PseudarthrobactersiccitoleransArthrobacter	Pseudarthrobacter siccitolerans / Arthrobacter	
+Bacteria	Actinomycetota	Actinomycetes	Micrococcales	Microbacteriaceae	Pseudarthrobacter	iso1_PC	Pseudarthrobacter chlorophenolicus A6	NA
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW215-T2	Pseudomonas jessenii strain CIP 105274	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW300-N1A1	Pseudomonas migulae str. T19	97.48
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW300-N1B4	Pseudomonas fluorescens	99.24
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW300-N2A2	Pseudomonas migulae strain NBRC 103157	99.72
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW300-N2C3	Pseudomonas frederiksbergensis strain DSM 13022	98.92
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW300-N2E2	Pseudomonas fluorescens	99.13
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW300-N2E3	Pseudomonas fluorescens	99.22
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW300-N2F2	Pseudomonas corrugata 	94
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW305-113	Pseudomonas entomophila strain L48	91
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW305-127	Pseudomonas mosselii strain CFML 90-83	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW305-17	Pseudomonas mosselii strain CFML 90-83	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW305-3	Pseudomonas chlororaphis strain NBRC 3904	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW305-3-2-15-C-LB1	Pseudomonas extremorientalis	99.9
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW305-3-2-15-C-TSA3	Pseudomonas extremorientalis	100
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW305-3-2-15-E-TSA4	Pseudomonas sp.	100
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW305-53	Pseudomonas frederiksbergensis strain DSM 13022	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW305-70	Pseudomonas corrugata	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW305-E2	Pseudomonas putida strain KT2440	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW306-02-D09B	Pseudomonas rhodesiae strain CIP 104664	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW507-12TSA	Pseudomonas sp. str. HMPB1	99.95
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	FW507-14TSA	Pseudomonas putida F1	99.9
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	GW101-3H06	Pseudomonas vancouverensis strain DhA-51	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	GW456-L13	Pseudomonas jessenii	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	GW456-L15	Pseudomonas protegens	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	GW460-8	Pseudomonas mandelii str. CIP 105273	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	GW460-C3	Pseudomonas mandelii	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	GW460-E12	Pseudomonas mandelii	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	GW704-E3	Pseudomonas veronii CIP 104663	99.79
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	GW704-F2	Pseudomonas veronii	99.69
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	GW821-FHT02G11	Pseudomonas veronii strain CIP 104663	96.8
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	GW821-FHT05B07	Pseudomonas protegens strain CHA0	99.63
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	GW821-FHT05D12	Pseudomonas lurida strain P 513/18	98.55
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	GW823-FHT01D03	Pseudomonas koreensis strain Ps 9-14	99.93
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	GW823-FHT05G12	Pseudomonas plecoglossicida strain NBRC 103162	99.71
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	MLSB5-FHT05B04	Pseudomonas silesiensis strain A3	99.77
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	MPR-R2A5	Pseudomonas marginalis strain ICMP 3553	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	Pseudomonasfluorescens	Pseudomonas fluorescens	
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	Pseudomonasgranadensis	Pseudomonas granadensis	
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	Pseudomonasputida	Pseudomonas putida	
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	CS90	Pseudomonas-CS90	NA
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	CS107	Pseudomonas-CS107	NA
+Bacteria	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	Pp	Pseudomonas-TB1	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Burkholderiaceae	Ralstonia	EB106-05-01-XG147	Ralstonia sp. SK1	99
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Rhizobiaceae	Rhizobium	EB271-A4-7B	Rhizobium selenitireducens strain B1	97.3
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Rhizobiaceae	Rhizobium	GW101-3B10	Rhizobium selenitireducens strain B1	99
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Rhizobiaceae	Rhizobium	RhizobiumOAE497	NA	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Rhizobiaceae	Rhizobium	Rhizobium	Rhizobium	
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Rhizobiaceae	Rhizobium	RhizobiumjaguarisisoA	Rhizobium jaguaris isolate A	
+Bacteria	Pseudomonadota	Alphaproteobacteria	Hyphomicrobiales	Rhizobiaceae	Rhizobium	RhizobiumjaguarisisoB	Rhizobium jaguaris isolate B	
+Bacteria	Pseudomonadota	Gammaproteobacteria	Lysobacterales	Rhodanobacteraceae	Rhodanobacter	FW104-10B01		
+Bacteria	Pseudomonadota	Gammaproteobacteria	Lysobacterales	Rhodanobacteraceae	Rhodanobacter	FW104-R3	Rhodanobacter sp.	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Lysobacterales	Rhodanobacteraceae	Rhodanobacter	FW104-R5	Rhodanobacter sp.	100
+Bacteria	Pseudomonadota	Gammaproteobacteria	Lysobacterales	Rhodanobacteraceae	Rhodanobacter	FW104-T7	Rhodanobacter thiooxydans	100
+Bacteria	Pseudomonadota	Gammaproteobacteria	Lysobacterales	Rhodanobacteraceae	Rhodanobacter	FW510-R10	Rhodanobacter fulvus	96
+Bacteria	Pseudomonadota	Gammaproteobacteria	Lysobacterales	Rhodanobacteraceae	Rhodanobacter	FW510-R12	Rhodanobacter thiooxydans	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Lysobacterales	Rhodanobacteraceae	Rhodanobacter	FW510-T8	Rhodanobacter sp.	99
+Bacteria	Actinomycetota	Actinomycetes	Mycobacteriales	Nocardiaceae	Rhodococcus	FW305-104	Rhodococcus erythropolis PR4	99
+Bacteria	Actinomycetota	Actinomycetes	Mycobacteriales	Nocardiaceae	Rhodococcus	RhodococcusOAS809	NA	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Rhodoferax	GW822-FHT02A01	Rhodoferax saidenbachensis strain ED16	99.21
+Bacteria	Pseudomonadota	Gammaproteobacteria	Enterobacterales 	Yersiniaceae 	Serratia	MT49	Serratia proteamaculans 568	100
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Simplicispira	GW247-4R2A	Simplicispira sp. str. R-22835	98.64
+Bacteria	Pseudomonadota	Alphaproteobacteria	Sphingomonadales	Sphingomonadaceae	Sphingomonas	FW305-3-2-15-F-TSA7	Sphingomonas sp.	99
+Bacteria	Pseudomonadota	Alphaproteobacteria	Sphingomonadales	Sphingomonadaceae	Sphingomonas	FW306-05-A	Sphingomonas glacialis strain C16y	99
+Bacteria	Pseudomonadota	Alphaproteobacteria	Sphingomonadales	Sphingomonadaceae	Sphingomonas	Sphingomonas	Sphingomonas	
+Bacteria	Pseudomonadota	Alphaproteobacteria	Sphingomonadales	Sphingomonadaceae	Sphingomonas	CS7	Sphingomonas-CS7	NA
+Bacteria	Pseudomonadota	Alphaproteobacteria	Sphingomonadales	Sphingopyxidaceae	Sphingopyxis	CS75	Sphingopyxis-CS75	NA
+Bacteria	Pseudomonadota	Gammaproteobacteria	Lysobacterales	Lysobacteraceae	Stenotrophomonas	FW305-3-2-15-E-LB1	Stenotrophomonas maltophilia R551-3	99
+Bacteria	Pseudomonadota	Gammaproteobacteria	Lysobacterales	Lysobacteraceae	Stenotrophomonas	CS24	Stenotrophomonas-CS24	NA
+Bacteria	Pseudomonadota	Gammaproteobacteria	Lysobacterales	Lysobacteraceae	Stenotrophomonas	CS123	Stenotrophomonas-CS123	NA
+Bacteria	Actinomycetota	Actinomycetes	Kitasatosporales	Streptomycetaceae	Streptomyces	Streptomyces	Streptomyces	
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Oxalobacteraceae	Undibacterium	FW305-107	Undibacterium pigrum strain CCUG 49009	99
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Variovorax	GW458-12-9-14-LB2	Variovorax paradoxus	99.9
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Variovorax	GW460-12-1-14-LB1	Variovorax paradoxus	100
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Variovorax	VariovoraxOAS795	NA	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Variovorax	Variovorax	Variovorax	
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Variovorax	CS6	Variovorax-CS6	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Variovorax	Vp8	Variovorax-TB8	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae	Variovorax	Vp9	Variovorax-TB9	NA
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales	Comamonadaceae 	Variovorax	GW821-FHT05G03	Variovorax boronicumulans NBRC 103145	99.35
+Bacteria	Pseudomonadota	Betaproteobacteria	Burkholderiales		Xylophilus	GW821-FHT01B05	Xylophilus ampelinus strain BPIC 48	98.48
+Bacteria	Pseudomonadota	Betaproteobacteria	Rhodocyclales	Zoogloeaceae	Zoogloea	GW822-FHT05C07	Zoogloea resiniphila strain DhA-35	97.99

@@ -13,7 +13,8 @@ import os
 # ROOT_DIR = Path(__file__).parent
 
 BIG_DATA_DIR = Path('/pscratch/sd/b/bpb/wom_data_cache')
-RAW_DIR = BIG_DATA_DIR / "raw"
+# RAW_DIR = BIG_DATA_DIR / "raw"
+RAW_DIR = Path("./raw")
 # CACHE_DIR = BIG_DATA_DIR / "cache"
 CACHE_DIR = Path("./cache")
 DATA_DIR = Path("./data")
@@ -44,6 +45,10 @@ KG_SOURCES = {
 }
 
 CHEBI_SOURCES = {
+    "compounds":{
+        "url": "https://ftp.ebi.ac.uk/pub/databases/chebi/flat_files/compounds.tsv.gz",
+        "filename": "chebi_compounds.tsv.gz",
+    },
     "names": {
         "url": "https://ftp.ebi.ac.uk/pub/databases/chebi/flat_files/names.tsv.gz",
         "filename": "chebi_names.tsv.gz",
@@ -56,7 +61,15 @@ CHEBI_SOURCES = {
 
 EXOMETABOLITE_SOURCES = [
     os.path.join(DATA_DIR, "Biggs_isolates.tsv"),
-    os.path.join(DATA_DIR, "NLDM_syncom.tsv")
+    os.path.join(DATA_DIR, "NLDM_isolates.tsv"),
+    os.path.join(DATA_DIR, "mCAFES_NLDM_17ExoTSNLDMS2_WoM_style_data_Dunnet.csv"),
+    os.path.join(DATA_DIR, "mCAFES_NLDM_ExometabTimeSeries_WoM_style_data_Dunnet.csv"),
+    os.path.join(DATA_DIR, "NLDM_20220202_AG_YW_ENIGMA_SyncomTSer_WoM_style_data_Dunnet.csv"),
+    os.path.join(DATA_DIR, "WoM_isolates_Exomet_data_WoM_style.tsv"),
+    os.path.join(DATA_DIR, "ECON_NLDM_WoM_style_data_Dunnet.tsv"),
+    os.path.join(DATA_DIR, "WoM_isolates_Exomet_data_BG11+6crustiso_WoM_style.tsv"),
+    os.path.join(DATA_DIR, "JGI_Merchant_WoM_style_data_Dunnet.tsv"),
+    os.path.join(DATA_DIR, "Substrate_Utilization_Set1_and_Set2_WoM_style_data_Dunnet.tsv"),
     ]
 
 # ============================================================

@@ -175,7 +175,7 @@ def load_model(model_path, metadata_path):
 # ============================================
 
 def plot_microbe_embeddings(model, microbe_taxonomy, idx_to_microbe, 
-                            color_by="order", perplexity=30, figsize=(12, 10)):
+                            color_by="genus", perplexity=30, figsize=(12, 10)):
     
     # Extract embeddings
     embeddings = model.microbe_embeddings.weight.detach().numpy()
@@ -240,10 +240,13 @@ def plot_microbe_embeddings(model, microbe_taxonomy, idx_to_microbe,
     
     return plot_df
 
+
+
 # Generate plots at different taxonomic levels
 plot_df = plot_microbe_embeddings(model, microbe_taxonomy, idx_to_microbe, color_by="order")
 plot_microbe_embeddings(model, microbe_taxonomy, idx_to_microbe, color_by="class")
 plot_microbe_embeddings(model, microbe_taxonomy, idx_to_microbe, color_by="family")
+plot_microbe_embeddings(model, microbe_taxonomy, idx_to_microbe, color_by="genus")
 
 # ============================================
 # PLOT TRAINING LOSS

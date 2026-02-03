@@ -1,3 +1,4 @@
+# build.py
 """Web of Microbes - main entry point."""
 
 import logging
@@ -8,8 +9,6 @@ from model import build_bpr_models, plot_all_embeddings
 from config import CACHE_DIR
 
 from gtdb import get_gtdb
-
-
 
 # Add parent to path so we can import sibling modules when run directly
 sys.path.insert(0, str(Path(__file__).parent))
@@ -22,6 +21,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("wom")
 
+
 def build_gtdb():
     """Pre-download and cache GTDB taxonomy."""
     logger.info("Building GTDB taxonomy cache...")
@@ -29,93 +29,68 @@ def build_gtdb():
     gtdb.load(force_download=False)
     logger.info(f"  {len(gtdb.df)} genomes loaded")
 
+
 def main():
     logger.info("Initializing Web of Microbes")
     
     # Absolute imports now work whether run as module or directly
     import kg
     import pref
+    import chebi_mapping
     
+    # Step 0: Build GTDB
     logger.info("=" * 60)
-    logger.info("Step 1: Building GTDB graph")
+    logger.info("Step 0: Building GTDB graph")
     logger.info("=" * 60)
     build_gtdb()
 
-    # Step 1: Build knowledge graph
+    # Step 2: Build ChEBI cache
     logger.info("=" * 60)
-    logger.info("Step 1: Building knowledge graph")
-    logger.info("=" * 60)
-    try:
-        nodes, edges = kg.build_kg(force=False)
-        logger.info(f"KG loaded: {len(nodes):,} nodes, {len(edges):,} edges")
-        
-        # Show node type breakdown
-        type_counts = nodes["node_type"].value_counts()
-        logger.info("Node types:")
-        for ntype, count in type_counts.items():
-            logger.info(f"  {ntype}: {count:,}")
-    except Exception as e:
-        logger.error(f"Failed to build KG: {e}")
-        raise
-    
-
-    # Step 2: Build ChEBI lookup
-    logger.info("=" * 60)
-    logger.info("Step 2: Building ChEBI lookup")
+    logger.info("Step 2: Building ChEBI cache")
     logger.info("=" * 60)
     try:
-        chebi = pref.build_chebi(force=False)
+        chebi = chebi_mapping.build_chebi(force=False)
         logger.info(f"ChEBI loaded: {len(chebi):,} name entries, {chebi['compound_id'].nunique():,} unique compounds")
         with_smiles = chebi["smiles"].notna().sum()
+        with_inchi_key = chebi["inchi_key"].notna().sum()
         logger.info(f"  Entries with SMILES: {with_smiles:,}")
+        logger.info(f"  Entries with InChIKey: {with_inchi_key:,}")
     except Exception as e:
         logger.error(f"Failed to build ChEBI: {e}")
         raise
     
-    # Step 3: Build exometabolite data
+
+    # Step 4: Build exometabolite data
     logger.info("=" * 60)
-    logger.info("Step 3: Building exometabolite data")
+    logger.info("Step 4: Building exometabolite data")
     logger.info("=" * 60)
     try:
         exo = pref.build_exometabolite(force=False)
         logger.info(f"Exometabolite data loaded: {len(exo):,} observations")
         
-        # Compound matching stats
-        match_counts = exo["compound_match_type"].value_counts()
-        logger.info("Compound matching:")
-        for mtype, count in match_counts.items():
-            logger.info(f"  {mtype}: {count:,}")
-        
-        # Show unmatched
-        unmatched = pref.get_unmatched_compounds()
-        if unmatched:
-            logger.warning(f"Unmatched compounds ({len(unmatched)}): {unmatched[:10]}...")
     except Exception as e:
         logger.error(f"Failed to build exometabolite data: {e}")
         raise
 
+    # Step 5: Build BPR models
+    logger.info("=" * 60)
+    logger.info("Step 5: Building BPR recommendation models")
+    logger.info("=" * 60)
+    try:
+        bpr_models = build_bpr_models(exo)
+        for pref_type, wrapper in bpr_models.items():
+            logger.info(f"  {pref_type}: {wrapper.model.n_microbes} microbes, {wrapper.model.n_metabolites} metabolites")
+        
+        plot_all_embeddings(bpr_models, exo=exo, output_dir=CACHE_DIR)  
+    except Exception as e:
+        logger.error(f"Failed to build BPR models: {e}")
+        raise
     
-    logger.info("=" * 60)
-    logger.info("Step 4: Building BPR recommendation models")
-    logger.info("=" * 60)
-
-    bpr_models = build_bpr_models(exo)
-    for pref_type, wrapper in bpr_models.items():
-        logger.info(f"  {pref_type}: {wrapper.model.n_microbes} microbes, {wrapper.model.n_metabolites} metabolites")
-    # Generate plots (optional)
-    plot_all_embeddings(bpr_models, output_dir=CACHE_DIR)
     logger.info("=" * 60)
     logger.info("Initialization complete")
     logger.info("=" * 60)
 
-
-
-
-
-
-
-
-    return nodes, edges, exo
+    # return nodes, edges, exo
 
 
 if __name__ == "__main__":
