@@ -24,7 +24,8 @@ st.set_page_config(
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 
 # Model name
-MODEL_NAME = "gemini-2.0-flash"
+#MODEL_NAME = "gemini-2.0-flash"
+MODEL_NAME = "gemini-2.5-flash"
 #MODEL_NAME = "gemini-3-pro-preview"
 
 @st.cache_resource
@@ -147,33 +148,44 @@ def parse_tool_call(llm_response: str) -> dict:
     return None
 
 
-def execute_tool_call(tool_info: dict) -> str:
+def execute_tool_call(tool_info: dict) -> tuple[str, bool]:
     """
     Execute a tool call via web API.
-    This is a placeholder - implement actual API calls here.
     
     Args:
         tool_info: dict from parse_tool_call, ready to be sent as POST JSON
         
     Returns:
-        JSON string with the tool output
+        Tuple of (response_text, is_error)
     """
     command = tool_info.get("command")
     
-    # TODO: Implement actual API calls
-    # For now, return a placeholder response
-    
     if command:
         # WoM API call - the tool_info dict is ready to POST directly
-        # Example: requests.post("http://wom-flask:5000/api/query", json=tool_info)
-
         url = "http://wom-flask:5000/api/query"
 
-        response = requests.post(url, json=tool_info)
-
-        return response.text
+        try:
+            response = requests.post(url, json=tool_info, timeout=30)
+            response_text = response.text
+            
+            # Check for HTTP errors
+            if response.status_code != 200:
+                return response_text, True
+            
+            # Check for API-level errors in the response
+            try:
+                result = json.loads(response_text)
+                if result.get("error") or result.get("success") == False:
+                    return response_text, True
+            except json.JSONDecodeError:
+                pass
+            
+            return response_text, False
+            
+        except requests.RequestException as e:
+            return json.dumps({"error": f"Request failed: {str(e)}"}), True
     
-    return json.dumps({"error": "Unknown command"})
+    return json.dumps({"error": "Unknown command"}), True
 
 
 def gemini_chat():
@@ -223,7 +235,9 @@ def gemini_chat():
         
         if tool_info:
             # Execute the tool call
-            tool_output = execute_tool_call(tool_info)
+            tool_output, is_error = execute_tool_call(tool_info)
+            
+            debug_log("Tool Output", {"output": tool_output, "is_error": is_error})
             
             # Add the initial response to history
             st.session_state.messages.append({"role": "assistant", "content": assistant_response})
@@ -232,24 +246,78 @@ def gemini_chat():
             with st.chat_message("assistant"):
                 st.markdown(assistant_response)
             
-            # Send tool output back to Gemini for interpretation
-            tool_msg = f"Tool output:\n```json\n{tool_output}\n```\n\nPlease interpret these results for the user."
+            # If there was an error, give the LLM one chance to fix it
+            if is_error:
+                debug_log("Error Detected", "Giving LLM one chance to fix")
+                
+                error_msg = f"""The tool call returned an error:
+```json
+{tool_output}
+```
 
-            debug_log("Tool Message", tool_msg)
-            
-            # Get the final interpreted response
-            final_response = st.session_state.gemini_chat.send_message(tool_msg)
-    
-            debug_log("Final Response", final_response.text)
+Please analyze the error and try again with a corrected command. Make sure to use the exact wom.py syntax."""
+                
+                # Get corrected response from LLM
+                retry_response = st.session_state.gemini_chat.send_message(error_msg)
+                retry_text = retry_response.text
+                
+                debug_log("Retry Response", retry_text)
+                
+                # Check if the retry contains a new tool call
+                retry_tool_info = parse_tool_call(retry_text)
+                
+                if retry_tool_info:
+                    debug_log("Retry Tool Info", retry_tool_info)
+                    
+                    # Execute the retry
+                    tool_output, is_error = execute_tool_call(retry_tool_info)
+                    
+                    debug_log("Retry Tool Output", {"output": tool_output, "is_error": is_error})
+                    
+                    # Add retry response to history and display
+                    st.session_state.messages.append({"role": "assistant", "content": retry_text})
+                    with st.chat_message("assistant"):
+                        st.markdown(retry_text)
+                    
+                    if is_error:
+                        # Still failed after retry - notify user
+                        final_text = f"I tried to fix the command but still encountered an error. The API returned:\n```json\n{tool_output}\n```\n\nPlease check your query and try again with different parameters."
+                        st.session_state.messages.append({"role": "assistant", "content": final_text})
+                        with st.chat_message("assistant"):
+                            st.markdown(final_text)
+                    else:
+                        # Retry succeeded - interpret results
+                        tool_msg = f"Tool output:\n```json\n{tool_output}\n```\n\nPlease interpret these results for the user."
+                        final_response = st.session_state.gemini_chat.send_message(tool_msg)
+                        final_text = final_response.text
+                        
+                        st.session_state.messages.append({"role": "assistant", "content": final_text})
+                        with st.chat_message("assistant"):
+                            st.markdown(final_text)
+                else:
+                    # LLM didn't provide a corrected command, just show its response
+                    st.session_state.messages.append({"role": "assistant", "content": retry_text})
+                    with st.chat_message("assistant"):
+                        st.markdown(retry_text)
+            else:
+                # No error - send tool output back to Gemini for interpretation
+                tool_msg = f"Tool output:\n```json\n{tool_output}\n```\n\nPlease interpret these results for the user."
 
-            final_text = final_response.text
-            
-            # Add the interpretation to history
-            st.session_state.messages.append({"role": "assistant", "content": final_text})
-            
-            # Display the final interpretation
-            with st.chat_message("assistant"):
-                st.markdown(final_text)
+                debug_log("Tool Message", tool_msg)
+                
+                # Get the final interpreted response
+                final_response = st.session_state.gemini_chat.send_message(tool_msg)
+        
+                debug_log("Final Response", final_response.text)
+
+                final_text = final_response.text
+                
+                # Add the interpretation to history
+                st.session_state.messages.append({"role": "assistant", "content": final_text})
+                
+                # Display the final interpretation
+                with st.chat_message("assistant"):
+                    st.markdown(final_text)
         else:
             # No tool call, just display the response normally
             st.session_state.messages.append({"role": "assistant", "content": assistant_response})
