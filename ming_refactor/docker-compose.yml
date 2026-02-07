@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: template-streamlit
+    container_name: wom-streamlit
     volumes:
       - ./logs:/app/logs:rw
       - ./chat:/app/chat:rw
