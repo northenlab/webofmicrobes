@@ -214,8 +214,35 @@ def gemini_chat():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
+    # Example questions - only show if no messages yet
+    if len(st.session_state.messages) == 0:
+        st.markdown("**Try an example question:**")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("🦠 What does Pseudomonas like to eat?", use_container_width=True):
+                st.session_state.example_question = "What does Pseudomonas like to eat?"
+                st.rerun()
+        with col2:
+            if st.button("🧪 Which microbes consume glutamate?", use_container_width=True):
+                st.session_state.example_question = "Which microbes consume glutamate?"
+                st.rerun()
+        with col3:
+            if st.button("⚖️ Compare Burkholderia and Variovorax", use_container_width=True):
+                st.session_state.example_question = "Compare Burkholderia and Variovorax"
+                st.rerun()
+
+    # Check if an example question was clicked
+    prompt = None
+    if "example_question" in st.session_state:
+        prompt = st.session_state.example_question
+        del st.session_state.example_question
+    
     # Accept user input
-    if prompt := st.chat_input(first_message):
+    if user_input := st.chat_input(first_message):
+        prompt = user_input
+    
+    if prompt:
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
 
