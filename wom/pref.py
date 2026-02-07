@@ -150,7 +150,8 @@ def map_compound_name(name: str, chebi: pd.DataFrame = None, score_cutoff: int =
     }
 
 
-def build_exometabolite(force: bool = False) -> pd.DataFrame:
+def build_exometabolite(force: bool = False,
+                        min_consumers: int = 3) -> pd.DataFrame:
     """Load and process exometabolite data from TSV files."""
     cache_path = CACHE_FILES["exometabolite"]
     
@@ -236,6 +237,13 @@ def build_exometabolite(force: bool = False) -> pd.DataFrame:
             return "neutral"
     
     df["assertion"] = df["assertion_value"].apply(assertion_label)
+
+    # Filter out compounds consumed by fewer than min_consumers organisms
+    if min_consumers > 0:
+        consumer_counts = df[df["assertion"] == "consumed"].groupby("representative_compound")["organism_id"].nunique()
+        valid_compounds = consumer_counts[consumer_counts >= min_consumers].index.tolist()
+        df = df[df["representative_compound"].isin(valid_compounds)]
+        logger.info(f"After filtering to compounds consumed by at least {min_consumers} organisms: {len(df)} observations")
     df.to_parquet(cache_path)
     return df
 

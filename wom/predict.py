@@ -1,4 +1,4 @@
-"""Prediction interfaces for the BPR consumption model."""
+"""Prediction interfaces for the consumption model."""
 
 import logging
 from typing import Literal
@@ -6,7 +6,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from model import BPRModelWrapper
+from model import ModelWrapper
 from pref import map_compound_name
 
 logger = logging.getLogger(__name__)
@@ -23,17 +23,17 @@ class MicrobePredictions:
         result = mp.summarize(top_k=10)
     """
     
-    def __init__(self, wrapper: BPRModelWrapper):
+    def __init__(self, wrapper: ModelWrapper):
         self.wrapper = wrapper
         self._raw_scores: pd.DataFrame | None = None
         self._extrapolated: pd.DataFrame | None = None
         self._query_compounds: list[str] = []
         self._extrapolate_level: str | None = None
-        self._compound_mapping: dict[str, dict] = {}  # original -> mapping result
+        self._compound_mapping: dict[str, dict] = {}
     
     def rank(self, compounds: list[str]) -> None:
         """
-        Get raw BPR scores for all isolates on the given compounds.
+        Get raw scores for all isolates on the given compounds.
         
         Args:
             compounds: List of compound names (will be mapped to representative_compound)
@@ -42,13 +42,12 @@ class MicrobePredictions:
             DataFrame of shape (n_isolates, n_compounds)
             Index: isolate IDs
             Columns: representative_compound names
-            Values: raw BPR dot-product scores
+            Values: raw dot-product scores
         """
         valid_compounds = []
         self._compound_mapping = {}
         
         for name in compounds:
-            # First check if it's already a valid representative_compound
             if name in self.wrapper.metabolite_to_idx:
                 valid_compounds.append(name)
                 self._compound_mapping[name] = {
@@ -58,7 +57,6 @@ class MicrobePredictions:
                 }
                 continue
             
-            # Try to map it
             mapped = map_compound_name(name)
             self._compound_mapping[name] = mapped
             
@@ -77,7 +75,6 @@ class MicrobePredictions:
                     )
                 valid_compounds.append(mapped['representative_compound'])
         
-        # Deduplicate while preserving order
         seen = set()
         unique_compounds = []
         for c in valid_compounds:
@@ -90,10 +87,8 @@ class MicrobePredictions:
         
         self._query_compounds = unique_compounds
         
-        # Get compound indices
         compound_indices = [self.wrapper.metabolite_to_idx[c] for c in unique_compounds]
         
-        # Build score matrix efficiently
         isolate_ids = list(self.wrapper.microbe_to_idx.keys())
         n_isolates = len(isolate_ids)
         n_compounds = len(unique_compounds)
@@ -101,7 +96,7 @@ class MicrobePredictions:
         score_matrix = np.zeros((n_isolates, n_compounds))
         for i, isolate_id in enumerate(isolate_ids):
             m_idx = self.wrapper.microbe_to_idx[isolate_id]
-            all_scores = self.wrapper.model.predict_all(m_idx)
+            all_scores = self.wrapper.model.predict_scores(m_idx)
             score_matrix[i, :] = all_scores[compound_indices]
         
         self._raw_scores = pd.DataFrame(
@@ -142,12 +137,6 @@ class MicrobePredictions:
         Args:
             to: Taxonomic level to aggregate to
             agg: Aggregation method ('mean', 'sum', 'max')
-        
-        Stores:
-            DataFrame with aggregated scores, plus summary columns:
-            - score_sum: sum across compounds
-            - score_mean: mean across compounds  
-            - rank: rank by score_mean (1 = highest)
         """
         if self._raw_scores is None:
             raise RuntimeError("Must call rank() first")
@@ -160,23 +149,19 @@ class MicrobePredictions:
             result['taxon'] = result.index
             result = result.reset_index(drop=True)
         else:
-            # Add taxonomy column
             df['_group'] = df.index.map(
                 lambda x: self.wrapper.microbe_taxonomy.get(x, {}).get(to)
             )
             
-            # Filter out isolates without taxonomy at this level
             df = df[df['_group'].notna()]
             
             if df.empty:
                 raise ValueError(f"No isolates have taxonomy at level: {to}")
             
-            # Aggregate
             agg_func = {'mean': 'mean', 'sum': 'sum', 'max': 'max'}[agg]
             result = df.groupby('_group')[compound_cols].agg(agg_func)
             result = result.reset_index().rename(columns={'_group': 'taxon'})
         
-        # Add summary columns
         result['score_sum'] = result[compound_cols].sum(axis=1)
         result['score_mean'] = result[compound_cols].mean(axis=1)
         result['rank'] = result['score_mean'].rank(ascending=False, method='min').astype(int)
@@ -194,21 +179,12 @@ class MicrobePredictions:
         
         Args:
             top_k: Number of top results to return
-        
-        Returns:
-            DataFrame with columns:
-            - taxon: name at the extrapolated level
-            - n_isolates: number of isolates in this group
-            - parent taxonomy columns (family, order, class as available)
-            - [compound scores]
-            - score_sum, score_mean, rank
         """
         if self._extrapolated is None:
             raise RuntimeError("Must call extrapolate() first")
         
         result = self._extrapolated.head(top_k).copy()
         
-        # Count isolates per group
         if self._extrapolate_level == 'isolate':
             result['n_isolates'] = 1
         else:
@@ -220,7 +196,6 @@ class MicrobePredictions:
                     counts[group] = counts.get(group, 0) + 1
             result['n_isolates'] = result['taxon'].map(counts)
         
-        # Add parent taxonomy
         parent_levels = {
             'genus': ['family', 'order', 'class'],
             'family': ['order', 'class'],
@@ -243,7 +218,6 @@ class MicrobePredictions:
                     parent_map[taxon_value] = parent_value
             result[level] = result['taxon'].map(parent_map)
         
-        # Reorder columns
         meta_cols = ['taxon', 'n_isolates'] + levels_to_add
         meta_cols = [c for c in meta_cols if c in result.columns]
         compound_cols = self._query_compounds
@@ -266,7 +240,7 @@ class CompoundPredictions:
         result = cp.summarize(top_k=20)
     """
     
-    def __init__(self, wrapper: BPRModelWrapper):
+    def __init__(self, wrapper: ModelWrapper):
         self.wrapper = wrapper
         self._raw_scores: pd.DataFrame | None = None
         self._extrapolated: pd.DataFrame | None = None
@@ -305,7 +279,7 @@ class CompoundPredictions:
     
     def rank(self, queries: list[dict]) -> None:
         """
-        Get raw BPR scores for specified microbes on all compounds.
+        Get raw scores for specified microbes on all compounds.
         
         Args:
             queries: List of query dicts, each with one of:
@@ -314,12 +288,6 @@ class CompoundPredictions:
                 - {'family': 'Rhizobiaceae'}
                 - {'order': 'Rhizobiales'}
                 - {'class': 'Alphaproteobacteria'}
-        
-        Stores:
-            DataFrame of shape (n_compounds, n_isolates_expanded)
-            Index: compound names
-            Columns: isolate IDs
-            Values: raw BPR dot-product scores
         """
         self._queries = queries
         self._query_to_isolates = {}
@@ -335,7 +303,6 @@ class CompoundPredictions:
             
             all_isolates.extend(isolates)
         
-        # Deduplicate preserving order
         seen = set()
         unique_isolates = []
         for iso in all_isolates:
@@ -346,21 +313,18 @@ class CompoundPredictions:
         if not unique_isolates:
             raise ValueError("No valid isolates found for any query")
         
-        # Build score matrix: (n_isolates, n_compounds)
         n_compounds = len(self.wrapper.metabolite_to_idx)
         score_matrix = np.zeros((len(unique_isolates), n_compounds))
         
         for i, isolate_id in enumerate(unique_isolates):
             m_idx = self.wrapper.microbe_to_idx[isolate_id]
-            score_matrix[i, :] = self.wrapper.model.predict_all(m_idx)
+            score_matrix[i, :] = self.wrapper.model.predict_scores(m_idx)
         
-        # Build compound name list in index order
         compound_names = [
             self.wrapper.idx_to_metabolite[i] 
             for i in range(n_compounds)
         ]
         
-        # DataFrame: (n_compounds, n_isolates)
         self._raw_scores = pd.DataFrame(
             score_matrix.T,
             index=compound_names,
@@ -377,12 +341,6 @@ class CompoundPredictions:
         
         Args:
             agg: Aggregation method for isolates within a query ('mean', 'sum', 'max')
-        
-        Stores:
-            DataFrame with:
-            - One column per original query (aggregated if multiple isolates)
-            - mean_score: mean across all queries
-            - rank: rank by mean_score (1 = highest)
         """
         if self._raw_scores is None:
             raise RuntimeError("Must call rank() first")
@@ -422,12 +380,6 @@ class CompoundPredictions:
         
         Args:
             top_k: Number of top results to return
-        
-        Returns:
-            DataFrame with columns:
-            - compound: representative_compound name
-            - [per-query scores]
-            - mean_score, rank
         """
         if self._extrapolated is None:
             raise RuntimeError("Must call extrapolate() first")

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Command-line interface for BPR consumption model predictions.
+Command-line interface for consumption model predictions.
 
 Designed for use by LLM agents. Outputs JSON by default.
 
@@ -19,12 +19,16 @@ Examples:
     
     # Get model info
     python wom.py info
+    
+    # Specify a different model type
+    python wom.py --model wrmf microbes --compounds "glutamate" --level genus
 """
 
 import argparse
 import json
 import logging
 import sys
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -37,20 +41,41 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# Lazy-loaded singleton
-_wrapper = None
+# Lazy-loaded singletons per model type
+_wrappers: dict[str, "ModelWrapper"] = {}
+
+# Map CLI model names to (model_class, file_prefix)
+_MODEL_REGISTRY = {
+    'bpr': ('BPRModel', 'bpr'),
+    'wrmf': ('WRMFModel', 'wr_mf'),
+    'svd': ('SVDModel', 'svd'),
+}
 
 
-def _get_wrapper():
-    """Load the consumption model wrapper (lazy singleton)."""
-    global _wrapper
-    if _wrapper is None:
-        from model import load_bpr_models
-        models = load_bpr_models()
-        if 'consumed' not in models:
-            raise RuntimeError("Consumption model not available")
-        _wrapper = models['consumed']
-    return _wrapper
+def _get_wrapper(model_name: str = 'bpr', preference_type: str = 'consumed'):
+    """Load a model wrapper (lazy singleton)."""
+    cache_key = f"{model_name}_{preference_type}"
+    
+    if cache_key not in _wrappers:
+        from model import load_model, BPRModel, WRMFModel, SVDModel
+        from config import CACHE_DIR
+        
+        class_map = {
+            'bpr': BPRModel,
+            'wrmf': WRMFModel,
+            'svd': SVDModel,
+        }
+        
+        if model_name not in class_map:
+            raise ValueError(f"Unknown model type: {model_name}. Choose from: {list(class_map.keys())}")
+        
+        model_class = class_map[model_name]
+        file_prefix = _MODEL_REGISTRY[model_name][1]
+        model_path = Path(CACHE_DIR) / f"{file_prefix}_{preference_type}"
+        
+        _wrappers[cache_key] = load_model(model_path, model_class=model_class)
+    
+    return _wrappers[cache_key]
 
 
 def _output(data: dict, format: str = 'json') -> None:
@@ -82,9 +107,6 @@ def _parse_microbe_queries(microbes_str: str) -> list[dict]:
     Parse microbe query string into list of query dicts.
     
     Format: "genus:Burkholderia,isolate:XYZ,family:Rhizobiaceae"
-    
-    Returns:
-        [{'genus': 'Burkholderia'}, {'isolate': 'XYZ'}, {'family': 'Rhizobiaceae'}]
     """
     queries = []
     for part in microbes_str.split(','):
@@ -102,7 +124,6 @@ def _parse_microbe_queries(microbes_str: str) -> list[dict]:
             
             queries.append({level: name})
         else:
-            # Assume it's an isolate ID if no level specified
             queries.append({'isolate': part})
     
     return queries
@@ -118,21 +139,18 @@ def _parse_compounds(compounds_str: str) -> list[str]:
 # =============================================================================
 
 def cmd_microbes(args) -> dict:
-    """
-    Predict which microbes consume the given compounds.
-    
-    Returns ranked list of microbes/taxa that prefer these compounds.
-    """
+    """Predict which microbes consume the given compounds."""
     from predict import MicrobePredictions
     
-    wrapper = _get_wrapper()
+    wrapper = _get_wrapper(args.model)
     compounds = _parse_compounds(args.compounds)
     
     query = {
         'compounds': compounds,
         'level': args.level,
         'aggregation': args.agg,
-        'top_k': args.top
+        'top_k': args.top,
+        'model': args.model,
     }
     
     try:
@@ -141,7 +159,6 @@ def cmd_microbes(args) -> dict:
         mp.extrapolate(to=args.level, agg=args.agg)
         result_df = mp.summarize(top_k=args.top)
         
-        # Build response
         response = {
             'success': True,
             'error': None,
@@ -163,14 +180,10 @@ def cmd_microbes(args) -> dict:
 # =============================================================================
 
 def cmd_compounds(args) -> dict:
-    """
-    Predict which compounds are consumed by the given microbes.
-    
-    Returns ranked list of compounds these microbes prefer.
-    """
+    """Predict which compounds are consumed by the given microbes."""
     from predict import CompoundPredictions
     
-    wrapper = _get_wrapper()
+    wrapper = _get_wrapper(args.model)
     
     try:
         queries = _parse_microbe_queries(args.microbes)
@@ -180,7 +193,8 @@ def cmd_compounds(args) -> dict:
     query = {
         'microbes': queries,
         'aggregation': args.agg,
-        'top_k': args.top
+        'top_k': args.top,
+        'model': args.model,
     }
     
     try:
@@ -189,7 +203,6 @@ def cmd_compounds(args) -> dict:
         cp.extrapolate(agg=args.agg)
         result_df = cp.summarize(top_k=args.top)
         
-        # Add info about which isolates were found per query
         query_resolution = []
         for q in queries:
             key = list(q.values())[0]
@@ -198,7 +211,7 @@ def cmd_compounds(args) -> dict:
             query_resolution.append({
                 'query': q,
                 'n_isolates_found': len(isolates),
-                'isolates': isolates[:10],  # Cap at 10 for readability
+                'isolates': isolates[:10],
                 'isolates_truncated': len(isolates) > 10
             })
         
@@ -223,15 +236,11 @@ def cmd_compounds(args) -> dict:
 # =============================================================================
 
 def cmd_search_compound(args) -> dict:
-    """
-    Fuzzy search for compound names in the model.
-    
-    Useful for finding the correct compound name to use in queries.
-    """
+    """Fuzzy search for compound names in the model."""
     from pref import map_compound_name
     from rapidfuzz import process, fuzz
     
-    wrapper = _get_wrapper()
+    wrapper = _get_wrapper(args.model)
     query_str = args.query
     
     query = {
@@ -240,10 +249,8 @@ def cmd_search_compound(args) -> dict:
     }
     
     try:
-        # Get all compound names from model
         all_compounds = list(wrapper.metabolite_to_idx.keys())
         
-        # Fuzzy match
         matches = process.extract(
             query_str.lower(),
             [c.lower() for c in all_compounds],
@@ -251,7 +258,6 @@ def cmd_search_compound(args) -> dict:
             limit=args.top
         )
         
-        # Map back to original case
         lower_to_orig = {c.lower(): c for c in all_compounds}
         
         results = []
@@ -262,7 +268,6 @@ def cmd_search_compound(args) -> dict:
                 'match_score': round(score, 1)
             })
         
-        # Also try the formal mapping
         mapped = map_compound_name(query_str)
         
         response = {
@@ -290,14 +295,10 @@ def cmd_search_compound(args) -> dict:
 # =============================================================================
 
 def cmd_search_taxon(args) -> dict:
-    """
-    Fuzzy search for taxon names in the model.
-    
-    Useful for finding the correct taxon name to use in queries.
-    """
+    """Fuzzy search for taxon names in the model."""
     from rapidfuzz import process, fuzz
     
-    wrapper = _get_wrapper()
+    wrapper = _get_wrapper(args.model)
     query_str = args.query
     level = args.level
     
@@ -308,7 +309,6 @@ def cmd_search_taxon(args) -> dict:
     }
     
     try:
-        # Collect all taxa at requested level(s)
         levels_to_search = [level] if level else ['genus', 'family', 'order', 'class']
         
         all_taxa = []
@@ -323,7 +323,6 @@ def cmd_search_taxon(args) -> dict:
         if not all_taxa:
             return _error_response("No taxa found at specified level", query)
         
-        # Fuzzy match
         names = [t['name'] for t in all_taxa]
         matches = process.extract(
             query_str.lower(),
@@ -332,7 +331,6 @@ def cmd_search_taxon(args) -> dict:
             limit=args.top
         )
         
-        # Map back
         lower_to_idx = {n.lower(): i for i, n in enumerate(names)}
         
         results = []
@@ -340,7 +338,6 @@ def cmd_search_taxon(args) -> dict:
             idx = lower_to_idx[match_lower]
             taxon = all_taxa[idx]
             
-            # Count isolates
             n_isolates = sum(
                 1 for tax in wrapper.microbe_taxonomy.values()
                 if tax.get(taxon['level']) == taxon['name']
@@ -372,12 +369,8 @@ def cmd_search_taxon(args) -> dict:
 # =============================================================================
 
 def cmd_list_compounds(args) -> dict:
-    """
-    List all compounds in the model.
-    
-    Optionally filter by substring match.
-    """
-    wrapper = _get_wrapper()
+    """List all compounds in the model."""
+    wrapper = _get_wrapper(args.model)
     
     query = {
         'filter': args.filter,
@@ -416,12 +409,8 @@ def cmd_list_compounds(args) -> dict:
 # =============================================================================
 
 def cmd_list_microbes(args) -> dict:
-    """
-    List microbes/isolates in the model.
-    
-    Optionally filter by taxonomy.
-    """
-    wrapper = _get_wrapper()
+    """List microbes/isolates in the model."""
+    wrapper = _get_wrapper(args.model)
     
     query = {
         'genus': args.genus,
@@ -435,7 +424,6 @@ def cmd_list_microbes(args) -> dict:
         results = []
         
         for isolate_id, tax in wrapper.microbe_taxonomy.items():
-            # Apply filters
             if args.genus and tax.get('genus') != args.genus:
                 continue
             if args.family and tax.get('family') != args.family:
@@ -477,14 +465,13 @@ def cmd_list_microbes(args) -> dict:
 # =============================================================================
 # Command: list-taxa
 # =============================================================================
+# =============================================================================
+# Command: list-taxa
+# =============================================================================
 
 def cmd_list_taxa(args) -> dict:
-    """
-    List unique taxa at a given level.
-    
-    Shows how many isolates belong to each taxon.
-    """
-    wrapper = _get_wrapper()
+    """List unique taxa at a given level."""
+    wrapper = _get_wrapper(args.model)
     level = args.level
     
     query = {
@@ -493,9 +480,8 @@ def cmd_list_taxa(args) -> dict:
     }
     
     try:
-        # Count isolates per taxon
         counts = {}
-        parent_info = {}  # Store parent taxonomy for context
+        parent_info = {}
         
         for isolate_id, tax in wrapper.microbe_taxonomy.items():
             name = tax.get(level)
@@ -507,7 +493,6 @@ def cmd_list_taxa(args) -> dict:
                         if k != level and v is not None
                     }
         
-        # Sort by count descending
         results = [
             {
                 'taxon': name,
@@ -542,13 +527,10 @@ def cmd_list_taxa(args) -> dict:
 # =============================================================================
 
 def cmd_info(args) -> dict:
-    """
-    Get model information and statistics.
-    """
+    """Get model information and statistics."""
     try:
-        wrapper = _get_wrapper()
+        wrapper = _get_wrapper(args.model)
         
-        # Count taxa at each level
         taxa_counts = {}
         for level in ['genus', 'family', 'order', 'class']:
             unique = set()
@@ -558,18 +540,22 @@ def cmd_info(args) -> dict:
                     unique.add(name)
             taxa_counts[level] = len(unique)
         
+        model_type_name = type(wrapper.model).__name__
+        
         response = {
             'success': True,
             'error': None,
             'query_type': 'info',
             'model': {
-                'type': 'BPR consumption model',
+                'type': model_type_name,
+                'model_key': args.model,
                 'n_isolates': len(wrapper.microbe_to_idx),
                 'n_compounds': len(wrapper.metabolite_to_idx),
                 'embedding_dim': wrapper.model.embedding_dim,
                 'taxa_counts': taxa_counts,
                 'has_taxonomy_embeddings': wrapper.taxonomy_embeddings is not None
             },
+            'available_models': list(_MODEL_REGISTRY.keys()),
             'available_commands': [
                 {
                     'command': 'microbes',
@@ -625,28 +611,24 @@ def cmd_info(args) -> dict:
 # =============================================================================
 
 def cmd_raw_scores(args) -> dict:
-    """
-    Get raw BPR scores without aggregation.
-    
-    Returns the full score matrix for detailed analysis.
-    """
+    """Get raw scores without aggregation."""
     from predict import MicrobePredictions, CompoundPredictions
     
-    wrapper = _get_wrapper()
+    wrapper = _get_wrapper(args.model)
     
     if args.mode == 'microbes':
         compounds = _parse_compounds(args.compounds)
         
         query = {
             'mode': 'microbes',
-            'compounds': compounds
+            'compounds': compounds,
+            'model': args.model,
         }
         
         try:
             mp = MicrobePredictions(wrapper)
             mp.rank(compounds)
             
-            # Convert to records format
             raw_df = mp._raw_scores.copy()
             raw_df = raw_df.reset_index()
             
@@ -675,14 +657,14 @@ def cmd_raw_scores(args) -> dict:
         
         query = {
             'mode': 'compounds',
-            'microbes': queries
+            'microbes': queries,
+            'model': args.model,
         }
         
         try:
             cp = CompoundPredictions(wrapper)
             cp.rank(queries)
             
-            # Convert to records format
             raw_df = cp._raw_scores.copy()
             raw_df = raw_df.reset_index()
             
@@ -712,14 +694,10 @@ def cmd_raw_scores(args) -> dict:
 # =============================================================================
 
 def cmd_compare(args) -> dict:
-    """
-    Compare preferences between two or more microbes/taxa.
-    
-    Shows compounds where they differ most.
-    """
+    """Compare preferences between two or more microbes/taxa."""
     from predict import CompoundPredictions
     
-    wrapper = _get_wrapper()
+    wrapper = _get_wrapper(args.model)
     
     try:
         queries = _parse_microbe_queries(args.microbes)
@@ -731,7 +709,8 @@ def cmd_compare(args) -> dict:
     
     query = {
         'microbes': queries,
-        'top_k': args.top
+        'top_k': args.top,
+        'model': args.model,
     }
     
     try:
@@ -739,20 +718,16 @@ def cmd_compare(args) -> dict:
         cp.rank(queries)
         cp.extrapolate(agg='mean')
         
-        # Get the extrapolated scores
         df = cp._extrapolated.copy()
         query_cols = [list(q.values())[0] for q in queries]
         
-        # Calculate variance across queries for each compound
         df['variance'] = df[query_cols].var(axis=1)
         df['range'] = df[query_cols].max(axis=1) - df[query_cols].min(axis=1)
         
-        # Get compounds with highest variance (most disagreement)
         df_sorted = df.sort_values('variance', ascending=False)
         top_diff = df_sorted.head(args.top).copy()
         top_diff = top_diff.reset_index()
         
-        # Also get compounds they all agree on (lowest variance, but high mean)
         df_sorted_agree = df.sort_values(['variance', 'mean_score'], ascending=[True, False])
         top_agree = df_sorted_agree.head(args.top).copy()
         top_agree = top_agree.reset_index()
@@ -779,8 +754,9 @@ def cmd_compare(args) -> dict:
 # =============================================================================
 # Main argument parser
 # =============================================================================
-def _add_format_arg(parser: argparse.ArgumentParser) -> None:
-    """Add common format argument to a subparser."""
+
+def _add_common_args(parser: argparse.ArgumentParser) -> None:
+    """Add common arguments to a subparser."""
     parser.add_argument(
         '--format', '-f',
         choices=['json', 'table'],
@@ -791,9 +767,16 @@ def _add_format_arg(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description='BPR consumption model predictions for microbe-metabolite interactions.',
+        description='Consumption model predictions for microbe-metabolite interactions.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
+    )
+    
+    parser.add_argument(
+        '--model', '-M',
+        choices=list(_MODEL_REGISTRY.keys()),
+        default='bpr',
+        help='Model type to use (default: bpr)'
     )
     
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
@@ -829,7 +812,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=10,
         help='Number of top results (default: 10)'
     )
-    _add_format_arg(p_microbes)
+    _add_common_args(p_microbes)
     p_microbes.set_defaults(func=cmd_microbes)
     
     # -------------------------------------------------------------------------
@@ -858,7 +841,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=20,
         help='Number of top results (default: 20)'
     )
-    _add_format_arg(p_compounds)
+    _add_common_args(p_compounds)
     p_compounds.set_defaults(func=cmd_compounds)
     
     # -------------------------------------------------------------------------
@@ -879,7 +862,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=10,
         help='Number of results (default: 10)'
     )
-    _add_format_arg(p_search_compound)
+    _add_common_args(p_search_compound)
     p_search_compound.set_defaults(func=cmd_search_compound)
     
     # -------------------------------------------------------------------------
@@ -906,7 +889,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=10,
         help='Number of results (default: 10)'
     )
-    _add_format_arg(p_search_taxon)
+    _add_common_args(p_search_taxon)
     p_search_taxon.set_defaults(func=cmd_search_taxon)
     
     # -------------------------------------------------------------------------
@@ -928,7 +911,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=100,
         help='Max number to return (default: 100)'
     )
-    _add_format_arg(p_list_compounds)
+    _add_common_args(p_list_compounds)
     p_list_compounds.set_defaults(func=cmd_list_compounds)
     
     # -------------------------------------------------------------------------
@@ -965,7 +948,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=100,
         help='Max number to return (default: 100)'
     )
-    _add_format_arg(p_list_microbes)
+    _add_common_args(p_list_microbes)
     p_list_microbes.set_defaults(func=cmd_list_microbes)
     
     # -------------------------------------------------------------------------
@@ -988,7 +971,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=50,
         help='Max number to return (default: 50)'
     )
-    _add_format_arg(p_list_taxa)
+    _add_common_args(p_list_taxa)
     p_list_taxa.set_defaults(func=cmd_list_taxa)
     
     # -------------------------------------------------------------------------
@@ -999,7 +982,7 @@ def build_parser() -> argparse.ArgumentParser:
         help='Show model information',
         description='Display model statistics and available commands.'
     )
-    _add_format_arg(p_info)
+    _add_common_args(p_info)
     p_info.set_defaults(func=cmd_info)
     
     # -------------------------------------------------------------------------
@@ -1007,7 +990,7 @@ def build_parser() -> argparse.ArgumentParser:
     # -------------------------------------------------------------------------
     p_raw = subparsers.add_parser(
         'raw-scores',
-        help='Get raw BPR scores without aggregation',
+        help='Get raw scores without aggregation',
         description='Returns the full score matrix for detailed analysis.'
     )
     p_raw.add_argument(
@@ -1026,7 +1009,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help='Microbe queries (required for mode=compounds)'
     )
-    _add_format_arg(p_raw)
+    _add_common_args(p_raw)
     p_raw.set_defaults(func=cmd_raw_scores)
     
     # -------------------------------------------------------------------------
@@ -1049,7 +1032,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=10,
         help='Number of results per category (default: 10)'
     )
-    _add_format_arg(p_compare)
+    _add_common_args(p_compare)
     p_compare.set_defaults(func=cmd_compare)
     
     return parser
@@ -1063,13 +1046,10 @@ def main():
         parser.print_help()
         sys.exit(1)
     
-    # Run command
     result = args.func(args)
     
-    # Output
     _output(result, args.format)
     
-    # Exit code
     if not result.get('success', True):
         sys.exit(1)
 
