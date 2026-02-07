@@ -17,5 +17,8 @@ RUN mamba create -n python310 python=3.10 -y
 COPY requirements.txt .
 RUN /bin/bash -c 'source activate python310 && pip install -r requirements.txt'
 
+# google-genai (new SDK)
+RUN /bin/bash -c 'source activate python310 && pip install google-genai python-dotenv'
+
 COPY . /app
 WORKDIR /app

@@ -1,14 +1,283 @@
 import streamlit as st
 from streamlit.components.v1 import html
+import os
+import json
+import uuid
+import time
+import requests
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
+
+load_dotenv()
 
 # Add a tracking token
 html('<script async defer data-website-id="<your_website_id>" src="https://analytics.gnps2.org/umami.js"></script>', width=0, height=0)
 
 # Write the page label
 st.set_page_config(
-    page_title="Homepage",
+    page_title="World of Microbes Chatbot",
     page_icon="👋",
 )
 
+# Configure Gemini API
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+
+# Model name
+MODEL_NAME = "gemini-2.0-flash"
+
+@st.cache_resource
+def get_gemini_client():
+    """Create and cache the Gemini client."""
+    return genai.Client(api_key=GEMINI_KEY)
+
+@st.cache_data
+def get_preprompt():
+    """Read and cache the preprompt from disk."""
+    return open("./prompts/wom_prompt.txt", "r").read()
+
+client = get_gemini_client()
+preprompt = get_preprompt()
+
+# Debug mode toggle - set to False in production
+DEBUG_MODE = True
+
+def debug_log(label: str, content):
+    """Write debug info to the sidebar instead of main area."""
+    if DEBUG_MODE:
+        with st.sidebar:
+            with st.expander(f"🔧 {label}", expanded=False):
+                if isinstance(content, dict):
+                    st.json(content)
+                else:
+                    st.code(str(content), language="text")
+
+# Sidebar header for debug logs
+if DEBUG_MODE:
+    st.sidebar.title("🔧 Debug Logs")
+
 # Getting a text field
-st.write("Welcome to the homepage!")
+st.write("Welcome to the Web of Microbes Chatbot!")
+
+import re
+import requests
+
+# Match "wom.py" command anywhere in text (with or without "I'll run:")
+WOM_PATTERN = re.compile(
+    r"wom\.py\s+((?:microbes|compounds|compare|search-compound|search-taxon|list-taxa|list-compounds|info)\s*[^\n]*)",
+    re.IGNORECASE
+)
+
+def parse_args(cmd_args: str) -> list:
+    """
+    Parse command arguments, handling quoted strings properly.
+    """
+    args = []
+    current = ""
+    in_quotes = False
+    quote_char = None
+    for char in cmd_args:
+        if char in ('"', "'") and not in_quotes:
+            in_quotes = True
+            quote_char = char
+        elif char == quote_char and in_quotes:
+            in_quotes = False
+            quote_char = None
+        elif char == ' ' and not in_quotes:
+            if current:
+                args.append(current)
+                current = ""
+        else:
+            current += char
+    if current:
+        args.append(current)
+    return args
+
+
+def parse_tool_call(llm_response: str) -> dict:
+    """
+    Parse the LLM response to extract tool calls.
+    Returns a dict structured for POST requests or None if no tool call found.
+    
+    Returns:
+        {
+            "command": "microbes",  # the subcommand
+            "compounds": "glutamate,acetate",  # --compounds value
+            "level": "genus",  # --level value
+            "top": "10",  # --top value
+            ...
+        }
+    """
+    # Check for wom.py commands
+    wom_match = WOM_PATTERN.search(llm_response)
+    if wom_match:
+        cmd_args = wom_match.group(1).strip()
+        args = parse_args(cmd_args)
+        
+        if not args:
+            return None
+        
+        # Build the params dict
+        params = {
+            "command": args[0]  # First arg is the subcommand
+        }
+        
+        # Parse remaining args as --flag value pairs
+        i = 1
+        while i < len(args):
+            arg = args[i]
+            if arg.startswith("--"):
+                key = arg[2:]  # Remove the --
+                # Check if there's a value following
+                if i + 1 < len(args) and not args[i + 1].startswith("--"):
+                    params[key] = args[i + 1]
+                    i += 2
+                else:
+                    # Flag without value (boolean flag)
+                    params[key] = True
+                    i += 1
+            else:
+                # Positional argument after command
+                i += 1
+        
+        return params
+    
+    
+    return None
+
+
+def execute_tool_call(tool_info: dict) -> str:
+    """
+    Execute a tool call via web API.
+    This is a placeholder - implement actual API calls here.
+    
+    Args:
+        tool_info: dict from parse_tool_call, ready to be sent as POST JSON
+        
+    Returns:
+        JSON string with the tool output
+    """
+    command = tool_info.get("command")
+    
+    # TODO: Implement actual API calls
+    # For now, return a placeholder response
+    
+    if command:
+        # WoM API call - the tool_info dict is ready to POST directly
+        # Example: requests.post("http://wom-flask:5000/api/query", json=tool_info)
+
+        url = "http://wom-flask:5000/api/query"
+
+        response = requests.post(url, json=tool_info)
+
+        return response.text
+    
+    return json.dumps({"error": "Unknown command"})
+
+
+def gemini_chat():
+
+    # Initialize chat history
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Initialize Gemini chat session
+    if "gemini_chat" not in st.session_state:
+        # Convert existing messages to Gemini format if any
+        history = []
+        for msg in st.session_state.messages:
+            role = "user" if msg["role"] == "user" else "model"
+            history.append(types.Content(role=role, parts=[types.Part.from_text(text=msg["content"])]))
+        st.session_state.gemini_chat = client.chats.create(
+            model=MODEL_NAME,
+            config=types.GenerateContentConfig(system_instruction=preprompt),
+            history=history
+        )
+
+    first_message = "Hello, I am here to help you explore microbial substrate preferences"
+    
+    # Display chat messages from history on app rerun
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Accept user input
+    if prompt := st.chat_input(first_message):
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+        # Display user message in chat message container
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # Send user's message to Gemini and get a response
+        response = st.session_state.gemini_chat.send_message(prompt)
+        assistant_response = response.text
+        
+        # Check for tool calls in the response
+        tool_info = parse_tool_call(assistant_response)
+        #tool_info = None
+
+        debug_log("Parsed Tool Info", tool_info)
+        
+        if tool_info:
+            # Execute the tool call
+            tool_output = execute_tool_call(tool_info)
+            
+            # Add the initial response to history
+            st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+            
+            # Display the initial response (with tool call)
+            with st.chat_message("assistant"):
+                st.markdown(assistant_response)
+            
+            # Send tool output back to Gemini for interpretation
+            tool_msg = f"Tool output:\n```json\n{tool_output}\n```\n\nPlease interpret these results for the user."
+
+            debug_log("Tool Message", tool_msg)
+            
+            # Get the final interpreted response
+            final_response = st.session_state.gemini_chat.send_message(tool_msg)
+    
+            debug_log("Final Response", final_response.text)
+
+            final_text = final_response.text
+            
+            # Add the interpretation to history
+            st.session_state.messages.append({"role": "assistant", "content": final_text})
+            
+            # Display the final interpretation
+            with st.chat_message("assistant"):
+                st.markdown(final_text)
+        else:
+            # No tool call, just display the response normally
+            st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+            
+            # Display Gemini's response
+            with st.chat_message("assistant"):
+                st.markdown(assistant_response)
+
+        # Saving the chat history
+        chat_history_filename = os.path.join("/app/chat/{}.json".format(st.session_state["chat_id"]))
+        with open(chat_history_filename, "w") as file:
+            file.write(json.dumps(st.session_state.messages))
+
+
+# password question
+# password = st.text_input("Access Password:", value="", type="password")
+
+#if password == os.getenv("ACCESSPW"):
+if True:
+    #st.write("Access Granted")
+
+    if "chat_id" not in st.session_state:
+        st.session_state["chat_id"] = str(uuid.uuid4())
+
+    # Link to chat
+    #st.link_button("Link to Chat History", "/MassQL_ChatHistory?chat_id={}".format(st.session_state["chat_id"]))
+
+    # Draw a vertical line
+    #st.markdown("---")
+
+    #openaiassistantchat()
+    gemini_chat()
