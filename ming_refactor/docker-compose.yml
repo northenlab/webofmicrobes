@@ -1,0 +1,61 @@
+version: '3'
+services:
+  wom-streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: template-streamlit
+    volumes:
+      - ./logs:/app/logs:rw
+    networks:
+      - default
+      - nginx-net
+    restart: unless-stopped
+    command: /app/run_server.sh
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"      # Maximum size of a single log file
+        max-file: "3"        # Maximum number of log files to keep (rotates after 3 files)
+    deploy:
+      resources:
+        limits:
+          memory: 8000M
+    environment:
+      VIRTUAL_HOST: wom-chat.gnps2.org
+      VIRTUAL_PORT: 5000
+      LETSENCRYPT_HOST: wom-chat.gnps2.org
+      LETSENCRYPT_EMAIL: mwang87@gmail.com
+
+  wom-flask:
+    build:
+      context: .
+      dockerfile: Dockerfile.dash
+    container_name: wom-flask
+    volumes:
+      - ./logs:/app/logs:rw
+      - ./cache:/app/cache:rw
+    networks:
+      - default
+      - nginx-net
+    restart: unless-stopped
+    command: /app/wom/run_api_server.sh
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"      # Maximum size of a single log file
+        max-file: "3"        # Maximum number of log files to keep (rotates after 3 files)
+    deploy:
+      resources:
+        limits:
+          memory: 8000M
+    environment:
+      VIRTUAL_HOST: wom-api.gnps2.org
+      VIRTUAL_PORT: 5000
+      LETSENCRYPT_HOST: wom-api.gnps2.org
+      LETSENCRYPT_EMAIL: mwang87@gmail.com
+
+networks:
+  nginx-net:
+    external:
+      name: nginx-net
