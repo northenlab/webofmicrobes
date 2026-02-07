@@ -25,6 +25,7 @@ GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 
 # Model name
 MODEL_NAME = "gemini-2.0-flash"
+#MODEL_NAME = "gemini-3-pro-preview"
 
 @st.cache_resource
 def get_gemini_client():
