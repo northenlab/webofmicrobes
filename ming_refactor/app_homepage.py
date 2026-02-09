@@ -72,7 +72,7 @@ if DEBUG_MODE:
     st.sidebar.title("🔧 Debug Logs")
 
 # Header and description
-st.title("🧬 Web of Microbes")
+st.image("images/wom_logo.png")
 
 st.markdown("""
 <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
