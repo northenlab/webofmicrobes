@@ -40,7 +40,9 @@ def get_preprompt():
 
 client = get_gemini_client()
 llm_config = types.GenerateContentConfig(
-    temperature=0.0, 
+    temperature=0.1, 
+    seed=42,
+    top_k=1,
     system_instruction=get_preprompt()
 )
 
@@ -58,12 +60,41 @@ def debug_log(label: str, content):
                 else:
                     st.code(str(content), language="text")
 
+# Initialize chat_id for history link
+if "chat_id" not in st.session_state:
+    st.session_state["chat_id"] = str(uuid.uuid4())
+
+# Add Chat History link to sidebar
+st.sidebar.link_button("📜 Chat History", "/ChatHistory?chat_id={}".format(st.session_state["chat_id"]))
+
 # Sidebar header for debug logs
 if DEBUG_MODE:
     st.sidebar.title("🔧 Debug Logs")
 
-# Getting a text field
-st.write("Welcome to the Web of Microbes Chatbot!")
+# Header and description
+st.title("🧬 Web of Microbes")
+
+st.markdown("""
+<div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
+            padding: 1.5rem; 
+            border-radius: 12px; 
+            border-left: 4px solid #4CAF50;
+            margin-bottom: 1.5rem;">
+    <p style="color: #e0e0e0; font-size: 1.05rem; line-height: 1.7; margin: 0;">
+        <strong style="color: #4CAF50;">Web of Microbes</strong> predicts which metabolites soil and rhizosphere 
+        microorganisms are likely to consume or secrete, using collaborative filtering models trained on 
+        experimental exometabolomics data. Preference scores reflect the likelihood of metabolite consumption 
+        based on observed patterns and do not account for growth rate or competitive fitness.
+    </p>
+    <p style="color: #b0b0b0; font-size: 0.95rem; line-height: 1.6; margin-top: 1rem; margin-bottom: 0;">
+        Ask the chatbot which compounds a microbe prefers, which microbes consume a given compound, 
+        or how metabolic preferences compare across taxa.
+    </p>
+    <p style="color: #888; font-size: 0.85rem; margin-top: 0.75rem; margin-bottom: 0;">
+        <em>The model is trained on exometabolomics data from Lawrence Berkeley National Laboratory.</em>
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
 import re
 import requests
@@ -376,13 +407,6 @@ Please analyze the error and try again with a corrected command. Make sure to us
 
 #if password == os.getenv("ACCESSPW"):
 if True:
-    #st.write("Access Granted")
-
-    if "chat_id" not in st.session_state:
-        st.session_state["chat_id"] = str(uuid.uuid4())
-
-    # Link to chat
-    st.link_button("Link to Chat History", "/ChatHistory?chat_id={}".format(st.session_state["chat_id"]))
 
     # Draw a vertical line
     #st.markdown("---")
