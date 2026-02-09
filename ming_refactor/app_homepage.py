@@ -39,7 +39,11 @@ def get_preprompt():
     return open("./prompts/wom_prompt.txt", "r").read()
 
 client = get_gemini_client()
-preprompt = get_preprompt()
+llm_config = types.GenerateContentConfig(
+    temperature=0.0, 
+    system_instruction=get_preprompt()
+)
+
 
 # Debug mode toggle - set to False in production
 DEBUG_MODE = True
@@ -203,7 +207,7 @@ def gemini_chat():
             history.append(types.Content(role=role, parts=[types.Part.from_text(text=msg["content"])]))
         st.session_state.gemini_chat = client.chats.create(
             model=MODEL_NAME,
-            config=types.GenerateContentConfig(system_instruction=preprompt),
+            config=llm_config,
             history=history
         )
 
@@ -242,7 +246,15 @@ def gemini_chat():
     if user_input := st.chat_input(first_message):
         prompt = user_input
     
+    # Character limit
+    MAX_CHARS = 500
+    
     if prompt:
+        # Check character limit
+        if len(prompt) > MAX_CHARS:
+            st.warning(f"⚠️ Your message is too long ({len(prompt)} characters). Please limit to {MAX_CHARS} characters.")
+            return
+        
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
 
@@ -370,7 +382,7 @@ if True:
         st.session_state["chat_id"] = str(uuid.uuid4())
 
     # Link to chat
-    #st.link_button("Link to Chat History", "/MassQL_ChatHistory?chat_id={}".format(st.session_state["chat_id"]))
+    st.link_button("Link to Chat History", "/ChatHistory?chat_id={}".format(st.session_state["chat_id"]))
 
     # Draw a vertical line
     #st.markdown("---")
