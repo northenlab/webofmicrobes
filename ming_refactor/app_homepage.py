@@ -18,7 +18,7 @@ html('<script async defer data-website-id="74bc9983-13c4-4da0-89ae-b78209c13aaf"
 
 # Write the page label
 st.set_page_config(
-    page_title="World of Microbes Chatbot",
+    page_title="Web of Microbes Chatbot",
     page_icon="👋",
 )
 
