@@ -73,8 +73,12 @@ st.sidebar.link_button("📜 Chat History", "/ChatHistory?chat_id={}".format(st.
 if DEBUG_MODE:
     st.sidebar.title("🔧 Debug Logs")
 
-# Header and description
-st.image("images/wom_logo.png")
+# Header and description - use different image based on theme
+theme = st.get_option("theme.base")
+if theme == "dark":
+    st.image("images/wom_dark_transparent.png")
+else:
+    st.image("images/wom_light_transparent.png")
 
 st.markdown("""
 <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
