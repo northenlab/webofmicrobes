@@ -228,7 +228,7 @@
     "iso7_CT": 225
   },
   "metabolite_to_idx": {
-    "ribothymidine": 0,
+    "5-methyluridine": 0,
     "adenine": 1,
     "adenosine": 2,
     "alanine": 3,
@@ -577,7 +577,7 @@
     "225": "iso7_CT"
   },
   "idx_to_metabolite": {
-    "0": "ribothymidine",
+    "0": "5-methyluridine",
     "1": "adenine",
     "2": "adenosine",
     "3": "alanine",

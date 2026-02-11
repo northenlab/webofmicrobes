@@ -108,27 +108,40 @@ def get_taxonomic_genus_order(tax_table: pd.DataFrame) -> list[str]:
 
 
 # =============================================================================
-# Figure 1: Model Comparison
+# Figure 1: Four-Panel Benchmark (Model Comparison + Holdout)
 # =============================================================================
 
-def figure_1_model_comparison(
+def figure_1_benchmark(
     core_results: pd.DataFrame,
+    holdout_results: pd.DataFrame,
     output_dir: Path,
 ):
-    """Figure 1: BPR vs WR-MF vs SVD leave-one-out benchmark.
+    """Figure 1: Four-panel benchmark figure.
 
-    Two panels: AUC and Mean Percentile vs embedding dimension.
+    Top row: BPR vs WR-MF vs SVD leave-one-out (AUC and Mean Percentile).
+    Bottom row: Taxonomic holdout with raw vs distinctive scores (Mean Percentile and AUC).
     """
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    has_score_type = "score_type" in holdout_results.columns
+    if not has_score_type:
+        logger.warning("Holdout results missing 'score_type' column. "
+                       "Run benchmark with distinctive scoring enabled.")
+        return
 
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+
+    panel_labels = ['a.', 'b.', 'c.', 'd.']
+
+    # -------------------------------------------------------------------------
+    # Top row: Model comparison (panels a, b)
+    # -------------------------------------------------------------------------
     style = {
         "BPR": {"color": "#d62728", "marker": "s", "label": "BPR"},
         "WR-MF": {"color": "#1f77b4", "marker": "o", "label": "WR-MF"},
         "SVD": {"color": "#2ca02c", "marker": "^", "label": "SVD"},
     }
 
-    # Panel A: AUC
-    ax = axes[0]
+    # Panel a: AUC vs embedding dimension
+    ax = axes[0, 0]
     for method in ["BPR", "WR-MF", "SVD"]:
         method_df = core_results[core_results["method"] == method]
         if len(method_df) == 0:
@@ -148,9 +161,8 @@ def figure_1_model_comparison(
     ax.grid(True, alpha=0.3)
     ax.set_ylim(0.45, 1.0)
 
-
-    # Panel B: Mean Percentile
-    ax = axes[1]
+    # Panel b: Mean Percentile vs embedding dimension
+    ax = axes[0, 1]
     for method in ["BPR", "WR-MF", "SVD"]:
         method_df = core_results[core_results["method"] == method]
         if len(method_df) == 0:
@@ -166,28 +178,112 @@ def figure_1_model_comparison(
     ax.axhline(0.5, color="gray", linestyle="--", linewidth=1, alpha=0.5)
     ax.set_xlabel("Embedding dimension", fontsize=12)
     ax.set_ylabel("Mean percentile of positives", fontsize=12)
-    # ax.legend(frameon=True, fancybox=False, edgecolor="gray")
     ax.set_xscale("log", base=2)
     ax.grid(True, alpha=0.3)
 
+    # -------------------------------------------------------------------------
+    # Bottom row: Holdout benchmark (panels c, d)
+    # -------------------------------------------------------------------------
+    level_order = ["order", "family", "genus", "isolate"]
+    present_levels = [l for l in level_order if l in holdout_results["holdout_level"].values]
+
+    level_labels = {
+        "order": "Hold out\norder",
+        "family": "Hold out\nfamily",
+        "genus": "Hold out\ngenus",
+        "isolate": "Hold out\nisolate",
+    }
+
+    colors = {"raw": "#377eb8", "distinctive": "#e41a1c"}
+
+    for panel_idx, (ax, metric, ylabel) in enumerate([
+        (axes[1, 0], "mean_percentile", "Mean percentile (lower = better)"),
+        (axes[1, 1], "auc", "AUC"),
+    ]):
+        positions = []
+        data_boxes = []
+        box_colors = []
+        tick_positions = []
+        tick_labels = []
+
+        for i, level in enumerate(present_levels):
+            center = i * 3
+            for j, score_type in enumerate(["raw", "distinctive"]):
+                vals = holdout_results[
+                    (holdout_results["holdout_level"] == level) &
+                    (holdout_results["score_type"] == score_type)
+                ][metric].values
+
+                if len(vals) == 0:
+                    continue
+
+                pos = center + j - 0.5
+                positions.append(pos)
+                data_boxes.append(vals)
+                box_colors.append(colors[score_type])
+
+            tick_positions.append(center)
+            tick_labels.append(level_labels.get(level, level))
+
+        if data_boxes:
+            bp = ax.boxplot(
+                data_boxes, positions=positions, widths=0.8,
+                patch_artist=True, flierprops=dict(markersize=3),
+            )
+            for patch, color in zip(bp["boxes"], box_colors):
+                patch.set_facecolor(color)
+                patch.set_alpha(0.6)
+
+        ax.axhline(0.5, color="gray", linestyle="--", linewidth=1, alpha=0.5)
+        ax.set_xticks(tick_positions)
+        ax.set_xticklabels(tick_labels, fontsize=14)
+        ax.tick_params(axis='y', which='major', labelsize=14)
+        ax.set_ylabel(ylabel, fontsize=16)
+        ax.grid(True, alpha=0.3, axis="y")
+
+        # Only show legend on the right panel
+        if panel_idx > 0:
+            ax.legend(
+                handles=[
+                    Patch(facecolor=colors["raw"], alpha=0.6, label="Raw score"),
+                    Patch(facecolor=colors["distinctive"], alpha=0.6, label="Distinctive score"),
+                ],
+                loc="best",
+                fontsize=14,
+                frameon=False,
+                fancybox=False,
+                edgecolor="gray",
+            )
+
+        # Remove top and right spines
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    # -------------------------------------------------------------------------
+    # Panel labels and final formatting
+    # -------------------------------------------------------------------------
+    for ax, label in zip(axes.flat, panel_labels):
+        ax.text(0.075, 1.02, label, transform=ax.transAxes,
+                fontsize=24, va='top', ha='right')
+
+    # Increase tick label fontsize on top row
+    for ax in axes[0, :]:
+        ax.tick_params(axis='both', which='major', labelsize=12)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
     plt.tight_layout()
 
-    panel_labels = ['a.','b.']
-    for ax, label in zip(axes, panel_labels):
-        ax.text(0.075, 0.98, label, transform=ax.transAxes, fontsize=20 , va='top', ha='right')
-
-    # increase x and y tick label fontsize
-    for ax in axes:
-        ax.tick_params(axis='both', which='major', labelsize=12)
     for ext in ["png", "pdf"]:
-        fig.savefig(output_dir / f"figure1_model_comparison.{ext}", dpi=300, bbox_inches="tight")
+        fig.savefig(output_dir / f"figure1_benchmark.{ext}", dpi=300, bbox_inches="tight")
     plt.close()
-    logger.info("Saved figure1_model_comparison")
+    logger.info("Saved figure1_benchmark")
 
 
 # =============================================================================
 # Figure 2: t-SNE of Microbe Embeddings
 # =============================================================================
+
 def figure_2_tsne(
     df: pd.DataFrame,
     output_dir: Path,
@@ -300,8 +396,8 @@ def figure_2_tsne(
         labelspacing=0.3,
     )
 
-    ax.set_xlabel("t-SNE 1",fontsize=12)
-    ax.set_ylabel("t-SNE 2",fontsize=12)
+    ax.set_xlabel("t-SNE 1", fontsize=12)
+    ax.set_ylabel("t-SNE 2", fontsize=12)
     # set tick label fontsize
     ax.tick_params(axis='both', which='major', labelsize=12)
 
@@ -312,6 +408,11 @@ def figure_2_tsne(
         )
     plt.close()
     logger.info("Saved figure2_tsne")
+
+
+# =============================================================================
+# Figure 3: Heatmap
+# =============================================================================
 
 def figure_3_heatmap(
     df: pd.DataFrame,
@@ -480,7 +581,6 @@ def figure_3_heatmap(
         columnspacing=0.8,
     )
 
-
     for ext in ["png", "pdf"]:
         fig.savefig(
             output_dir / f"figure3_heatmap.{ext}",
@@ -488,114 +588,6 @@ def figure_3_heatmap(
         )
     plt.close()
     logger.info("Saved figure3_heatmap")
-
-# =============================================================================
-# Figure 4: Holdout Benchmark (Raw vs Distinctive)
-# =============================================================================
-
-def figure_4_holdout(
-    holdout_results: pd.DataFrame,
-    output_dir: Path,
-):
-    """Figure 4: Unified holdout benchmark with raw and distinctive scores.
-
-    Two panels: Mean Percentile and AUC by holdout level, with paired
-    raw (blue) and distinctive (red) box plots.
-    """
-    has_score_type = "score_type" in holdout_results.columns
-
-    if not has_score_type:
-        logger.warning("Holdout results missing 'score_type' column. "
-                        "Run benchmark with distinctive scoring enabled.")
-        return
-
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-
-    level_order = ["order", "family", "genus", "isolate"]
-    present_levels = [l for l in level_order if l in holdout_results["holdout_level"].values]
-
-    level_labels = {
-        "order": "Hold out\norder",
-        "family": "Hold out\nfamily",
-        "genus": "Hold out\ngenus",
-        "isolate": "Hold out\nisolate",
-    }
-
-    colors = {"raw": "#377eb8", "distinctive": "#e41a1c"}
-    counter = 0
-    panel_labels = ['a.','b.']
-    for ax, metric, ylabel, title in [
-        (axes[0], "mean_percentile", "Mean percentile (lower = better)",
-         "A. Prediction quality by holdout level"),
-        (axes[1], "auc", "AUC",
-         "B. AUC by holdout level"),
-    ]:
-        positions = []
-        data_boxes = []
-        box_colors = []
-        tick_positions = []
-        tick_labels = []
-
-        for i, level in enumerate(present_levels):
-            center = i * 3
-            for j, score_type in enumerate(["raw", "distinctive"]):
-                vals = holdout_results[
-                    (holdout_results["holdout_level"] == level) &
-                    (holdout_results["score_type"] == score_type)
-                ][metric].values
-
-                if len(vals) == 0:
-                    continue
-
-                pos = center + j - 0.5
-                positions.append(pos)
-                data_boxes.append(vals)
-                box_colors.append(colors[score_type])
-
-            tick_positions.append(center)
-            tick_labels.append(level_labels.get(level, level))
-
-        if data_boxes:
-            bp = ax.boxplot(
-                data_boxes, positions=positions, widths=0.8,
-                patch_artist=True, flierprops=dict(markersize=3),
-            )
-            for patch, color in zip(bp["boxes"], box_colors):
-                patch.set_facecolor(color)
-                patch.set_alpha(0.6)
-
-        ax.axhline(0.5, color="gray", linestyle="--", linewidth=1, alpha=0.5)
-        ax.set_xticks(tick_positions)
-        ax.set_xticklabels(tick_labels, fontsize=14)
-        # increase ytick label fontsize
-        ax.tick_params(axis='y', which='major', labelsize=14)
-        ax.set_ylabel(ylabel, fontsize=16)
-        ax.grid(True, alpha=0.3, axis="y")
-        if counter>0:
-            ax.legend(
-                handles=[
-                    Patch(facecolor=colors["raw"], alpha=0.6, label="Raw score"),
-                    Patch(facecolor=colors["distinctive"], alpha=0.6, label="Distinctive score"),
-                ],
-                loc="best",
-                fontsize=14,
-                frameon=False,
-                fancybox=False,
-                edgecolor="gray",
-            )
-
-        # remove top and right spines
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        ax.text(0.075, 1.02, panel_labels[counter], transform=ax.transAxes,
-                fontsize=24 , va='top', ha='right')
-        counter+=1
-
-    plt.tight_layout()
-    for ext in ["png", "pdf"]:
-        fig.savefig(output_dir / f"figure4_holdout.{ext}", dpi=300, bbox_inches="tight")
-    plt.close()
-    logger.info("Saved figure4_holdout")
 
 
 # =============================================================================
@@ -642,8 +634,8 @@ if __name__ == "__main__":
         "--figures",
         nargs="+",
         type=int,
-        default=[1, 2, 3, 4],
-        help="Which figures to generate (1-4)",
+        default=[1, 2, 3],
+        help="Which figures to generate (1-3)",
     )
 
     args = parser.parse_args()
@@ -655,15 +647,23 @@ if __name__ == "__main__":
     df = pd.read_parquet(args.data)
     logger.info(f"Loaded {len(df)} rows")
 
-    # Figure 1: Model comparison
+    # Figure 1: Combined benchmark (model comparison + holdout)
     if 1 in args.figures:
         core_path = args.results_dir / "core_results_consumed.csv"
-        if core_path.exists():
-            logger.info("Generating Figure 1: Model Comparison")
+        holdout_path = args.results_dir / "unified_holdout_results_consumed.csv"
+
+        if core_path.exists() and holdout_path.exists():
+            logger.info("Generating Figure 1: Combined Benchmark")
             core_results = pd.read_csv(core_path)
-            figure_1_model_comparison(core_results, args.output_dir)
+            holdout_results = pd.read_csv(holdout_path)
+            figure_1_benchmark(core_results, holdout_results, args.output_dir)
         else:
-            logger.warning(f"Missing {core_path}, skipping Figure 1")
+            missing = []
+            if not core_path.exists():
+                missing.append(str(core_path))
+            if not holdout_path.exists():
+                missing.append(str(holdout_path))
+            logger.warning(f"Missing {', '.join(missing)}, skipping Figure 1")
 
     # Figure 2: t-SNE
     if 2 in args.figures:
@@ -686,15 +686,5 @@ if __name__ == "__main__":
             )
         else:
             logger.warning(f"Missing profiles or categories, skipping Figure 3")
-
-    # Figure 4: Holdout benchmark
-    if 4 in args.figures:
-        holdout_path = args.results_dir / "unified_holdout_results_consumed.csv"
-        if holdout_path.exists():
-            logger.info("Generating Figure 4: Holdout Benchmark")
-            holdout_results = pd.read_csv(holdout_path)
-            figure_4_holdout(holdout_results, args.output_dir)
-        else:
-            logger.warning(f"Missing {holdout_path}, skipping Figure 4")
 
     logger.info(f"Done. Figures saved to {args.output_dir}")

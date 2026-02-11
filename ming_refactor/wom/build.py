@@ -13,7 +13,7 @@ from model import (
     save_model,
 )
 from config import CACHE_DIR
-from gtdb import get_gtdb
+# from gtdb import get_gtdb
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -119,15 +119,15 @@ def build_models(
 def main():
     logger.info("Initializing Web of Microbes")
 
-    import kg
+    # import kg
     import pref
     import chebi_mapping
 
     # Step 0: Build GTDB
-    logger.info("=" * 60)
-    logger.info("Step 0: Building GTDB graph")
-    logger.info("=" * 60)
-    build_gtdb()
+    # logger.info("=" * 60)
+    # logger.info("Step 0: Building GTDB graph")
+    # logger.info("=" * 60)
+    # build_gtdb()
 
     # Step 2: Build ChEBI cache
     logger.info("=" * 60)
