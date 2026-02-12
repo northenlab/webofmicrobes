@@ -15,3 +15,6 @@ server-compose-production:
 
 attach:
 	docker exec -i -t template-streamlit /bin/bash
+
+init-submodules:
+	git submodule update --init --recursive
