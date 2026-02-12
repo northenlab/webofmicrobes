@@ -135,95 +135,108 @@ st.caption("Explore microbial substrate preferences and growth rates using AI-as
 
 # ── Tool call patterns ──────────────────────────────────────────────
 
-# Match "wom.py" command anywhere in text
-WOM_PATTERN = re.compile(
-    r"wom\.py\s+((?:microbes|compounds|compare|search-compound|search-taxon|list-taxa|list-compounds|info)\s*[^\n]*)",
-    re.IGNORECASE
-)
+# # Match "wom.py" command anywhere in text
+# WOM_PATTERN = re.compile(
+#     r"wom\.py\s+((?:microbes|compounds|compare|search-compound|search-taxon|list-taxa|list-compounds|info)\s*[^\n]*)",
+#     re.IGNORECASE
+# )
 
-# Match "growth_rate" command anywhere in text
-GROWTH_RATE_PATTERN = re.compile(
-    r'growth_rate\s+query="([^"]+)"(?:\s+level=(\w+))?(?:\s+stat=(\w+))?',
-    re.IGNORECASE
-)
+# # Match "growth_rate" command anywhere in text
+# GROWTH_RATE_PATTERN = re.compile(
+#     r'growth_rate\s+query="([^"]+)"(?:\s+level=(\w+))?(?:\s+stat=(\w+))?',
+#     re.IGNORECASE
+# )
 
 
-def parse_args(cmd_args: str) -> list:
-    """
-    Parse command arguments, handling quoted strings properly.
-    """
-    args = []
-    current = ""
-    in_quotes = False
-    quote_char = None
-    for char in cmd_args:
-        if char in ('"', "'") and not in_quotes:
-            in_quotes = True
-            quote_char = char
-        elif char == quote_char and in_quotes:
-            in_quotes = False
-            quote_char = None
-        elif char == ' ' and not in_quotes:
-            if current:
-                args.append(current)
-                current = ""
-        else:
-            current += char
-    if current:
-        args.append(current)
-    return args
+# def parse_args(cmd_args: str) -> list:
+#     """
+#     Parse command arguments, handling quoted strings properly.
+#     """
+#     args = []
+#     current = ""
+#     in_quotes = False
+#     quote_char = None
+#     for char in cmd_args:
+#         if char in ('"', "'") and not in_quotes:
+#             in_quotes = True
+#             quote_char = char
+#         elif char == quote_char and in_quotes:
+#             in_quotes = False
+#             quote_char = None
+#         elif char == ' ' and not in_quotes:
+#             if current:
+#                 args.append(current)
+#                 current = ""
+#         else:
+#             current += char
+#     if current:
+#         args.append(current)
+#     return args
 
+import json
+import re
+
+TOOL_CALL_PATTERN = re.compile(r"```tool_call\s*\n(.*?)\n```", re.DOTALL)
 
 def parse_tool_calls(llm_response: str) -> list:
-    """
-    Parse the LLM response to extract ALL tool calls.
-    Returns a list of dicts, each structured for execution.
-    Supports multiple wom.py calls and multiple growth_rate calls in one response.
-    """
     calls = []
-
-    # Find all wom.py commands
-    for wom_match in WOM_PATTERN.finditer(llm_response):
-        cmd_args = wom_match.group(1).strip()
-        args = parse_args(cmd_args)
-
-        if not args:
+    for match in TOOL_CALL_PATTERN.finditer(llm_response):
+        try:
+            call = json.loads(match.group(1).strip())
+            calls.append(call)
+        except json.JSONDecodeError:
             continue
-
-        params = {
-            "tool": "wom",
-            "command": args[0]
-        }
-
-        i = 1
-        while i < len(args):
-            arg = args[i]
-            if arg.startswith("--"):
-                key = arg[2:]
-                if i + 1 < len(args) and not args[i + 1].startswith("--"):
-                    params[key] = args[i + 1]
-                    i += 2
-                else:
-                    params[key] = True
-                    i += 1
-            else:
-                i += 1
-
-        calls.append(params)
-
-    # Find all growth_rate commands
-    for gr_match in GROWTH_RATE_PATTERN.finditer(llm_response):
-        params = {
-            "tool": "growth_rate",
-            "query": gr_match.group(1),
-        }
-        if gr_match.group(2):
-            params["level"] = gr_match.group(2)
-        if gr_match.group(3):
-            params["stat"] = gr_match.group(3)
-        calls.append(params)
-
     return calls
+
+# def parse_tool_calls(llm_response: str) -> list:
+#     calls = []
+
+#     for wom_match in WOM_PATTERN.finditer(llm_response):
+#         cmd_args = wom_match.group(1).strip()
+#         args = parse_args(cmd_args)
+
+#         if not args:
+#             continue
+
+#         params = {
+#             "tool": "wom",
+#             "command": args[0]
+#         }
+
+#         i = 1
+#         while i < len(args):
+#             arg = args[i]
+#             if arg.startswith("--"):
+#                 key = arg[2:]
+#                 if i + 1 < len(args) and not args[i + 1].startswith("--"):
+#                     params[key] = args[i + 1]
+#                     i += 2
+#                 else:
+#                     params[key] = True
+#                     i += 1
+#             else:
+#                 i += 1
+
+#         # Handle positional args for search commands
+#         if params["command"] in ("search-compound", "search-taxon"):
+#             positional = [args[j] for j in range(1, len(args)) if not args[j].startswith("--")]
+#             if positional and "query" not in params:
+#                 params["query"] = positional[0]
+
+#         calls.append(params)
+
+#     for gr_match in GROWTH_RATE_PATTERN.finditer(llm_response):
+#         params = {
+#             "tool": "growth_rate",
+#             "query": gr_match.group(1),
+#         }
+#         if gr_match.group(2):
+#             params["level"] = gr_match.group(2)
+#         if gr_match.group(3):
+#             params["stat"] = gr_match.group(3)
+#         calls.append(params)
+
+#     return calls
 
 
 def execute_tool_call(tool_info: dict) -> tuple[str, bool]:
@@ -273,6 +286,19 @@ def execute_tool_call(tool_info: dict) -> tuple[str, bool]:
         except requests.RequestException as e:
             return json.dumps({"error": f"Request failed: {str(e)}"}), True
 
+    elif tool_info['tool'] == 'wom_complex':
+        payload = {k: v for k, v in tool_info.items() if k != 'tool'}
+        response = requests.post(
+            'http://wom-flask:5000/api/complex',
+            json=payload,
+            timeout=30
+        )
+        if response.status_code != 200:
+            return {"success": False, "error": f"API returned {response.status_code}: {response.text}"}, True
+        try:
+            return response.json(), False
+        except requests.exceptions.JSONDecodeError:
+            return {"success": False, "error": f"API returned non-JSON: {response.text[:500]}"}, True
     return json.dumps({"error": "Unknown tool"}), True
 
 

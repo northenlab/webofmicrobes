@@ -371,6 +371,164 @@ COMMAND_SCHEMA = {
 }
 
 
+
+# =============================================================================
+# Schema: complex commands
+# =============================================================================
+
+COMPLEX_COMMAND_SCHEMA = {
+    "selective": {
+        "description": "Find metabolites that favor a target microbe over competitors",
+        "parameters": {
+            "target": {
+                "type": "string",
+                "required": True,
+                "description": "Target microbe to promote (e.g., 'genus:Pseudomonas')"
+            },
+            "competitors": {
+                "type": "string",
+                "required": True,
+                "description": "Competitor microbes, comma-separated (e.g., 'genus:Burkholderia,genus:Variovorax')"
+            },
+            "exclude": {
+                "type": "string",
+                "required": False,
+                "default": None,
+                "description": "Metabolites to exclude (already in environment), comma-separated"
+            },
+            "top": {
+                "type": "integer",
+                "required": False,
+                "default": 10,
+                "description": "Number of results"
+            }
+        },
+        "example": {
+            "command": "selective",
+            "target": "genus:Pseudomonas",
+            "competitors": "genus:Burkholderia,genus:Variovorax",
+            "top": 10
+        }
+    },
+    "fitness": {
+        "description": "Rank microbes by their affinity for a metabolite environment",
+        "parameters": {
+            "metabolites": {
+                "type": "string",
+                "required": True,
+                "description": "Metabolites in environment, comma-separated (e.g., 'arginine,lysine')"
+            },
+            "microbes": {
+                "type": "string",
+                "required": False,
+                "default": None,
+                "description": "Specific microbes to evaluate (optional, defaults to all genera)"
+            },
+            "level": {
+                "type": "string",
+                "required": False,
+                "default": "genus",
+                "choices": ["isolate", "genus", "family", "order", "class"],
+                "description": "Taxonomic level"
+            },
+            "agg": {
+                "type": "string",
+                "required": False,
+                "default": "sum",
+                "choices": ["mean", "sum", "max"],
+                "description": "Aggregation across metabolites"
+            },
+            "top": {
+                "type": "integer",
+                "required": False,
+                "default": 10,
+                "description": "Number of results"
+            }
+        },
+        "example": {
+            "command": "fitness",
+            "metabolites": "arginine,lysine",
+            "top": 10
+        }
+    },
+    "niche": {
+        "description": "Find unique metabolic preferences for a microbe vs others",
+        "parameters": {
+            "target": {
+                "type": "string",
+                "required": True,
+                "description": "Target microbe (e.g., 'genus:Pseudomonas')"
+            },
+            "versus": {
+                "type": "string",
+                "required": False,
+                "default": None,
+                "description": "Compare against specific microbes (optional, defaults to all genera)"
+            },
+            "top": {
+                "type": "integer",
+                "required": False,
+                "default": 10,
+                "description": "Number of results"
+            }
+        },
+        "example": {
+            "command": "niche",
+            "target": "genus:Pseudomonas",
+            "top": 10
+        }
+    },
+    "competition": {
+        "description": "Analyze which microbe wins for given metabolites",
+        "parameters": {
+            "microbes": {
+                "type": "string",
+                "required": True,
+                "description": "Competing microbes, comma-separated (e.g., 'genus:Pseudomonas,genus:Burkholderia')"
+            },
+            "metabolites": {
+                "type": "string",
+                "required": True,
+                "description": "Metabolites to compete for, comma-separated"
+            }
+        },
+        "example": {
+            "command": "competition",
+            "microbes": "genus:Pseudomonas,genus:Burkholderia",
+            "metabolites": "glutamate,arginine"
+        }
+    },
+    "rank-substrates": {
+        "description": "Rank specific substrates for specific microbes by preference",
+        "parameters": {
+            "microbes": {
+                "type": "string",
+                "required": True,
+                "description": "Microbes to analyze, comma-separated (e.g., 'genus:Bacillus,genus:Pseudomonas')"
+            },
+            "substrates": {
+                "type": "string",
+                "required": True,
+                "description": "Substrates to rank, comma-separated (e.g., 'glucose,glutamate,alanine')"
+            },
+            "top": {
+                "type": "integer",
+                "required": False,
+                "default": 10,
+                "description": "Number of top substrates per microbe"
+            }
+        },
+        "example": {
+            "command": "rank-substrates",
+            "microbes": "genus:Bacillus,genus:Pseudomonas",
+            "substrates": "glucose,glutamate,alanine",
+            "top": 5
+        }
+    }
+}
+
+
+
 # =============================================================================
 # Default values per command (used to fill in missing optional parameters)
 # =============================================================================
@@ -386,6 +544,19 @@ COMMAND_DEFAULTS = {
     "info": {"model": "bpr"},
     "raw-scores": {"model": "bpr", "compounds": None, "microbes": None},
     "compare": {"model": "bpr", "top": 10},
+}
+
+
+# =============================================================================
+# Defaults: complex commands
+# =============================================================================
+
+COMPLEX_COMMAND_DEFAULTS = {
+    "selective": {"exclude": None, "top": 10, "format": "json"},
+    "fitness": {"microbes": None, "level": "genus", "agg": "sum", "top": 10, "format": "json"},
+    "niche": {"versus": None, "top": 10, "format": "json"},
+    "competition": {"format": "json"},
+    "rank-substrates": {"top": 10, "format": "json"},
 }
 
 
@@ -407,8 +578,18 @@ _COMMAND_TO_FUNC = {
     "compare": "cmd_compare",
 }
 
+_COMPLEX_COMMAND_TO_FUNC = {
+    "selective": "cmd_selective",
+    "fitness": "cmd_fitness",
+    "niche": "cmd_niche",
+    "competition": "cmd_competition",
+    "rank-substrates": "cmd_rank_substrates",
+}
 
-def _build_namespace(command: str, params: dict) -> SimpleNamespace:
+def _build_namespace(command: str, params: dict, defaults_map: dict = None) -> SimpleNamespace:
+    if defaults_map is None:
+        defaults_map = COMMAND_DEFAULTS
+    defaults = defaults_map.get(command, {})
     """
     Build a SimpleNamespace that mimics argparse output for a given command.
     
@@ -416,7 +597,7 @@ def _build_namespace(command: str, params: dict) -> SimpleNamespace:
     'format' attribute that wom.py's cmd_* functions expect (though they
     don't use it internally — they just return dicts).
     """
-    defaults = COMMAND_DEFAULTS.get(command, {})
+    # defaults = COMMAND_DEFAULTS.get(command, {})
     
     merged = {}
     merged.update(defaults)
@@ -435,39 +616,33 @@ def _build_namespace(command: str, params: dict) -> SimpleNamespace:
     return SimpleNamespace(**merged)
 
 
-def _validate_request(data: dict) -> tuple[str, dict] | tuple[None, dict]:
-    """
-    Validate the incoming request body.
-    
-    Returns:
-        (command, params) on success
-        Raises ValueError on failure
-    """
+def _validate_request(data: dict, schema: dict = None) -> tuple:
+    if schema is None:
+        schema = COMMAND_SCHEMA
+
     if not data:
         raise ValueError("Request body is empty. Send JSON with at least a 'command' field.")
-    
+
     command = data.get("command")
     if not command:
         raise ValueError(
-            f"Missing 'command' field. Available commands: {list(COMMAND_SCHEMA.keys())}"
+            f"Missing 'command' field. Available commands: {list(schema.keys())}"
         )
-    
-    if command not in COMMAND_SCHEMA:
+
+    if command not in schema:
         raise ValueError(
-            f"Unknown command: '{command}'. Available commands: {list(COMMAND_SCHEMA.keys())}"
+            f"Unknown command: '{command}'. Available commands: {list(schema.keys())}"
         )
-    
-    # Check required parameters
-    schema = COMMAND_SCHEMA[command]
-    for param_name, param_info in schema["parameters"].items():
+
+    cmd_schema = schema[command]
+    for param_name, param_info in cmd_schema["parameters"].items():
         if param_info.get("required") and param_name not in data:
             raise ValueError(
                 f"Command '{command}' requires parameter '{param_name}': "
                 f"{param_info['description']}"
             )
-    
-    # Validate choices
-    for param_name, param_info in schema["parameters"].items():
+
+    for param_name, param_info in cmd_schema["parameters"].items():
         if param_name in data and "choices" in param_info:
             value = data[param_name]
             if value is not None and value not in param_info["choices"]:
@@ -475,10 +650,9 @@ def _validate_request(data: dict) -> tuple[str, dict] | tuple[None, dict]:
                     f"Invalid value '{value}' for parameter '{param_name}'. "
                     f"Choices: {param_info['choices']}"
                 )
-    
+
     params = {k: v for k, v in data.items() if k != "command"}
     return command, params
-
 
 # =============================================================================
 # Routes
@@ -533,30 +707,127 @@ def api_query():
     return jsonify(result), status_code
 
 
+# @app.route("/api/schema", methods=["GET"])
+# def api_schema():
+#     """
+#     Return the full command schema for introspection.
+    
+#     An LLM agent can call this to discover available commands
+#     and their parameters.
+#     """
+#     return jsonify({
+#         "success": True,
+#         "endpoint": "POST /api/query",
+#         "content_type": "application/json",
+#         "description": (
+#             "Web of Microbes prediction API. Send a JSON body with a 'command' field "
+#             "and command-specific parameters. All commands return JSON with a 'success' "
+#             "boolean, 'error' (null on success), 'query' echo, and command-specific results."
+#         ),
+#         "commands": COMMAND_SCHEMA
+#     })
+
+
+# @app.route("/api/health", methods=["GET"])
+# def api_health():
+#     """Simple health check endpoint."""
+#     return jsonify({
+#         "status": "ok",
+#         "service": "web-of-microbes"
+#     })
+
+
+# =============================================================================
+# Routes: complex commands (NEW)
+# =============================================================================
+
+@app.route("/api/complex", methods=["POST"])
+def api_complex():
+    """
+    Complex multi-step query endpoint. Accepts JSON body with a 'command' field
+    and command-specific parameters.
+    """
+    data = request.get_json(silent=True)
+
+    if data is None:
+        return jsonify({
+            "success": False,
+            "error": "Invalid or missing JSON body.",
+            "query": None,
+            "results": []
+        }), 400
+
+    try:
+        command, params = _validate_request(data, schema=COMPLEX_COMMAND_SCHEMA)
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "query": data,
+            "results": []
+        }), 400
+
+    try:
+        args = _build_namespace(command, params, defaults_map=COMPLEX_COMMAND_DEFAULTS)
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "query": data,
+            "results": []
+        }), 400
+
+    import wom_complex
+    func_name = _COMPLEX_COMMAND_TO_FUNC[command]
+    func = getattr(wom_complex, func_name)
+
+    result = func(args)
+
+    status_code = 200 if result.get("success", True) else 500
+    return jsonify(result), status_code
+
+
+@app.route("/api/complex/schema", methods=["GET"])
+def api_complex_schema():
+    """Return the complex command schema for introspection."""
+    return jsonify({
+        "success": True,
+        "endpoint": "POST /api/complex",
+        "content_type": "application/json",
+        "description": (
+            "Complex multi-step queries for the Web of Microbes model. "
+            "These commands combine multiple internal operations (scoring, "
+            "aggregation, comparison, ranking) into a single call."
+        ),
+        "commands": COMPLEX_COMMAND_SCHEMA
+    })
+
+
+# =============================================================================
+# Routes: schema and health (updated)
+# =============================================================================
+
 @app.route("/api/schema", methods=["GET"])
 def api_schema():
-    """
-    Return the full command schema for introspection.
-    
-    An LLM agent can call this to discover available commands
-    and their parameters.
-    """
     return jsonify({
         "success": True,
         "endpoint": "POST /api/query",
         "content_type": "application/json",
         "description": (
             "Web of Microbes prediction API. Send a JSON body with a 'command' field "
-            "and command-specific parameters. All commands return JSON with a 'success' "
-            "boolean, 'error' (null on success), 'query' echo, and command-specific results."
+            "and command-specific parameters."
         ),
-        "commands": COMMAND_SCHEMA
+        "commands": COMMAND_SCHEMA,
+        "complex_commands": {
+            "endpoint": "POST /api/complex",
+            "schema_url": "/api/complex/schema",
+            "description": "Advanced multi-step queries available at /api/complex"
+        }
     })
 
 
 @app.route("/api/health", methods=["GET"])
 def api_health():
-    """Simple health check endpoint."""
     return jsonify({
         "status": "ok",
         "service": "web-of-microbes"
