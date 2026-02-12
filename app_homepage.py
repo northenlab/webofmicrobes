@@ -135,44 +135,6 @@ st.caption("Explore microbial substrate preferences and growth rates using AI-as
 
 # ── Tool call patterns ──────────────────────────────────────────────
 
-# # Match "wom.py" command anywhere in text
-# WOM_PATTERN = re.compile(
-#     r"wom\.py\s+((?:microbes|compounds|compare|search-compound|search-taxon|list-taxa|list-compounds|info)\s*[^\n]*)",
-#     re.IGNORECASE
-# )
-
-# # Match "growth_rate" command anywhere in text
-# GROWTH_RATE_PATTERN = re.compile(
-#     r'growth_rate\s+query="([^"]+)"(?:\s+level=(\w+))?(?:\s+stat=(\w+))?',
-#     re.IGNORECASE
-# )
-
-
-# def parse_args(cmd_args: str) -> list:
-#     """
-#     Parse command arguments, handling quoted strings properly.
-#     """
-#     args = []
-#     current = ""
-#     in_quotes = False
-#     quote_char = None
-#     for char in cmd_args:
-#         if char in ('"', "'") and not in_quotes:
-#             in_quotes = True
-#             quote_char = char
-#         elif char == quote_char and in_quotes:
-#             in_quotes = False
-#             quote_char = None
-#         elif char == ' ' and not in_quotes:
-#             if current:
-#                 args.append(current)
-#                 current = ""
-#         else:
-#             current += char
-#     if current:
-#         args.append(current)
-#     return args
-
 import json
 import re
 
@@ -187,56 +149,6 @@ def parse_tool_calls(llm_response: str) -> list:
         except json.JSONDecodeError:
             continue
     return calls
-
-# def parse_tool_calls(llm_response: str) -> list:
-#     calls = []
-
-#     for wom_match in WOM_PATTERN.finditer(llm_response):
-#         cmd_args = wom_match.group(1).strip()
-#         args = parse_args(cmd_args)
-
-#         if not args:
-#             continue
-
-#         params = {
-#             "tool": "wom",
-#             "command": args[0]
-#         }
-
-#         i = 1
-#         while i < len(args):
-#             arg = args[i]
-#             if arg.startswith("--"):
-#                 key = arg[2:]
-#                 if i + 1 < len(args) and not args[i + 1].startswith("--"):
-#                     params[key] = args[i + 1]
-#                     i += 2
-#                 else:
-#                     params[key] = True
-#                     i += 1
-#             else:
-#                 i += 1
-
-#         # Handle positional args for search commands
-#         if params["command"] in ("search-compound", "search-taxon"):
-#             positional = [args[j] for j in range(1, len(args)) if not args[j].startswith("--")]
-#             if positional and "query" not in params:
-#                 params["query"] = positional[0]
-
-#         calls.append(params)
-
-#     for gr_match in GROWTH_RATE_PATTERN.finditer(llm_response):
-#         params = {
-#             "tool": "growth_rate",
-#             "query": gr_match.group(1),
-#         }
-#         if gr_match.group(2):
-#             params["level"] = gr_match.group(2)
-#         if gr_match.group(3):
-#             params["stat"] = gr_match.group(3)
-#         calls.append(params)
-
-#     return calls
 
 
 def execute_tool_call(tool_info: dict) -> tuple[str, bool]:
