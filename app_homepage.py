@@ -4,6 +4,7 @@ import os
 import json
 import uuid
 import time
+import re
 import requests
 from dotenv import load_dotenv
 from google import genai
@@ -42,7 +43,7 @@ def get_preprompt():
 
 client = get_gemini_client()
 llm_config = types.GenerateContentConfig(
-    temperature=0.1, 
+    temperature=0.1,
     seed=42,
     top_k=1,
     system_instruction=get_preprompt()
@@ -57,7 +58,7 @@ def debug_log(label: str, content):
     if DEBUG_MODE:
         with st.sidebar:
             with st.expander(f"🔧 {label}", expanded=False):
-                if isinstance(content, dict):
+                if isinstance(content, (dict, list)):
                     st.json(content)
                 else:
                     st.code(str(content), language="text")
@@ -94,22 +95,30 @@ st.markdown("""
     </p>
     <p style="color: #b0b0b0; font-size: 0.95rem; line-height: 1.6; margin-top: 1rem; margin-bottom: 0;">
         Ask the chatbot which compounds a microbe prefers, which microbes consume a given compound, 
-        or how metabolic preferences compare across taxa.
+        or how metabolic preferences compare across taxa. You can also ask about predicted growth rates.
     </p>
     <p style="color: #888; font-size: 0.85rem; margin-top: 0.75rem; margin-bottom: 0;">
-        <em>The model is trained on exometabolomics data from Lawrence Berkeley National Laboratory.</em>
+        <em>The model is trained on exometabolomics data from Lawrence Berkeley National Laboratory.
+        Growth rate predictions are from Phydon.</em>
     </p>
 </div>
 """, unsafe_allow_html=True)
 
-import re
-import requests
 
-# Match "wom.py" command anywhere in text (with or without "I'll run:")
+# ── Tool call patterns ──────────────────────────────────────────────
+
+# Match "wom.py" command anywhere in text
 WOM_PATTERN = re.compile(
     r"wom\.py\s+((?:microbes|compounds|compare|search-compound|search-taxon|list-taxa|list-compounds|info)\s*[^\n]*)",
     re.IGNORECASE
 )
+
+# Match "growth_rate" command anywhere in text
+GROWTH_RATE_PATTERN = re.compile(
+    r'growth_rate\s+query="([^"]+)"(?:\s+level=(\w+))?(?:\s+stat=(\w+))?',
+    re.IGNORECASE
+)
+
 
 def parse_args(cmd_args: str) -> list:
     """
@@ -137,96 +146,132 @@ def parse_args(cmd_args: str) -> list:
     return args
 
 
-def parse_tool_call(llm_response: str) -> dict:
+def parse_tool_calls(llm_response: str) -> list:
     """
-    Parse the LLM response to extract tool calls.
-    Returns a dict structured for POST requests or None if no tool call found.
-    
-    Returns:
-        {
-            "command": "microbes",  # the subcommand
-            "compounds": "glutamate,acetate",  # --compounds value
-            "level": "genus",  # --level value
-            "top": "10",  # --top value
-            ...
-        }
+    Parse the LLM response to extract ALL tool calls.
+    Returns a list of dicts, each structured for execution.
+    Supports multiple wom.py calls and multiple growth_rate calls in one response.
     """
-    # Check for wom.py commands
-    wom_match = WOM_PATTERN.search(llm_response)
-    if wom_match:
+    calls = []
+
+    # Find all wom.py commands
+    for wom_match in WOM_PATTERN.finditer(llm_response):
         cmd_args = wom_match.group(1).strip()
         args = parse_args(cmd_args)
-        
+
         if not args:
-            return None
-        
-        # Build the params dict
+            continue
+
         params = {
-            "command": args[0]  # First arg is the subcommand
+            "tool": "wom",
+            "command": args[0]
         }
-        
-        # Parse remaining args as --flag value pairs
+
         i = 1
         while i < len(args):
             arg = args[i]
             if arg.startswith("--"):
-                key = arg[2:]  # Remove the --
-                # Check if there's a value following
+                key = arg[2:]
                 if i + 1 < len(args) and not args[i + 1].startswith("--"):
                     params[key] = args[i + 1]
                     i += 2
                 else:
-                    # Flag without value (boolean flag)
                     params[key] = True
                     i += 1
             else:
-                # Positional argument after command
                 i += 1
-        
-        return params
-    
-    
-    return None
+
+        calls.append(params)
+
+    # Find all growth_rate commands
+    for gr_match in GROWTH_RATE_PATTERN.finditer(llm_response):
+        params = {
+            "tool": "growth_rate",
+            "query": gr_match.group(1),
+        }
+        if gr_match.group(2):
+            params["level"] = gr_match.group(2)
+        if gr_match.group(3):
+            params["stat"] = gr_match.group(3)
+        calls.append(params)
+
+    return calls
 
 
 def execute_tool_call(tool_info: dict) -> tuple[str, bool]:
     """
-    Execute a tool call via web API.
-    
-    Args:
-        tool_info: dict from parse_tool_call, ready to be sent as POST JSON
-        
+    Execute a single tool call via web API.
+
     Returns:
         Tuple of (response_text, is_error)
     """
-    command = tool_info.get("command")
-    
-    if command:
-        # WoM API call - the tool_info dict is ready to POST directly
-        url = "http://wom-flask:5000/api/query"
+    tool = tool_info.get("tool")
 
+    if tool == "growth_rate":
+        url = "http://growth-rate:5000/growth_rate"
+        params = {"query": tool_info["query"]}
+        if "level" in tool_info:
+            params["level"] = tool_info["level"]
+        if "stat" in tool_info:
+            params["stat"] = tool_info["stat"]
         try:
-            response = requests.post(url, json=tool_info, timeout=30)
+            response = requests.get(url, params=params, timeout=30)
             response_text = response.text
-            
-            # Check for HTTP errors
             if response.status_code != 200:
                 return response_text, True
-            
-            # Check for API-level errors in the response
+            return response_text, False
+        except requests.RequestException as e:
+            return json.dumps({"error": f"Growth rate request failed: {str(e)}"}), True
+
+    elif tool == "wom":
+        url = "http://wom-flask:5000/api/query"
+        payload = {k: v for k, v in tool_info.items() if k != "tool"}
+        try:
+            response = requests.post(url, json=payload, timeout=30)
+            response_text = response.text
+
+            if response.status_code != 200:
+                return response_text, True
+
             try:
                 result = json.loads(response_text)
                 if result.get("error") or result.get("success") == False:
                     return response_text, True
             except json.JSONDecodeError:
                 pass
-            
+
             return response_text, False
-            
+
         except requests.RequestException as e:
             return json.dumps({"error": f"Request failed: {str(e)}"}), True
-    
-    return json.dumps({"error": "Unknown command"}), True
+
+    return json.dumps({"error": "Unknown tool"}), True
+
+
+def execute_all_tool_calls(tool_calls: list) -> tuple[str, bool]:
+    """
+    Execute a list of tool calls and combine their outputs.
+
+    Returns:
+        Tuple of (combined_output_text, any_errors)
+    """
+    all_outputs = []
+    any_errors = False
+
+    for i, tool_info in enumerate(tool_calls):
+        tool_name = tool_info.get("tool", "unknown")
+        label = tool_info.get("query") or tool_info.get("command") or str(i)
+        output, is_error = execute_tool_call(tool_info)
+
+        if is_error:
+            any_errors = True
+
+        all_outputs.append(f"[{tool_name}: {label}]\n{output}")
+
+        debug_log(f"Tool {i+1} ({tool_name})", {"input": tool_info, "output": output, "is_error": is_error})
+
+    combined = "\n\n".join(all_outputs)
+    return combined, any_errors
 
 
 def gemini_chat():
@@ -237,7 +282,6 @@ def gemini_chat():
 
     # Initialize Gemini chat session
     if "gemini_chat" not in st.session_state:
-        # Convert existing messages to Gemini format if any
         history = []
         for msg in st.session_state.messages:
             role = "user" if msg["role"] == "user" else "model"
@@ -249,7 +293,7 @@ def gemini_chat():
         )
 
     first_message = "Hello, I am here to help you explore microbial substrate preferences"
-    
+
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -259,7 +303,7 @@ def gemini_chat():
     if len(st.session_state.messages) == 0:
         st.markdown("**Try an example question:**")
         col1, col2, col3 = st.columns(3)
-        
+
         with col1:
             if st.button("🦠 What does Pseudomonas like to eat?", use_container_width=True):
                 st.session_state.example_question = "What does Pseudomonas like to eat?"
@@ -278,127 +322,107 @@ def gemini_chat():
     if "example_question" in st.session_state:
         prompt = st.session_state.example_question
         del st.session_state.example_question
-    
+
     # Accept user input
     if user_input := st.chat_input(first_message):
         prompt = user_input
-    
+
     # Character limit
-    MAX_CHARS = 500
-    
+    MAX_CHARS = 2000
+
     if prompt:
         # Check character limit
         if len(prompt) > MAX_CHARS:
             st.warning(f"⚠️ Your message is too long ({len(prompt)} characters). Please limit to {MAX_CHARS} characters.")
             return
-        
+
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
 
-        # Display user message in chat message container
+        # Display user message
         with st.chat_message("user"):
             st.markdown(prompt)
 
         # Send user's message to Gemini and get a response
         response = st.session_state.gemini_chat.send_message(prompt)
         assistant_response = response.text
-        
-        # Check for tool calls in the response
-        tool_info = parse_tool_call(assistant_response)
-        #tool_info = None
 
-        debug_log("Parsed Tool Info", tool_info)
-        
-        if tool_info:
-            # Execute the tool call
-            tool_output, is_error = execute_tool_call(tool_info)
-            
-            debug_log("Tool Output", {"output": tool_output, "is_error": is_error})
-            
+        # Check for tool calls in the response
+        tool_calls = parse_tool_calls(assistant_response)
+
+        debug_log("Parsed Tool Calls", tool_calls)
+
+        if tool_calls:
+            # Execute all tool calls
+            combined_output, any_errors = execute_all_tool_calls(tool_calls)
+
             # Add the initial response to history
             st.session_state.messages.append({"role": "assistant", "content": assistant_response})
-            
-            # Display the initial response (with tool call)
+
+            # Display the initial response (with tool calls)
             with st.chat_message("assistant"):
                 st.markdown(assistant_response)
-            
-            # If there was an error, give the LLM one chance to fix it
-            if is_error:
-                debug_log("Error Detected", "Giving LLM one chance to fix")
-                
-                error_msg = f"""The tool call returned an error:
-```json
-{tool_output}
-```
 
-Please analyze the error and try again with a corrected command. Make sure to use the exact wom.py syntax."""
-                
-                # Get corrected response from LLM
+            if any_errors:
+                debug_log("Errors Detected", "Giving LLM one chance to fix")
+
+                error_msg = f"""One or more tool calls returned errors:
+```json
+{combined_output}
+```
+"""
                 retry_response = st.session_state.gemini_chat.send_message(error_msg)
                 retry_text = retry_response.text
-                
+
                 debug_log("Retry Response", retry_text)
-                
-                # Check if the retry contains a new tool call
-                retry_tool_info = parse_tool_call(retry_text)
-                
-                if retry_tool_info:
-                    debug_log("Retry Tool Info", retry_tool_info)
-                    
-                    # Execute the retry
-                    tool_output, is_error = execute_tool_call(retry_tool_info)
-                    
-                    debug_log("Retry Tool Output", {"output": tool_output, "is_error": is_error})
-                    
-                    # Add retry response to history and display
+
+                retry_calls = parse_tool_calls(retry_text)
+
+                if retry_calls:
+                    debug_log("Retry Tool Calls", retry_calls)
+                    combined_output, any_errors = execute_all_tool_calls(retry_calls)
+
                     st.session_state.messages.append({"role": "assistant", "content": retry_text})
                     with st.chat_message("assistant"):
                         st.markdown(retry_text)
-                    
-                    if is_error:
-                        # Still failed after retry - notify user
-                        final_text = f"I tried to fix the command but still encountered an error. The API returned:\n```json\n{tool_output}\n```\n\nPlease check your query and try again with different parameters."
+
+                    if any_errors:
+                        final_text = f"I tried to fix the commands but still encountered errors. The APIs returned:\n```json\n{combined_output}\n```\n\nPlease check your query and try again with different parameters."
                         st.session_state.messages.append({"role": "assistant", "content": final_text})
                         with st.chat_message("assistant"):
                             st.markdown(final_text)
                     else:
-                        # Retry succeeded - interpret results
-                        tool_msg = f"Tool output:\n```json\n{tool_output}\n```\n\nPlease interpret these results for the user."
+                        tool_msg = f"Tool outputs:\n```json\n{combined_output}\n```\n\nPlease interpret all of these results together for the user."
                         final_response = st.session_state.gemini_chat.send_message(tool_msg)
                         final_text = final_response.text
-                        
+
                         st.session_state.messages.append({"role": "assistant", "content": final_text})
                         with st.chat_message("assistant"):
                             st.markdown(final_text)
                 else:
-                    # LLM didn't provide a corrected command, just show its response
                     st.session_state.messages.append({"role": "assistant", "content": retry_text})
                     with st.chat_message("assistant"):
                         st.markdown(retry_text)
             else:
-                # No error - send tool output back to Gemini for interpretation
-                tool_msg = f"Tool output:\n```json\n{tool_output}\n```\n\nPlease interpret these results for the user."
+                # No errors - send all tool outputs back to Gemini for interpretation
+                tool_msg = f"Tool outputs:\n```json\n{combined_output}\n```\n\nPlease interpret all of these results together for the user."
 
                 debug_log("Tool Message", tool_msg)
-                
-                # Get the final interpreted response
+
                 final_response = st.session_state.gemini_chat.send_message(tool_msg)
-        
+
                 debug_log("Final Response", final_response.text)
 
                 final_text = final_response.text
-                
-                # Add the interpretation to history
+
                 st.session_state.messages.append({"role": "assistant", "content": final_text})
-                
-                # Display the final interpretation
+
                 with st.chat_message("assistant"):
                     st.markdown(final_text)
         else:
-            # No tool call, just display the response normally
+            # No tool calls, just display the response normally
             st.session_state.messages.append({"role": "assistant", "content": assistant_response})
-            
-            # Display Gemini's response
+
             with st.chat_message("assistant"):
                 st.markdown(assistant_response)
 
@@ -407,15 +431,5 @@ Please analyze the error and try again with a corrected command. Make sure to us
         with open(chat_history_filename, "w") as file:
             file.write(json.dumps(st.session_state.messages))
 
-
-# password question
-# password = st.text_input("Access Password:", value="", type="password")
-
-#if password == os.getenv("ACCESSPW"):
 if True:
-
-    # Draw a vertical line
-    #st.markdown("---")
-
-    #openaiassistantchat()
     gemini_chat()

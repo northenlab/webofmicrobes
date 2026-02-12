@@ -1,2 +1,13 @@
+.DS_Store
 __pycache__
 *.pyc
+factor/.gitignore 
+chat/*.json
+.env
+old_*.py
+old_*.txt
+wom/benchmark_results/
+wom/figures/
+wom/manuscript_figures/
+wom/raw/
+wom/data
