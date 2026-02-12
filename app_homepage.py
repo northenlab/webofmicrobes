@@ -19,8 +19,9 @@ html('<script async defer data-website-id="74bc9983-13c4-4da0-89ae-b78209c13aaf"
 
 # Write the page label
 st.set_page_config(
-    page_title="Web of Microbes Chatbot",
-    page_icon="👋",
+    page_title="Web of Microbes",
+    page_icon="🕸️",
+    layout="wide"
 )
 
 # Configure Gemini API
@@ -66,10 +67,37 @@ def debug_log(label: str, content):
 # Initialize chat_id for history link
 if "chat_id" not in st.session_state:
     st.session_state["chat_id"] = str(uuid.uuid4())
-
+if st.sidebar.button("🔄 New Chat", use_container_width=True):
+    st.session_state.messages = []
+    st.session_state.pop("gemini_chat", None)
+    st.session_state["chat_id"] = str(uuid.uuid4())
+    st.rerun()
 # Add Chat History link to sidebar
-st.sidebar.link_button("📜 Chat History", "/ChatHistory?chat_id={}".format(st.session_state["chat_id"]))
+chat_id = st.session_state["chat_id"]
+st.sidebar.markdown(
+    f'<a href="/ChatHistory?chat_id={chat_id}" target="_self" style="text-decoration:none;">'
+    f'<button style="width:100%; padding:0.4rem; border-radius:0.5rem; border:1px solid #ccc; cursor:pointer;">📜 Chat History</button>'
+    f'</a>',
+    unsafe_allow_html=True
+)
+# st.sidebar.link_button("📜 Chat History", use_container_width=True, url="/ChatHistory?chat_id={}".format(st.session_state["chat_id"]))
+with st.sidebar.expander("ℹ️ About & Help"):
+    st.markdown("""
+**Web of Microbes** predicts which metabolites soil microbes 
+prefer to consume, based on exometabolomics data from 
+Lawrence Berkeley National Laboratory.
 
+**Try asking:**
+- "What does Pseudomonas like to eat?"
+- "Which microbes consume glutamate?"
+- "Compare Burkholderia and Variovorax"
+- "What is the growth rate of Pseudomonas?"
+
+**Tips:**
+- You don't need exact names — fuzzy matching will find close matches
+- You can ask follow-up questions in the same chat
+- Click **New Chat** to start fresh
+""")
 # Sidebar header for debug logs
 if DEBUG_MODE:
     st.sidebar.title("🔧 Debug Logs")
@@ -77,33 +105,33 @@ if DEBUG_MODE:
 # Header and description - use different image based on theme
 theme = st.get_option("theme.base")
 if theme == "dark":
-    st.image("images/wom_dark_transparent.png")
+    st.image("images/wom_dark_transparent.png", width=300)
 else:
-    st.image("images/wom_light_transparent.png")
+    st.image("images/wom_light_transparent.png", width=300)
 
-st.markdown("""
-<div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
-            padding: 1.5rem; 
-            border-radius: 12px; 
-            border-left: 4px solid #4CAF50;
-            margin-bottom: 1.5rem;">
-    <p style="color: #e0e0e0; font-size: 1.05rem; line-height: 1.7; margin: 0;">
-        <strong style="color: #4CAF50;">Web of Microbes</strong> predicts which metabolites soil and rhizosphere 
-        microorganisms are likely to consume or secrete, using collaborative filtering models trained on 
-        experimental exometabolomics data. Preference scores reflect the likelihood of metabolite consumption 
-        based on observed patterns and do not account for growth rate or competitive fitness.
-    </p>
-    <p style="color: #b0b0b0; font-size: 0.95rem; line-height: 1.6; margin-top: 1rem; margin-bottom: 0;">
-        Ask the chatbot which compounds a microbe prefers, which microbes consume a given compound, 
-        or how metabolic preferences compare across taxa. You can also ask about predicted growth rates.
-    </p>
-    <p style="color: #888; font-size: 0.85rem; margin-top: 0.75rem; margin-bottom: 0;">
-        <em>The model is trained on exometabolomics data from Lawrence Berkeley National Laboratory.
-        Growth rate predictions are from Phydon.</em>
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
+# st.markdown("""
+# <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
+#             padding: 1.5rem; 
+#             border-radius: 12px; 
+#             border-left: 4px solid #4CAF50;
+#             margin-bottom: 1.5rem;">
+#     <p style="color: #e0e0e0; font-size: 1.05rem; line-height: 1.7; margin: 0;">
+#         <strong style="color: #4CAF50;">Web of Microbes</strong> predicts which metabolites soil and rhizosphere 
+#         microorganisms are likely to consume or secrete, using collaborative filtering models trained on 
+#         experimental exometabolomics data. Preference scores reflect the likelihood of metabolite consumption 
+#         based on observed patterns and do not account for growth rate or competitive fitness.
+#     </p>
+#     <p style="color: #b0b0b0; font-size: 0.95rem; line-height: 1.6; margin-top: 1rem; margin-bottom: 0;">
+#         Ask the chatbot which compounds a microbe prefers, which microbes consume a given compound, 
+#         or how metabolic preferences compare across taxa. You can also ask about predicted growth rates.
+#     </p>
+#     <p style="color: #888; font-size: 0.85rem; margin-top: 0.75rem; margin-bottom: 0;">
+#         <em>The model is trained on exometabolomics data from Lawrence Berkeley National Laboratory.
+#         Growth rate predictions are from Phydon.</em>
+#     </p>
+# </div>
+# """, unsafe_allow_html=True)
+st.caption("Explore microbial substrate preferences and growth rates using AI-assisted search.")
 
 # ── Tool call patterns ──────────────────────────────────────────────
 
@@ -292,7 +320,7 @@ def gemini_chat():
             history=history
         )
 
-    first_message = "Hello, I am here to help you explore microbial substrate preferences"
+    first_message = "Ask me about microbial substrate preferences"
 
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
