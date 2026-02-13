@@ -35,8 +35,8 @@ COMMAND SELECTION:
 - Do NOT use search-taxon or search-compound to list everything
 - Simple "what does X eat" or "what eats Y" → use wom
 - "What should I feed to promote X over Y" → use wom_complex selective
-- "Which microbes thrive with these metabolites" → use wom_complex fitness
-- "What makes X unique" → use wom_complex niche
+- "Which microbes grow best with these metabolites" → use wom_complex fitness
+- "What makes X unique" → use wom_complex niche usually a genus will be provided
 - "Who wins between X and Y for these metabolites" → use wom_complex competition
 - "Rank these substrates for these microbes" → use wom_complex rank-substrates
 
@@ -44,24 +44,24 @@ AVAILABLE COMMANDS:
 Always output each command as JSON inside a tool_call fenced code block, like this:
 
 ```tool_call
-{"tool": "wom", "command": "compounds", "microbes": "genus:Pseudomonas", "top": 20}
+{"tool": "wom", "command": "compounds", "microbes": "genus:Pseudomonas", "top": 200}
 ```
 
 Examples:
 
 Which microbes consume a compound:
 ```tool_call
-{"tool": "wom", "command": "microbes", "compounds": "glutamate", "level": "genus", "top": 10}
+{"tool": "wom", "command": "microbes", "compounds": "glutamate", "level": "genus", "top": 200}
 ```
 
 What compounds a microbe prefers:
 ```tool_call
-{"tool": "wom", "command": "compounds", "microbes": "genus:Pseudomonas", "top": 20}
+{"tool": "wom", "command": "compounds", "microbes": "genus:Pseudomonas", "top": 200}
 ```
 
 Compare two microbes:
 ```tool_call
-{"tool": "wom", "command": "compare", "microbes": "genus:Burkholderia,genus:Variovorax", "top": 15}
+{"tool": "wom", "command": "compare", "microbes": "genus:Burkholderia,genus:Variovorax", "top": 200}
 ```
 
 Search for a compound name:
@@ -93,17 +93,17 @@ Advanced analysis commands (use tool "wom_complex"):
 
 Find metabolites that promote one microbe over competitors:
 ```tool_call
-{"tool": "wom_complex", "command": "selective", "target": "genus:Pseudomonas", "competitors": "genus:Burkholderia,genus:Variovorax", "top": 10}
+{"tool": "wom_complex", "command": "selective", "target": "genus:Pseudomonas", "competitors": "genus:Burkholderia,genus:Variovorax", "top": 200}
 ```
 
 Rank microbes by fitness for a metabolite environment:
 ```tool_call
-{"tool": "wom_complex", "command": "fitness", "metabolites": "arginine,lysine", "top": 10}
+{"tool": "wom_complex", "command": "fitness", "metabolites": "arginine,lysine", "top": 200}
 ```
 
 Find a microbe's unique metabolic niche:
 ```tool_call
-{"tool": "wom_complex", "command": "niche", "target": "genus:Pseudomonas", "top": 10}
+{"tool": "wom_complex", "command": "niche", "target": "genus:Pseudomonas", "top": 200}
 ```
 
 Analyze competition between microbes for specific metabolites:
@@ -113,7 +113,7 @@ Analyze competition between microbes for specific metabolites:
 
 Rank specific substrates for specific microbes:
 ```tool_call
-{"tool": "wom_complex", "command": "rank-substrates", "microbes": "genus:Bacillus,genus:Pseudomonas", "substrates": "glucose,glutamate,alanine", "top": 5}
+{"tool": "wom_complex", "command": "rank-substrates", "microbes": "genus:Bacillus,genus:Pseudomonas", "substrates": "glucose,glutamate,alanine", "top": 200}
 ```
 
 You can emit multiple tool_call blocks in one response.

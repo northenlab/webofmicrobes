@@ -127,7 +127,7 @@ def figure_1_benchmark(
                        "Run benchmark with distinctive scoring enabled.")
         return
 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    fig, axes = plt.subplots(1, 3, figsize=(12, 10))
 
     panel_labels = ['a.', 'b.', 'c.', 'd.']
 
@@ -161,103 +161,103 @@ def figure_1_benchmark(
     ax.grid(True, alpha=0.3)
     ax.set_ylim(0.45, 1.0)
 
-    # Panel b: Mean Percentile vs embedding dimension
-    ax = axes[0, 1]
-    for method in ["BPR", "WR-MF", "SVD"]:
-        method_df = core_results[core_results["method"] == method]
-        if len(method_df) == 0:
-            continue
-        summary = method_df.groupby("dim")["mean_percentile"].agg(["mean", "std"]).reset_index()
-        ax.errorbar(
-            summary["dim"], summary["mean"], yerr=summary["std"],
-            label=style[method]["label"],
-            marker=style[method]["marker"],
-            color=style[method]["color"],
-            capsize=4, linewidth=2, markersize=6,
-        )
-    ax.axhline(0.5, color="gray", linestyle="--", linewidth=1, alpha=0.5)
-    ax.set_xlabel("Embedding dimension", fontsize=12)
-    ax.set_ylabel("Mean percentile of positives", fontsize=12)
-    ax.set_xscale("log", base=2)
-    ax.grid(True, alpha=0.3)
+    # # Panel b: Mean Percentile vs embedding dimension
+    # ax = axes[0, 1]
+    # for method in ["BPR", "WR-MF", "SVD"]:
+    #     method_df = core_results[core_results["method"] == method]
+    #     if len(method_df) == 0:
+    #         continue
+    #     summary = method_df.groupby("dim")["mean_percentile"].agg(["mean", "std"]).reset_index()
+    #     ax.errorbar(
+    #         summary["dim"], summary["mean"], yerr=summary["std"],
+    #         label=style[method]["label"],
+    #         marker=style[method]["marker"],
+    #         color=style[method]["color"],
+    #         capsize=4, linewidth=2, markersize=6,
+    #     )
+    # ax.axhline(0.5, color="gray", linestyle="--", linewidth=1, alpha=0.5)
+    # ax.set_xlabel("Embedding dimension", fontsize=12)
+    # ax.set_ylabel("Mean percentile of positives", fontsize=12)
+    # ax.set_xscale("log", base=2)
+    # ax.grid(True, alpha=0.3)
 
-    # -------------------------------------------------------------------------
-    # Bottom row: Holdout benchmark (panels c, d)
-    # -------------------------------------------------------------------------
-    level_order = ["order", "family", "genus", "isolate"]
-    present_levels = [l for l in level_order if l in holdout_results["holdout_level"].values]
+    # # -------------------------------------------------------------------------
+    # # Bottom row: Holdout benchmark (panels c, d)
+    # # -------------------------------------------------------------------------
+    # level_order = ["order", "family", "genus", "isolate"]
+    # present_levels = [l for l in level_order if l in holdout_results["holdout_level"].values]
 
-    level_labels = {
-        "order": "Hold out\norder",
-        "family": "Hold out\nfamily",
-        "genus": "Hold out\ngenus",
-        "isolate": "Hold out\nisolate",
-    }
+    # level_labels = {
+    #     "order": "Hold out\norder",
+    #     "family": "Hold out\nfamily",
+    #     "genus": "Hold out\ngenus",
+    #     "isolate": "Hold out\nisolate",
+    # }
 
-    colors = {"raw": "#377eb8", "distinctive": "#e41a1c"}
+    # colors = {"raw": "#377eb8", "distinctive": "#e41a1c"}
 
-    for panel_idx, (ax, metric, ylabel) in enumerate([
-        (axes[1, 0], "mean_percentile", "Mean percentile (lower = better)"),
-        (axes[1, 1], "auc", "AUC"),
-    ]):
-        positions = []
-        data_boxes = []
-        box_colors = []
-        tick_positions = []
-        tick_labels = []
+    # for panel_idx, (ax, metric, ylabel) in enumerate([
+    #     (axes[1, 0], "mean_percentile", "Mean percentile (lower = better)"),
+    #     (axes[1, 1], "auc", "AUC"),
+    # ]):
+    #     positions = []
+    #     data_boxes = []
+    #     box_colors = []
+    #     tick_positions = []
+    #     tick_labels = []
 
-        for i, level in enumerate(present_levels):
-            center = i * 3
-            for j, score_type in enumerate(["raw", "distinctive"]):
-                vals = holdout_results[
-                    (holdout_results["holdout_level"] == level) &
-                    (holdout_results["score_type"] == score_type)
-                ][metric].values
+    #     for i, level in enumerate(present_levels):
+    #         center = i * 3
+    #         for j, score_type in enumerate(["raw", "distinctive"]):
+    #             vals = holdout_results[
+    #                 (holdout_results["holdout_level"] == level) &
+    #                 (holdout_results["score_type"] == score_type)
+    #             ][metric].values
 
-                if len(vals) == 0:
-                    continue
+    #             if len(vals) == 0:
+    #                 continue
 
-                pos = center + j - 0.5
-                positions.append(pos)
-                data_boxes.append(vals)
-                box_colors.append(colors[score_type])
+    #             pos = center + j - 0.5
+    #             positions.append(pos)
+    #             data_boxes.append(vals)
+    #             box_colors.append(colors[score_type])
 
-            tick_positions.append(center)
-            tick_labels.append(level_labels.get(level, level))
+    #         tick_positions.append(center)
+    #         tick_labels.append(level_labels.get(level, level))
 
-        if data_boxes:
-            bp = ax.boxplot(
-                data_boxes, positions=positions, widths=0.8,
-                patch_artist=True, flierprops=dict(markersize=3),
-            )
-            for patch, color in zip(bp["boxes"], box_colors):
-                patch.set_facecolor(color)
-                patch.set_alpha(0.6)
+    #     if data_boxes:
+    #         bp = ax.boxplot(
+    #             data_boxes, positions=positions, widths=0.8,
+    #             patch_artist=True, flierprops=dict(markersize=3),
+    #         )
+    #         for patch, color in zip(bp["boxes"], box_colors):
+    #             patch.set_facecolor(color)
+    #             patch.set_alpha(0.6)
 
-        ax.axhline(0.5, color="gray", linestyle="--", linewidth=1, alpha=0.5)
-        ax.set_xticks(tick_positions)
-        ax.set_xticklabels(tick_labels, fontsize=14)
-        ax.tick_params(axis='y', which='major', labelsize=14)
-        ax.set_ylabel(ylabel, fontsize=16)
-        ax.grid(True, alpha=0.3, axis="y")
+    #     ax.axhline(0.5, color="gray", linestyle="--", linewidth=1, alpha=0.5)
+    #     ax.set_xticks(tick_positions)
+    #     ax.set_xticklabels(tick_labels, fontsize=14)
+    #     ax.tick_params(axis='y', which='major', labelsize=14)
+    #     ax.set_ylabel(ylabel, fontsize=16)
+    #     ax.grid(True, alpha=0.3, axis="y")
 
-        # Only show legend on the right panel
-        if panel_idx > 0:
-            ax.legend(
-                handles=[
-                    Patch(facecolor=colors["raw"], alpha=0.6, label="Raw score"),
-                    Patch(facecolor=colors["distinctive"], alpha=0.6, label="Distinctive score"),
-                ],
-                loc="best",
-                fontsize=14,
-                frameon=False,
-                fancybox=False,
-                edgecolor="gray",
-            )
+    #     # Only show legend on the right panel
+    #     if panel_idx > 0:
+    #         ax.legend(
+    #             handles=[
+    #                 Patch(facecolor=colors["raw"], alpha=0.6, label="Raw score"),
+    #                 Patch(facecolor=colors["distinctive"], alpha=0.6, label="Distinctive score"),
+    #             ],
+    #             loc="best",
+    #             fontsize=14,
+    #             frameon=False,
+    #             fancybox=False,
+    #             edgecolor="gray",
+    #         )
 
-        # Remove top and right spines
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
+    #     # Remove top and right spines
+    #     ax.spines["top"].set_visible(False)
+    #     ax.spines["right"].set_visible(False)
 
     # -------------------------------------------------------------------------
     # Panel labels and final formatting
