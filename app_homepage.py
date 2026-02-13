@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+from tool_calls import execute_tool_call
+
 load_dotenv()
 
 # Add a tracking token
@@ -57,13 +59,14 @@ DEBUG_MODE = True
 
 def debug_log(label: str, content):
     """Write debug info to the sidebar instead of main area."""
-    if DEBUG_MODE:
-        with st.sidebar:
-            with st.expander(f"🔧 {label}", expanded=False):
-                if isinstance(content, (dict, list)):
-                    st.json(content)
-                else:
-                    st.code(str(content), language="text")
+    # if DEBUG_MODE:
+    #     with st.sidebar:
+    #         with st.expander(f"🔧 {label}", expanded=False):
+    #             if isinstance(content, (dict, list)):
+    #                 st.json(content)
+    #             else:
+    #                 st.code(str(content), language="text")
+    print("X")
 
 # Initialize chat_id for history link
 if "chat_id" not in st.session_state:
@@ -153,68 +156,6 @@ def parse_tool_calls(llm_response: str) -> list:
     return calls
 
 
-def execute_tool_call(tool_info: dict) -> tuple[str, bool]:
-    """
-    Execute a single tool call via web API.
-
-    Returns:
-        Tuple of (response_text, is_error)
-    """
-    tool = tool_info.get("tool")
-
-    if tool == "growth_rate":
-        url = "http://growth-rate:5000/growth_rate"
-        params = {"query": tool_info["query"]}
-        if "level" in tool_info:
-            params["level"] = tool_info["level"]
-        if "stat" in tool_info:
-            params["stat"] = tool_info["stat"]
-        try:
-            response = requests.get(url, params=params, timeout=30)
-            response_text = response.text
-            if response.status_code != 200:
-                return response_text, True
-            return response_text, False
-        except requests.RequestException as e:
-            return json.dumps({"error": f"Growth rate request failed: {str(e)}"}), True
-
-    elif tool == "wom":
-        url = "http://wom-flask:5000/api/query"
-        payload = {k: v for k, v in tool_info.items() if k != "tool"}
-        try:
-            response = requests.post(url, json=payload, timeout=30)
-            response_text = response.text
-
-            if response.status_code != 200:
-                return response_text, True
-
-            try:
-                result = json.loads(response_text)
-                if result.get("error") or result.get("success") == False:
-                    return response_text, True
-            except json.JSONDecodeError:
-                pass
-
-            return response_text, False
-
-        except requests.RequestException as e:
-            return json.dumps({"error": f"Request failed: {str(e)}"}), True
-
-    elif tool_info['tool'] == 'wom_complex':
-        payload = {k: v for k, v in tool_info.items() if k != 'tool'}
-        response = requests.post(
-            'http://wom-flask:5000/api/complex',
-            json=payload,
-            timeout=30
-        )
-        if response.status_code != 200:
-            return {"success": False, "error": f"API returned {response.status_code}: {response.text}"}, True
-        try:
-            return response.json(), False
-        except requests.exceptions.JSONDecodeError:
-            return {"success": False, "error": f"API returned non-JSON: {response.text[:500]}"}, True
-    return json.dumps({"error": "Unknown tool"}), True
-
 
 def execute_all_tool_calls(tool_calls: list) -> tuple[str, bool]:
     """
@@ -284,6 +225,20 @@ def display_assistant_message(content: str):
     if text_after:
         st.markdown(text_after)
 
+def send_message_to_gemini(gemini_chat, message: str) -> str:
+    if DEBUG_MODE:
+        debug_log("Sending Message to Gemini", message)
+        from types import SimpleNamespace
+        response_obj = SimpleNamespace()
+        response_obj.text = "This is a dummy response for debugging purposes."
+        import time
+        time.sleep(5)  # Simulate response time
+
+        return response_obj
+    
+    response = gemini_chat.send_message(message)
+
+    return response
 
 def gemini_chat():
 
@@ -341,6 +296,8 @@ def gemini_chat():
     # Character limit
     MAX_CHARS = 2000
 
+    st.write("here", str(uuid.uuid4()), prompt)
+
     if prompt:
         # Check character limit
         if len(prompt) > MAX_CHARS:
@@ -355,13 +312,15 @@ def gemini_chat():
             st.markdown(prompt)
 
         # Send user's message to Gemini and get a response
-        response = st.session_state.gemini_chat.send_message(prompt)
+        response = send_message_to_gemini(st.session_state.gemini_chat, prompt)
         assistant_response = response.text
 
         # Check for tool calls in the response
         tool_calls = parse_tool_calls(assistant_response)
 
         debug_log("Parsed Tool Calls", tool_calls)
+
+        st.write("here2", str(uuid.uuid4()), tool_calls)
 
         if tool_calls:
             # Execute all tool calls
@@ -382,7 +341,7 @@ def gemini_chat():
 {combined_output}
 ```
 """
-                retry_response = st.session_state.gemini_chat.send_message(error_msg)
+                retry_response = send_message_to_gemini(st.session_state.gemini_chat, error_msg)
                 retry_text = retry_response.text
 
                 debug_log("Retry Response", retry_text)
@@ -404,7 +363,7 @@ def gemini_chat():
                             st.markdown(final_text)
                     else:
                         tool_msg = f"Tool outputs:\n```json\n{combined_output}\n```\n\nPlease interpret all of these results together for the user."
-                        final_response = st.session_state.gemini_chat.send_message(tool_msg)
+                        final_response = send_message_to_gemini(st.session_state.gemini_chat, tool_msg)
                         final_text = final_response.text
 
                         st.session_state.messages.append({"role": "assistant", "content": final_text})
@@ -420,7 +379,8 @@ def gemini_chat():
 
                 debug_log("Tool Message", tool_msg)
 
-                final_response = st.session_state.gemini_chat.send_message(tool_msg)
+                # Send to LLM
+                final_response = send_message_to_gemini(st.session_state.gemini_chat, tool_msg)
 
                 debug_log("Final Response", final_response.text)
 
@@ -439,6 +399,7 @@ def gemini_chat():
 
         # Saving the chat history
         chat_history_filename = os.path.join("/app/chat/{}.json".format(st.session_state["chat_id"]))
+        
         with open(chat_history_filename, "w") as file:
             file.write(json.dumps(st.session_state.messages))
 
