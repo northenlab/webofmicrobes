@@ -240,6 +240,49 @@ def execute_all_tool_calls(tool_calls: list) -> tuple[str, bool]:
     return combined, any_errors
 
 
+def display_assistant_message(content: str):
+    """
+    Display assistant message, hiding tool calls in expanders.
+    """
+    # Find all tool call matches
+    matches = list(TOOL_CALL_PATTERN.finditer(content))
+    
+    if not matches:
+        # No tool calls, display normally
+        st.markdown(content)
+        return
+    
+    # Track position in content
+    last_end = 0
+    
+    # Process each tool call
+    for i, match in enumerate(matches):
+        # Display text before this tool call
+        text_before = content[last_end:match.start()].strip()
+        if text_before:
+            st.markdown(text_before)
+        
+        # Display tool call in expander
+        tool_json = match.group(1).strip()
+        try:
+            tool_data = json.loads(tool_json)
+            tool_name = tool_data.get("tool", "unknown")
+            tool_label = tool_data.get("query") or tool_data.get("command") or f"call {i+1}"
+            
+            with st.expander(f"🔧 Tool Call: {tool_name} - {tool_label}", expanded=False):
+                st.code(json.dumps(tool_data, indent=2), language="json")
+        except json.JSONDecodeError:
+            with st.expander(f"🔧 Tool Call {i+1}", expanded=False):
+                st.code(tool_json, language="json")
+        
+        last_end = match.end()
+    
+    # Display any remaining text after the last tool call
+    text_after = content[last_end:].strip()
+    if text_after:
+        st.markdown(text_after)
+
+
 def gemini_chat():
 
     # Initialize chat history
@@ -327,7 +370,7 @@ def gemini_chat():
 
             # Display the initial response (with tool calls)
             with st.chat_message("assistant"):
-                st.markdown(assistant_response)
+                display_assistant_message(assistant_response)
 
             if any_errors:
                 debug_log("Errors Detected", "Giving LLM one chance to fix")
@@ -350,7 +393,7 @@ def gemini_chat():
 
                     st.session_state.messages.append({"role": "assistant", "content": retry_text})
                     with st.chat_message("assistant"):
-                        st.markdown(retry_text)
+                        display_assistant_message(retry_text)
 
                     if any_errors:
                         final_text = f"I tried to fix the commands but still encountered errors. The APIs returned:\n```json\n{combined_output}\n```\n\nPlease check your query and try again with different parameters."
@@ -368,7 +411,7 @@ def gemini_chat():
                 else:
                     st.session_state.messages.append({"role": "assistant", "content": retry_text})
                     with st.chat_message("assistant"):
-                        st.markdown(retry_text)
+                        display_assistant_message(retry_text)
             else:
                 # No errors - send all tool outputs back to Gemini for interpretation
                 tool_msg = f"Tool outputs:\n```json\n{combined_output}\n```\n\nPlease interpret all of these results together for the user."
