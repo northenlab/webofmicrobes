@@ -265,44 +265,48 @@ def gemini_chat():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Example questions - only show if no messages yet
-    if len(st.session_state.messages) == 0:
+    # Example questions - only show if no messages yet and no button clicked
+    if len(st.session_state.messages) == 0 and not st.session_state.get("first_message", ""):
         st.markdown("**Try an example question:**")
         col1, col2, col3 = st.columns(3)
 
         with col1:
             if st.button("🦠 What does Pseudomonas like to eat?", use_container_width=True):
-                st.session_state.example_question = "What does Pseudomonas like to eat?"
+                st.session_state.first_message = "What does Pseudomonas like to eat?"
+                st.session_state.button_clicked = True
                 st.rerun()
         with col2:
             if st.button("🧪 Which microbes consume glutamate?", use_container_width=True):
-                st.session_state.example_question = "Which microbes consume glutamate?"
+                st.session_state.first_message = "Which microbes consume glutamate?"
+                st.session_state.button_clicked = True
                 st.rerun()
         with col3:
             if st.button("⚖️ Compare Burkholderia and Variovorax", use_container_width=True):
-                st.session_state.example_question = "Compare Burkholderia and Variovorax"
+                st.session_state.first_message = "Compare Burkholderia and Variovorax"
+                st.session_state.button_clicked = True
                 st.rerun()
 
-    # Check if an example question was clicked
-    prompt = None
-    if "example_question" in st.session_state:
-        prompt = st.session_state.example_question
-        del st.session_state.example_question
+    if "first_message" not in st.session_state:
+        st.session_state.first_message = ""
 
-    # Accept user input
-    if user_input := st.chat_input(first_message):
+    # Auto-submit if button was clicked
+    prompt = None
+    if st.session_state.get("button_clicked", False):
+        prompt = st.session_state.first_message
+        st.session_state.button_clicked = False
+    
+    # Always show chat input
+    if user_input := st.chat_input(first_message, key="chat_input"):
         prompt = user_input
 
     # Character limit
     MAX_CHARS = 2000
 
-    st.write("here", str(uuid.uuid4()), prompt)
-
     if prompt:
         # Check character limit
         if len(prompt) > MAX_CHARS:
             st.warning(f"⚠️ Your message is too long ({len(prompt)} characters). Please limit to {MAX_CHARS} characters.")
-            return
+            st.stop()
 
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -319,8 +323,6 @@ def gemini_chat():
         tool_calls = parse_tool_calls(assistant_response)
 
         debug_log("Parsed Tool Calls", tool_calls)
-
-        st.write("here2", str(uuid.uuid4()), tool_calls)
 
         if tool_calls:
             # Execute all tool calls
