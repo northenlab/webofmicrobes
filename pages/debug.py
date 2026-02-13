@@ -32,8 +32,8 @@ GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 # Model name
 #MODEL_NAME = "gemini-2.0-flash"
 #MODEL_NAME = "gemini-2.5-flash"
-MODEL_NAME = "gemini-3-flash-preview"
-#MODEL_NAME = "gemini-3-pro-preview"
+#MODEL_NAME = "gemini-3-flash-preview"
+MODEL_NAME = "gemini-3-pro-preview"
 
 @st.cache_resource
 def get_gemini_client():
@@ -55,7 +55,7 @@ llm_config = types.GenerateContentConfig(
 
 
 # Debug mode toggle - set to False in production
-DEBUG_MODE = False
+DEBUG_MODE = True
 DEBUG_LLM = False
 
 def debug_log(label: str, content):
@@ -228,7 +228,17 @@ def display_assistant_message(content: str, tool_calls: bool = False):
         if text_after:
             st.markdown(text_after)
 
-def send_message_to_llm(gemini_chat, message: str) -> str:
+def send_message_to_llm(gemini_chat, message: str, stream: bool = True):
+    """Send message to LLM and optionally stream the response.
+    
+    Args:
+        gemini_chat: The Gemini chat session
+        message: The message to send
+        stream: If True, returns a generator that yields chunks. If False, returns complete response.
+    
+    Returns:
+        Generator yielding text chunks if stream=True, otherwise returns response object
+    """
     if DEBUG_LLM:
         debug_log("Sending Message to LLM", message)
         from types import SimpleNamespace
@@ -236,12 +246,16 @@ def send_message_to_llm(gemini_chat, message: str) -> str:
         response_obj.text = "This is a dummy response for debugging purposes. {}".format(str(uuid.uuid4()))
         import time
         time.sleep(3)  # Simulate response time
-
         return response_obj
     
-    response = gemini_chat.send_message(message)
-
-    return response
+    if stream:
+        # Use streaming API
+        response_stream = gemini_chat.send_message_stream(message)
+        return response_stream
+    else:
+        # Use non-streaming API
+        response = gemini_chat.send_message(message)
+        return response
 
 def gemini_chat():
 
@@ -321,9 +335,21 @@ def gemini_chat():
             # Lets allow a loop of maximum 4 iterations of tool calls and LLM responses to prevent infinite loops in case of errors
             all_responses = []
             for _ in range(4):
-                # Send user's message to LLM and get a response
-                response = send_message_to_llm(st.session_state.gemini_chat, prompt)
-                assistant_response = response.text
+                # Send user's message to LLM and get a streaming response
+                response_stream = send_message_to_llm(st.session_state.gemini_chat, prompt, stream=True)
+                
+                # Accumulate the streamed response
+                assistant_response = ""
+                message_placeholder = st.empty()
+                
+                for chunk in response_stream:
+                    if hasattr(chunk, 'text') and chunk.text:
+                        assistant_response += chunk.text
+                        # Update the display with accumulated text
+                        message_placeholder.markdown(assistant_response + "▌")
+                
+                # Remove the cursor and show final text
+                message_placeholder.markdown(assistant_response)
 
                 # now lets check for tool calls
                 tool_calls = parse_tool_calls(assistant_response)
@@ -331,6 +357,8 @@ def gemini_chat():
                 all_responses.append({"content": assistant_response, "tool_calls": len(tool_calls) > 0})
 
                 if tool_calls:
+                    # Clear the placeholder and show formatted version with tool calls
+                    message_placeholder.empty()
                     display_assistant_message(assistant_response, tool_calls=True)
                     notice_text = """---
 
@@ -341,7 +369,7 @@ Executing tool calls...
                     display_assistant_message(notice_text)
                     all_responses.append({"content": notice_text, "tool_calls": True})
                 else:
-                    display_assistant_message(assistant_response)
+                    # For non-tool-call responses, the streaming display is already shown
                     all_responses.append({"content": assistant_response, "tool_calls": False})
 
                 if tool_calls:
