@@ -99,6 +99,7 @@ Lawrence Berkeley National Laboratory.
 - You can ask follow-up questions in the same chat
 - Click **New Chat** to start fresh
 """)
+    st.caption(f"Model: {MODEL_NAME}")
 # Sidebar header for debug logs
 if DEBUG_MODE:
     st.sidebar.title("🔧 Debug Logs")
