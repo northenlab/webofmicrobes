@@ -303,7 +303,7 @@ def gemini_chat():
             history=history
         )
 
-    first_message = "Ask me about microbial substrate preferences"
+    first_message = "Ask me about microbial substrate preferences, growth rates and microbiome design"
 
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
