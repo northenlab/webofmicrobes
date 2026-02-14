@@ -127,7 +127,7 @@ def figure_1_benchmark(
                        "Run benchmark with distinctive scoring enabled.")
         return
 
-    fig, axes = plt.subplots(1, 3, figsize=(12, 10))
+    fig, axes = plt.subplots(1, 1, figsize=(6, 5))
 
     panel_labels = ['a.', 'b.', 'c.', 'd.']
 
@@ -141,7 +141,10 @@ def figure_1_benchmark(
     }
 
     # Panel a: AUC vs embedding dimension
-    ax = axes[0, 0]
+    if type(axes) is np.ndarray and axes.ndim == 2:
+        ax = axes[0, 0]
+    else:
+        ax = axes
     for method in ["BPR", "WR-MF", "SVD"]:
         method_df = core_results[core_results["method"] == method]
         if len(method_df) == 0:
@@ -262,15 +265,20 @@ def figure_1_benchmark(
     # -------------------------------------------------------------------------
     # Panel labels and final formatting
     # -------------------------------------------------------------------------
-    for ax, label in zip(axes.flat, panel_labels):
-        ax.text(0.075, 1.02, label, transform=ax.transAxes,
-                fontsize=24, va='top', ha='right')
+    # for ax, label in zip(axes.flat, panel_labels):
+    #     ax.text(0.075, 1.02, label, transform=ax.transAxes,
+    #             fontsize=24, va='top', ha='right')
 
     # Increase tick label fontsize on top row
-    for ax in axes[0, :]:
-        ax.tick_params(axis='both', which='major', labelsize=12)
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
+    if type(axes) is np.ndarray and axes.ndim == 2:
+        for ax in axes[0, :]:
+            ax.tick_params(axis='both', which='major', labelsize=12)
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+    else:
+        axes.tick_params(axis='both', which='major', labelsize=12)
+        axes.spines["top"].set_visible(False)
+        axes.spines["right"].set_visible(False)
 
     plt.tight_layout()
 
@@ -590,6 +598,357 @@ def figure_3_heatmap(
     logger.info("Saved figure3_heatmap")
 
 
+def figure_3_heatmap_seaborn(
+    df: pd.DataFrame,
+    profiles: pd.DataFrame,
+    metabolite_categories: pd.DataFrame,
+    output_dir: Path,
+    min_isolates: int = 1,
+    exclude_universal: bool = True,
+    max_metabolites: int = 60,
+):
+    """Figure 3 (seaborn): Genus × metabolite clustermap with taxonomy color bar."""
+    import seaborn as sns
+    from scipy.cluster.hierarchy import linkage
+    from scipy.spatial.distance import pdist
+
+    # --- Data preparation (same as figure_3_heatmap) ---
+    data = prepare_training_data(df, "consumed")
+    microbe_to_idx = data["microbe_to_idx"]
+    tax_table = build_taxonomy_table(df, microbe_to_idx)
+
+    genus_profiles = profiles[
+        (profiles["level"] == "genus") &
+        (profiles["n_isolates"] >= min_isolates)
+    ].copy()
+
+    if exclude_universal and metabolite_categories is not None:
+        niche_mets = metabolite_categories[
+            metabolite_categories["category"] != "universal"
+        ]["metabolite_idx"].values
+        genus_profiles = genus_profiles[genus_profiles["metabolite_idx"].isin(niche_mets)]
+
+    matrix = genus_profiles.pivot_table(
+        index="metabolite_name",
+        columns="taxon",
+        values="distinctive_score",
+        aggfunc="mean",
+    )
+
+    met_variance = matrix.var(axis=1).sort_values(ascending=False)
+    top_metabolites = met_variance.head(max_metabolites).index
+    matrix = matrix.loc[top_metabolites]
+
+    # --- Taxonomy color mapping ---
+    genus_to_class = {}
+    for _, row in tax_table.iterrows():
+        genus_to_class[row["genus"]] = row.get("class", "Unknown")
+
+    col_colors = pd.Series(
+        [get_class_color(genus_to_class.get(g, "Unknown")) for g in matrix.columns],
+        index=matrix.columns,
+        name="",
+    )
+
+    # --- Clustering & normalization ---
+    fill_matrix = matrix.fillna(0)
+
+    row_linkage = linkage(pdist(fill_matrix.values, metric="euclidean"), method="ward")
+    col_linkage = linkage(pdist(fill_matrix.values.T, metric="euclidean"), method="ward")
+
+    vmax = max(abs(fill_matrix.min().min()), abs(fill_matrix.max().max()))
+    norm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
+
+    # --- Figure sizing ---
+    n_met = fill_matrix.shape[0]
+    n_gen = fill_matrix.shape[1]
+    fig_height = max(12, n_met * 0.28)
+    fig_width = max(14, n_gen * 0.4 + 4)
+
+    # --- Clustermap ---
+    g = sns.clustermap(
+        fill_matrix,
+        row_linkage=row_linkage,
+        col_linkage=col_linkage,
+        col_colors=col_colors,
+        cmap="RdBu_r",
+        norm=norm,
+        figsize=(fig_width, fig_height),
+        xticklabels=True,
+        yticklabels=True,
+        dendrogram_ratio=(0.1, 0.1),
+        cbar_pos=(0.02, 0.95, 0.03, 0.08),
+    )
+    # Tick labels on heatmap
+    g.ax_heatmap.set_xticklabels(
+        g.ax_heatmap.get_xticklabels(), rotation=90, fontsize=20, style="italic"
+    )
+    g.ax_heatmap.set_yticklabels(
+        g.ax_heatmap.get_yticklabels(), fontsize=18
+    )
+
+    # Remove default axis labels or set to manuscript size
+    g.ax_heatmap.set_xlabel("")
+    g.ax_heatmap.set_ylabel("")
+
+    # Colorbar
+    g.cax.set_ylabel("Distinctive\nscore", fontsize=20)
+    g.cax.tick_params(labelsize=18)
+
+    # Class color strip label
+    g.ax_col_colors.set_ylabel("Class", fontsize=22, rotation=0, ha="right", va="center")
+    g.ax_col_colors.yaxis.set_tick_params(labelsize=18)
+
+    # Legend
+    unique_classes = sorted(set(genus_to_class.get(g, "Unknown") for g in matrix.columns))
+    legend_handles = [
+        Patch(facecolor=get_class_color(c), edgecolor="gray", label=c)
+        for c in unique_classes
+    ]
+    g.ax_col_dendrogram.legend(
+        handles=legend_handles,
+        loc="center",
+        bbox_to_anchor=(0.5, 1.2),
+        # two columns
+        ncol=int(np.ceil(len(unique_classes) / 2)),
+        fontsize=22,
+        # ncol=len(unique_classes),
+        frameon=False,
+    )
+
+    # Dendrogram line width
+    for ax in [g.ax_row_dendrogram, g.ax_col_dendrogram]:
+        for c in ax.collections:
+            c.set_linewidth(1.5)
+            
+
+    for ext in ["png", "pdf"]:
+        g.savefig(output_dir / f"figure3_heatmap_biclustering.{ext}", dpi=300, bbox_inches="tight")
+    plt.close()
+    logger.info("Saved figure3_heatmap (seaborn)")
+
+
+def figure_5_raw_score_heatmap(
+    df: pd.DataFrame,
+    profiles: pd.DataFrame,
+    metabolite_categories: pd.DataFrame,
+    output_dir: Path,
+    min_isolates: int = 1,
+    exclude_universal: bool = True,
+    max_metabolites: int = 60,
+):
+    """Figure 5: Genus × metabolite clustermap of RAW scores.
+
+    Shows the metabolites present in the most genera.
+    """
+    import seaborn as sns
+    from scipy.cluster.hierarchy import linkage
+    from scipy.spatial.distance import pdist
+
+    # --- Data preparation ---
+    data = prepare_training_data(df, "consumed")
+    microbe_to_idx = data["microbe_to_idx"]
+    tax_table = build_taxonomy_table(df, microbe_to_idx)
+
+    genus_profiles = profiles[
+        (profiles["level"] == "genus") &
+        (profiles["n_isolates"] >= min_isolates)
+    ].copy()
+
+    if exclude_universal and metabolite_categories is not None:
+        niche_mets = metabolite_categories[
+            metabolite_categories["category"] != "universal"
+        ]["metabolite_idx"].values
+        genus_profiles = genus_profiles[genus_profiles["metabolite_idx"].isin(niche_mets)]
+    matrix = genus_profiles.pivot_table(
+        index="metabolite_name",
+        columns="taxon",
+        values="raw_score",
+        aggfunc="mean",
+    )
+
+    # Select metabolites seen in the most genera (most non-NaN columns)
+    genera_count = matrix.notna().sum(axis=1).sort_values(ascending=False)
+    top_metabolites = genera_count.head(max_metabolites).index
+    matrix = matrix.loc[top_metabolites]
+
+    # --- Taxonomy color mapping ---
+    genus_to_class = {}
+    for _, row in tax_table.iterrows():
+        genus_to_class[row["genus"]] = row.get("class", "Unknown")
+
+    col_colors = pd.Series(
+        [get_class_color(genus_to_class.get(g, "Unknown")) for g in matrix.columns],
+        index=matrix.columns,
+        name="",
+    )
+
+    # --- Clustering & normalization ---
+    fill_matrix = matrix.fillna(0)
+
+    row_linkage = linkage(pdist(fill_matrix.values, metric="euclidean"), method="ward")
+    col_linkage = linkage(pdist(fill_matrix.values.T, metric="euclidean"), method="ward")
+
+    vmax = max(abs(fill_matrix.min().min()), abs(fill_matrix.max().max()))
+    norm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
+
+    # --- Figure sizing ---
+    n_met = fill_matrix.shape[0]
+    n_gen = fill_matrix.shape[1]
+    fig_height = max(12, n_met * 0.28)
+    fig_width = max(14, n_gen * 0.4 + 4)
+
+    # --- Clustermap ---
+    g = sns.clustermap(
+        fill_matrix,
+        row_linkage=row_linkage,
+        col_linkage=col_linkage,
+        col_colors=col_colors,
+        cmap="RdBu_r",
+        norm=norm,
+        figsize=(fig_width, fig_height),
+        xticklabels=True,
+        yticklabels=True,
+        dendrogram_ratio=(0.1, 0.1),
+        cbar_pos=(0.02, 0.95, 0.03, 0.08),
+    )
+
+    g.ax_heatmap.set_xticklabels(
+        g.ax_heatmap.get_xticklabels(), rotation=90, fontsize=20, style="italic"
+    )
+    g.ax_heatmap.set_yticklabels(
+        g.ax_heatmap.get_yticklabels(), fontsize=18
+    )
+    g.ax_heatmap.set_xlabel("")
+    g.ax_heatmap.set_ylabel("")
+
+    g.cax.set_ylabel("Raw\nscore", fontsize=20)
+    g.cax.tick_params(labelsize=18)
+
+    g.ax_col_colors.set_ylabel("Class", fontsize=22, rotation=0, ha="right", va="center")
+    g.ax_col_colors.yaxis.set_tick_params(labelsize=18)
+
+    unique_classes = sorted(set(genus_to_class.get(g, "Unknown") for g in matrix.columns))
+    legend_handles = [
+        Patch(facecolor=get_class_color(c), edgecolor="gray", label=c)
+        for c in unique_classes
+    ]
+    g.ax_col_dendrogram.legend(
+        handles=legend_handles,
+        loc="center",
+        bbox_to_anchor=(0.5, 1.2),
+        ncol=int(np.ceil(len(unique_classes) / 2)),
+        fontsize=22,
+        frameon=False,
+    )
+
+    for ax in [g.ax_row_dendrogram, g.ax_col_dendrogram]:
+        for c in ax.collections:
+            c.set_linewidth(1.5)
+
+    for ext in ["png", "pdf"]:
+        g.savefig(output_dir / f"figure5_raw_heatmap.{ext}", dpi=300, bbox_inches="tight")
+    plt.close()
+    logger.info("Saved figure5_raw_heatmap")
+
+
+def figure_6_rank_clustermap(
+    df: pd.DataFrame,
+    output_dir: Path,
+    embedding_dim: int = 32,
+):
+    """Figure 6: Clustermap of consumption status by predicted rank.
+
+    Each row is an isolate, each column is a rank position (1 = highest
+    predicted preference). Blue = consumed, salmon = neutral. Demonstrates
+    that the model consistently ranks consumed metabolites higher.
+    """
+    import seaborn as sns
+
+    # --- Train model and score all organism-metabolite pairs ---
+    data = prepare_training_data(df, "consumed")
+    n_microbes = data["n_microbes"]
+    n_metabolites = data["n_metabolites"]
+    positives = data["positives"]
+    microbe_to_idx = data["microbe_to_idx"]
+    metabolite_to_idx = data["metabolite_to_idx"]
+
+    model = BPRModel(embedding_dim=embedding_dim)
+    model.fit(positives, n_microbes, n_metabolites, verbose=False)
+
+    # Score every valid organism-metabolite pair
+    mask = (
+        df["organism_id"].isin(microbe_to_idx) &
+        df["representative_compound"].isin(metabolite_to_idx)
+    )
+    valid = df[mask].copy()
+
+    m_indices = valid["organism_id"].map(microbe_to_idx).values
+    c_indices = valid["representative_compound"].map(metabolite_to_idx).values
+
+    m_emb = model.microbe_embeddings[m_indices]
+    c_emb = model.metabolite_embeddings[c_indices]
+    valid_scores = (m_emb * c_emb).sum(axis=1)
+
+    df = df.copy()
+    df["score"] = None
+    df.loc[mask, "score"] = valid_scores
+
+    # --- Build rank matrix ---
+    organisms_groups = [
+        (org, group)
+        for org, group in df.dropna(subset=["score"]).groupby("organism_id")
+        if group["assertion"].nunique() > 1
+    ]
+
+    rows = []
+    for org, group in organisms_groups:
+        group = group.sort_values("score", ascending=False).reset_index(drop=True)
+        consumed = (group["assertion"] == "consumed").astype(int)
+        consumed.index = np.arange(1, len(consumed) + 1)
+        consumed.name = org
+        rows.append(consumed)
+
+    rank_matrix = pd.DataFrame(rows).fillna(0).astype(int)
+    rank_matrix.columns.name = "Rank"
+    rank_matrix.index.name = "Organism"
+
+    # Drop columns where no organism consumes the metabolite at that rank
+    rank_matrix_filtered = rank_matrix.loc[:, rank_matrix.sum(axis=0) > 0]
+
+    # --- Plot ---
+    g = sns.clustermap(
+        rank_matrix_filtered,
+        cmap=["salmon", "steelblue"],
+        figsize=(12, 10),
+        col_cluster=False,
+        yticklabels=False,
+        xticklabels=10,
+        cbar_kws={"ticks": [0, 1]},
+        cbar_pos=(0.8, 0.87, 0.03, 0.061),
+        dendrogram_ratio=(0.15, 0.0),
+    )
+
+    # Colorbar styling
+    g.cax.tick_params(labelsize=16)
+    g.cax.set_yticklabels(["Neutral", "Consumed"], fontsize=16)
+    for spine in g.cax.spines.values():
+        spine.set_visible(True)
+    g.cax.set_facecolor("white")
+
+    # Dendrogram line width
+    for c in g.ax_row_dendrogram.collections:
+        c.set_linewidth(1.5)
+
+    # Axis labels
+    g.ax_heatmap.set_xlabel("Rank (1 = highest predicted preference)", fontsize=24)
+    g.ax_heatmap.set_xticklabels(g.ax_heatmap.get_xticklabels(), fontsize=18)
+    g.ax_heatmap.set_ylabel("Bacterial isolate", labelpad=-850, fontsize=24)
+
+    for ext in ["png", "pdf"]:
+        g.savefig(output_dir / f"figure6_rank_clustermap.{ext}", dpi=300, bbox_inches="tight")
+    plt.close()
+    logger.info("Saved figure6_rank_clustermap")
 # =============================================================================
 # CLI
 # =============================================================================
@@ -634,8 +993,8 @@ if __name__ == "__main__":
         "--figures",
         nargs="+",
         type=int,
-        default=[1, 2, 3],
-        help="Which figures to generate (1-3)",
+        default=[1, 2, 3, 4, 5, 6],
+        help="Which figures to generate (1-6)",
     )
 
     args = parser.parse_args()
@@ -686,5 +1045,36 @@ if __name__ == "__main__":
             )
         else:
             logger.warning(f"Missing profiles or categories, skipping Figure 3")
+    if 4 in args.figures:
+        profiles_path = args.results_dir / "taxon_profiles_consumed.parquet"
+        categories_path = args.results_dir / "metabolite_categories_consumed.csv"
 
-    logger.info(f"Done. Figures saved to {args.output_dir}")
+        if profiles_path.exists() and categories_path.exists():
+            logger.info("Generating Figure 3 (seaborn version)")
+            profiles = pd.read_parquet(profiles_path)
+            categories = pd.read_csv(categories_path)
+            figure_3_heatmap_seaborn(
+                df, profiles, categories, args.output_dir,
+                min_isolates=1,
+                exclude_universal=True,
+            )
+        else:
+            logger.warning("Missing profiles or categories, skipping Figure 3 seaborn")
+    if 5 in args.figures:
+        profiles_path = args.results_dir / "taxon_profiles_consumed.parquet"
+        categories_path = args.results_dir / "metabolite_categories_consumed.csv"
+
+        if profiles_path.exists() and categories_path.exists():
+            logger.info("Generating Figure 5: Raw score heatmap")
+            profiles = pd.read_parquet(profiles_path)
+            categories = pd.read_csv(categories_path)
+            figure_5_raw_score_heatmap(
+                df, profiles, categories, args.output_dir,
+                min_isolates=1,
+                exclude_universal=True,
+            )
+        else:
+            logger.warning("Missing profiles or categories, skipping Figure 5")
+    if 6 in args.figures:
+        logger.info("Generating Figure 6: Rank clustermap")
+        figure_6_rank_clustermap(df, args.output_dir, embedding_dim=args.embedding_dim)
