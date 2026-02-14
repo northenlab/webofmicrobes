@@ -60,16 +60,17 @@ CHEBI_SOURCES = {
 }
 
 EXOMETABOLITE_SOURCES = [
-    os.path.join(DATA_DIR, "Biggs_isolates.tsv"),
-    os.path.join(DATA_DIR, "NLDM_isolates.tsv"),
-    os.path.join(DATA_DIR, "mCAFES_NLDM_17ExoTSNLDMS2_WoM_style_data_Dunnet.csv"),
-    os.path.join(DATA_DIR, "mCAFES_NLDM_ExometabTimeSeries_WoM_style_data_Dunnet.csv"),
-    os.path.join(DATA_DIR, "NLDM_20220202_AG_YW_ENIGMA_SyncomTSer_WoM_style_data_Dunnet.csv"),
-    os.path.join(DATA_DIR, "WoM_isolates_Exomet_data_WoM_style.tsv"),
-    os.path.join(DATA_DIR, "ECON_NLDM_WoM_style_data_Dunnet.tsv"),
-    os.path.join(DATA_DIR, "WoM_isolates_Exomet_data_BG11+6crustiso_WoM_style.tsv"),
-    os.path.join(DATA_DIR, "JGI_Merchant_WoM_style_data_Dunnet.tsv"),
-    os.path.join(DATA_DIR, "Substrate_Utilization_Set1_and_Set2_WoM_style_data_Dunnet.tsv"),
+    os.path.join(DATA_DIR, "wom_1.tsv"),
+    os.path.join(DATA_DIR, "wom_2.tsv"),
+    os.path.join(DATA_DIR, "wom_3.tsv"),
+    os.path.join(DATA_DIR, "wom_4.tsv"),
+    os.path.join(DATA_DIR, "wom_5.tsv"),
+    os.path.join(DATA_DIR, "wom_6.tsv"),
+    os.path.join(DATA_DIR, "wom_7.tsv"),
+    os.path.join(DATA_DIR, "wom_8.tsv"),
+    os.path.join(DATA_DIR, "wom_9.csv"),
+    os.path.join(DATA_DIR, "wom_10.csv"),
+    os.path.join(DATA_DIR, "wom_11.csv"),
     ]
 
 # ============================================================
