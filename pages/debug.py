@@ -32,8 +32,8 @@ GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 # Model name
 #MODEL_NAME = "gemini-2.0-flash"
 #MODEL_NAME = "gemini-2.5-flash"
-MODEL_NAME = "gemini-3-flash-preview"
-#MODEL_NAME = "gemini-3-pro-preview"
+#MODEL_NAME = "gemini-3-flash-preview"
+MODEL_NAME = "gemini-3-pro-preview"
 
 @st.cache_resource
 def get_gemini_client():
@@ -333,8 +333,12 @@ def gemini_chat():
 
         with st.chat_message("assistant"):
             # Lets allow a loop of maximum 4 iterations of tool calls and LLM responses to prevent infinite loops in case of errors
+            MAX_ITERATIONS = 6
+            CURRENT_ITERATION = 0
             all_responses = []
-            for _ in range(4):
+            for _ in range(MAX_ITERATIONS):
+                CURRENT_ITERATION += 1
+
                 # Send user's message to LLM and get a streaming response
                 response_stream = send_message_to_llm(st.session_state.gemini_chat, prompt, stream=True)
                 
@@ -379,7 +383,10 @@ Executing tool calls...
                     # there is a tool call, which means we should send the results back to the LLM for interpretation
                     if not any_errors:
                         # Send tool outputs back to LLM for interpretation
-                        tool_msg = f"Tool outputs:\n```json\n{combined_output}\n```\n\nPlease interpret all of these results together for the user."
+                        tool_msg = f"Tool outputs:\n```json\n{combined_output}\n```\n\nPlease interpret all of these results together for the user. Just a note, you are allowed to do recursive tool calls, this is currently {} of {}".format(CURRENT_ITERATION, MAX_ITERATIONS)
+
+                        # TODO: If we're on the last one, we should give it a special prompt that says "This is the last iteration, you must not make any more tool calls after this, just give a final answer to the user based on all the information you have, including the tool outputs from this message"
+
                         prompt = tool_msg
                         
                         continue
