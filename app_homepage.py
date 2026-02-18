@@ -59,14 +59,13 @@ DEBUG_MODE = True
 
 def debug_log(label: str, content):
     """Write debug info to the sidebar instead of main area."""
-    # if DEBUG_MODE:
-    #     with st.sidebar:
-    #         with st.expander(f"🔧 {label}", expanded=False):
-    #             if isinstance(content, (dict, list)):
-    #                 st.json(content)
-    #             else:
-    #                 st.code(str(content), language="text")
-    print("X")
+    if DEBUG_MODE:
+        with st.sidebar:
+            with st.expander(f"🔧 {label}", expanded=False):
+                if isinstance(content, (dict, list)):
+                    st.json(content)
+                else:
+                    st.code(str(content), language="text")
 
 # Initialize chat_id for history link
 if "chat_id" not in st.session_state:
@@ -226,16 +225,6 @@ def display_assistant_message(content: str):
         st.markdown(text_after)
 
 def send_message_to_gemini(gemini_chat, message: str) -> str:
-    if DEBUG_MODE:
-        debug_log("Sending Message to Gemini", message)
-        from types import SimpleNamespace
-        response_obj = SimpleNamespace()
-        response_obj.text = "This is a dummy response for debugging purposes."
-        import time
-        time.sleep(5)  # Simulate response time
-
-        return response_obj
-    
     response = gemini_chat.send_message(message)
 
     return response
