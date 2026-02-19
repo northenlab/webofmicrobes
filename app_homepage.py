@@ -359,7 +359,6 @@ def gemini_chat():
                     st.rerun()
 
             # Adding in a section of citations
-            st.markdown("**References for Examples:**")
             st.markdown('[1] Jenkins, Stefan, et al. "Construction of viable soil defined media using quantitative metabolomics analysis of soil metabolites." Frontiers in Microbiology 8 (2017): 2618.')
             st.markdown('[2] bioRxiv Manuscript (Experimental result = Pseudomonas, most enriched and Paenibacillus, also enriched) ')
             st.markdown('[3] bioRxiv Manuscript (Experimental result= Novosphingobium)')
