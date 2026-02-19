@@ -24,6 +24,10 @@ import matplotlib.gridspec as gridspec
 from matplotlib.colors import TwoSlopeNorm
 from matplotlib.patches import Patch
 from sklearn.manifold import TSNE
+from model import load_model, BPRModel
+from sklearn.metrics import pairwise_distances
+from scipy.stats import ttest_ind
+
 
 from model import BPRModel, prepare_training_data
 
@@ -727,6 +731,219 @@ def figure_3_heatmap_seaborn(
     plt.close()
     logger.info("Saved figure3_heatmap (seaborn)")
 
+def quantify_genus_conservation(
+    df: pd.DataFrame,
+    output_dir: Path,
+    embedding_dim: int = 32,
+    min_genus_size: int = 2,
+    n_permutations: int = 999,
+):
+    """Quantify whether substrate preferences are conserved at the genus level.
+
+    Computes:
+      1. Within-genus vs. between-genus cosine similarity (with Mann-Whitney test)
+      2. PERMANOVA (genus explains variance in embedding space)
+      3. Silhouette score (how well organisms cluster by genus)
+      4. Within-genus rank correlation of metabolite preferences
+
+    Args:
+        df: Exometabolite dataframe
+        output_dir: Where to save results
+        embedding_dim: BPR embedding dimension
+        min_genus_size: Minimum isolates per genus to include
+        n_permutations: Permutations for PERMANOVA
+    """
+    from scipy.spatial.distance import pdist, squareform, cosine
+    from scipy.stats import mannwhitneyu, spearmanr
+    from sklearn.metrics import silhouette_score
+
+    data = prepare_training_data(df, "consumed")
+    n_microbes = data["n_microbes"]
+    n_metabolites = data["n_metabolites"]
+    positives = data["positives"]
+    microbe_to_idx = data["microbe_to_idx"]
+    metabolite_to_idx = data["metabolite_to_idx"]
+    idx_to_microbe = {i: m for m, i in microbe_to_idx.items()}
+
+    model = BPRModel(embedding_dim=embedding_dim)
+    model.fit(positives, n_microbes, n_metabolites, verbose=False)
+
+    embeddings = model.microbe_embeddings
+    tax_table = build_taxonomy_table(df, microbe_to_idx)
+
+    # Map each organism index to its genus
+    idx_to_genus = {}
+    for _, row in tax_table.iterrows():
+        org_id = row["organism_id"]
+        if org_id in microbe_to_idx:
+            idx_to_genus[microbe_to_idx[org_id]] = row["genus"]
+
+    # Filter to genera with enough members
+    from collections import Counter
+    genus_counts = Counter(idx_to_genus.values())
+    valid_genera = {g for g, c in genus_counts.items() if c >= min_genus_size and g != "Unknown"}
+
+    valid_indices = [i for i in range(n_microbes) if idx_to_genus.get(i) in valid_genera]
+    valid_labels = [idx_to_genus[i] for i in valid_indices]
+    valid_embeddings = embeddings[valid_indices]
+
+    logger.info(f"Genus conservation analysis: {len(valid_indices)} isolates in "
+                f"{len(valid_genera)} genera (min size {min_genus_size})")
+
+    # -------------------------------------------------------------------------
+    # 1. Within-genus vs. between-genus cosine similarity
+    # -------------------------------------------------------------------------
+    n = len(valid_indices)
+    cos_sim_matrix = 1 - squareform(pdist(valid_embeddings, metric="cosine"))
+
+    within_sims = []
+    between_sims = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            sim = cos_sim_matrix[i, j]
+            if valid_labels[i] == valid_labels[j]:
+                within_sims.append(sim)
+            else:
+                between_sims.append(sim)
+
+    within_sims = np.array(within_sims)
+    between_sims = np.array(between_sims)
+
+    mw_stat, mw_pval = mannwhitneyu(within_sims, between_sims, alternative="greater")
+
+    logger.info(f"  Cosine similarity — within-genus: {within_sims.mean():.3f} ± {within_sims.std():.3f}, "
+                f"between-genus: {between_sims.mean():.3f} ± {between_sims.std():.3f}, "
+                f"Mann-Whitney p = {mw_pval:.2e}")
+
+    # -------------------------------------------------------------------------
+    # 2. PERMANOVA (pseudo-F from distance matrix, genus as grouping)
+    # -------------------------------------------------------------------------
+    dist_matrix = squareform(pdist(valid_embeddings, metric="euclidean"))
+    labels_arr = np.array(valid_labels)
+    unique_genera = list(valid_genera)
+
+    def pseudo_f(dists, labels):
+        """Compute PERMANOVA pseudo-F statistic."""
+        n = len(labels)
+        unique = np.unique(labels)
+        a = len(unique)
+
+        # Total sum of squares
+        ss_total = (dists ** 2).sum() / (2 * n)
+
+        # Within-group sum of squares
+        ss_within = 0
+        for g in unique:
+            mask = labels == g
+            n_g = mask.sum()
+            if n_g > 1:
+                group_dists = dists[np.ix_(mask, mask)]
+                ss_within += (group_dists ** 2).sum() / (2 * n_g)
+
+        ss_between = ss_total - ss_within
+        f_stat = (ss_between / (a - 1)) / (ss_within / (n - a))
+        return f_stat
+
+    observed_f = pseudo_f(dist_matrix, labels_arr)
+
+    # Permutation test
+    perm_fs = []
+    rng = np.random.default_rng(42)
+    for _ in range(n_permutations):
+        perm_labels = rng.permutation(labels_arr)
+        perm_fs.append(pseudo_f(dist_matrix, perm_labels))
+    perm_fs = np.array(perm_fs)
+
+    permanova_p = (np.sum(perm_fs >= observed_f) + 1) / (n_permutations + 1)
+
+    # R² (effect size)
+    ss_total = (dist_matrix ** 2).sum() / (2 * n)
+    ss_within = 0
+    for g in np.unique(labels_arr):
+        mask = labels_arr == g
+        n_g = mask.sum()
+        if n_g > 1:
+            group_dists = dist_matrix[np.ix_(mask, mask)]
+            ss_within += (group_dists ** 2).sum() / (2 * n_g)
+    r_squared = 1 - ss_within / ss_total
+
+    logger.info(f"  PERMANOVA — pseudo-F = {observed_f:.2f}, R² = {r_squared:.3f}, "
+                f"p = {permanova_p:.4f} ({n_permutations} permutations)")
+
+    # -------------------------------------------------------------------------
+    # 3. Silhouette score
+    # -------------------------------------------------------------------------
+    from sklearn.preprocessing import LabelEncoder
+    le = LabelEncoder()
+    numeric_labels = le.fit_transform(valid_labels)
+    sil_score = silhouette_score(valid_embeddings, numeric_labels, metric="cosine")
+
+    logger.info(f"  Silhouette score (cosine): {sil_score:.3f}")
+
+    # -------------------------------------------------------------------------
+    # 4. Within-genus Spearman rank correlation of metabolite scores
+    # -------------------------------------------------------------------------
+    met_embeddings = model.metabolite_embeddings
+    score_matrix = valid_embeddings @ met_embeddings.T  # (n_isolates, n_metabolites)
+
+    within_rhos = []
+    between_rhos = []
+    rng2 = np.random.default_rng(123)
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            if valid_labels[i] == valid_labels[j]:
+                rho, _ = spearmanr(score_matrix[i], score_matrix[j])
+                within_rhos.append(rho)
+
+    # Sample an equal number of between-genus pairs for comparison
+    n_between_sample = min(len(within_rhos) * 5, n * (n - 1) // 2)
+    between_pairs = []
+    while len(between_pairs) < n_between_sample:
+        i, j = rng2.integers(0, n, size=2)
+        if i != j and valid_labels[i] != valid_labels[j]:
+            rho, _ = spearmanr(score_matrix[i], score_matrix[j])
+            between_rhos.append(rho)
+            between_pairs.append((i, j))
+
+    within_rhos = np.array(within_rhos)
+    between_rhos = np.array(between_rhos)
+
+    rho_mw_stat, rho_mw_pval = mannwhitneyu(within_rhos, between_rhos, alternative="greater")
+
+    logger.info(f"  Spearman rank correlation — within-genus: {within_rhos.mean():.3f} ± {within_rhos.std():.3f}, "
+                f"between-genus: {between_rhos.mean():.3f} ± {between_rhos.std():.3f}, "
+                f"Mann-Whitney p = {rho_mw_pval:.2e}")
+
+    # -------------------------------------------------------------------------
+    # Save summary
+    # -------------------------------------------------------------------------
+    summary = {
+        "n_isolates": len(valid_indices),
+        "n_genera": len(valid_genera),
+        "min_genus_size": min_genus_size,
+        "cosine_sim_within_mean": within_sims.mean(),
+        "cosine_sim_within_std": within_sims.std(),
+        "cosine_sim_between_mean": between_sims.mean(),
+        "cosine_sim_between_std": between_sims.std(),
+        "cosine_sim_mann_whitney_p": mw_pval,
+        "permanova_pseudo_f": observed_f,
+        "permanova_r_squared": r_squared,
+        "permanova_p": permanova_p,
+        "permanova_n_permutations": n_permutations,
+        "silhouette_score_cosine": sil_score,
+        "spearman_within_mean": within_rhos.mean(),
+        "spearman_within_std": within_rhos.std(),
+        "spearman_between_mean": between_rhos.mean(),
+        "spearman_between_std": between_rhos.std(),
+        "spearman_mann_whitney_p": rho_mw_pval,
+    }
+
+    summary_df = pd.DataFrame([summary])
+    summary_df.to_csv(output_dir / "genus_conservation_stats.csv", index=False)
+    logger.info(f"Saved genus_conservation_stats.csv")
+
+    return summary
 
 def figure_5_raw_score_heatmap(
     df: pd.DataFrame,
@@ -953,14 +1170,15 @@ def figure_6_rank_clustermap(
 
 def figure_7_embedding_distance(
     df: pd.DataFrame,
-    output_dir: Path,
-    model_path: Path = Path('./cache/bpr_consumed'),
+    output_dir: Path
 ):
     """Figure 7: Embedding distance distributions by taxonomic level.
 
     Four-panel histogram showing cosine distances between organism embeddings,
     split by whether pairs share the same genus, family, order, or class.
     """
+    model_path = Path('./cache/bpr_consumed')  # or wherever your model files live
+
     wrapper = load_model(model_path, model_class=BPRModel)
 
     mask = (
@@ -1169,6 +1387,8 @@ if __name__ == "__main__":
                 min_isolates=1,
                 exclude_universal=True,
             )
+            logger.info("Quantifying genus-level conservation")
+            quantify_genus_conservation(df, args.output_dir, embedding_dim=args.embedding_dim)
         else:
             logger.warning("Missing profiles or categories, skipping Figure 3 seaborn")
     if 5 in args.figures:
@@ -1191,8 +1411,4 @@ if __name__ == "__main__":
         figure_6_rank_clustermap(df, args.output_dir, embedding_dim=args.embedding_dim)
     if 7 in args.figures:
         logger.info("Generating Figure 7: Embedding distance by taxonomy")
-        model_path = Path('./cache/bpr_consumed')
-        if model_path.exists():
-            figure_7_embedding_distance(df, args.output_dir, model_path=model_path)
-        else:
-            logger.warning(f"Missing model at {model_path}, skipping Figure 7")
+        figure_7_embedding_distance(df, args.output_dir)
