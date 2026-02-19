@@ -949,6 +949,117 @@ def figure_6_rank_clustermap(
         g.savefig(output_dir / f"figure6_rank_clustermap.{ext}", dpi=300, bbox_inches="tight")
     plt.close()
     logger.info("Saved figure6_rank_clustermap")
+
+
+def figure_7_embedding_distance(
+    df: pd.DataFrame,
+    output_dir: Path,
+    model_path: Path = Path('./cache/bpr_consumed'),
+):
+    """Figure 7: Embedding distance distributions by taxonomic level.
+
+    Four-panel histogram showing cosine distances between organism embeddings,
+    split by whether pairs share the same genus, family, order, or class.
+    """
+    wrapper = load_model(model_path, model_class=BPRModel)
+
+    mask = (
+        df['organism_id'].isin(wrapper.microbe_to_idx) &
+        df['representative_compound'].isin(wrapper.metabolite_to_idx)
+    )
+    valid = df[mask].copy()
+    valid = valid.drop_duplicates(subset=['organism_id'])
+    m_indices = valid['organism_id'].map(wrapper.microbe_to_idx).values
+
+    m_emb = wrapper.model.microbe_embeddings[m_indices]
+
+    dist_matrix = pairwise_distances(m_emb, metric='cosine')
+    dist_df = pd.DataFrame(
+        dist_matrix,
+        index=valid['organism_id'],
+        columns=valid['organism_id'],
+    )
+    dist_df.index.name = 'organism_id_1'
+    dist_df = dist_df.melt(
+        ignore_index=False,
+        var_name='organism_id_2',
+        value_name='embedding_distance',
+    )
+    dist_df.reset_index(inplace=True)
+
+    cols = ['organism_id_1', 'organism_id_2']
+    dist_df = dist_df[dist_df[cols[0]] != dist_df[cols[1]]]
+    idx = np.sort(dist_df[cols].values, axis=1)
+    dist_df[cols] = idx
+    dist_df = dist_df.drop_duplicates(subset=cols)
+
+    merged = dist_df.merge(valid.add_suffix('_1'), on='organism_id_1', how='left')
+    merged = merged.merge(valid.add_suffix('_2'), on='organism_id_2', how='left')
+
+    levels = ['genus', 'family', 'order', 'class']
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10), sharey=True, sharex=True)
+    axes = axes.flatten()
+    edges = np.linspace(
+        merged['embedding_distance'].min(),
+        merged['embedding_distance'].max(),
+        51,
+    )
+
+    for ax, level in zip(axes, levels):
+        col1 = f'{level}_1'
+        col2 = f'{level}_2'
+        same = merged[merged[col1] == merged[col2]]
+        diff = merged[merged[col1] != merged[col2]]
+        median_same = same['embedding_distance'].median()
+        median_diff = diff['embedding_distance'].median()
+        p_value = ttest_ind(
+            same['embedding_distance'],
+            diff['embedding_distance'],
+            equal_var=False,
+        ).pvalue
+
+        ax.hist(
+            same['embedding_distance'], bins=edges,
+            alpha=0.7, label=f'same {level}', density=True,
+        )
+        ax.hist(
+            diff['embedding_distance'], bins=edges,
+            alpha=0.7, label=f'different {level}', density=True,
+        )
+        ax.axvline(median_same, color='blue', linestyle='dashed', linewidth=3)
+        ax.axvline(median_diff, color='orange', linestyle='dashed', linewidth=3)
+        ax.legend(fontsize=16, frameon=False)
+        ax.text(
+            0.8, 0.6, f'p = {p_value:.2e}',
+            transform=ax.transAxes, fontsize=16, ha='center',
+        )
+
+    axes[-1].set_xlabel('Embedding distance (cosine)', fontsize=24)
+    axes[-2].set_xlabel('Embedding distance (cosine)', fontsize=24)
+    axes[0].set_ylabel('Density', fontsize=24)
+    axes[2].set_ylabel('Density', fontsize=24)
+
+    panel_labels = ['a.', 'b.', 'c.', 'd.']
+    for a, label in zip(axes, panel_labels):
+        a.tick_params(axis='both', which='major', labelsize=20)
+        for spine in a.spines.values():
+            spine.set_linewidth(1.5)
+        a.spines['top'].set_visible(False)
+        a.spines['right'].set_visible(False)
+        a.text(
+            0.1, 1.0, label, transform=a.transAxes,
+            fontsize=36, va='top', ha='right',
+        )
+
+    plt.tight_layout()
+
+    for ext in ["png", "pdf"]:
+        fig.savefig(
+            output_dir / f"figure7_embedding_distance.{ext}",
+            dpi=300, bbox_inches="tight",
+        )
+    plt.close()
+    logger.info("Saved figure7_embedding_distance")
 # =============================================================================
 # CLI
 # =============================================================================
@@ -993,8 +1104,8 @@ if __name__ == "__main__":
         "--figures",
         nargs="+",
         type=int,
-        default=[1, 2, 3, 4, 5, 6],
-        help="Which figures to generate (1-6)",
+        default=[1, 2, 3, 4, 5, 6, 7],
+        help="Which figures to generate (1-7)",
     )
 
     args = parser.parse_args()
@@ -1078,3 +1189,10 @@ if __name__ == "__main__":
     if 6 in args.figures:
         logger.info("Generating Figure 6: Rank clustermap")
         figure_6_rank_clustermap(df, args.output_dir, embedding_dim=args.embedding_dim)
+    if 7 in args.figures:
+        logger.info("Generating Figure 7: Embedding distance by taxonomy")
+        model_path = Path('./cache/bpr_consumed')
+        if model_path.exists():
+            figure_7_embedding_distance(df, args.output_dir, model_path=model_path)
+        else:
+            logger.warning(f"Missing model at {model_path}, skipping Figure 7")
