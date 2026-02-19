@@ -343,17 +343,17 @@ def gemini_chat():
             col1_adv, col2_adv, col3_adv = st.columns(3)
 
             with col1_adv:
-                if st.button("Predict Pseudomonas", use_container_width=True):
+                if st.button("🔬 Predict Pseudomonas", use_container_width=True):
                     st.session_state.first_message = "For Pseudomonas, rank all 23 of these substrates from highest to lowest preference: phenylalanine, glycine, threonine, isoleucine, leucine, lysine, serine, alanine, proline, arginine, glutamate, adenosine, guanine, hypoxanthine, uridine, 4-guanidinobutanoic acid, glucose, fructose, mannose, arabinose, trehalose, maltose, mannitol"
                     st.session_state.button_clicked = True
                     st.rerun()
             with col2_adv:
-                if st.button("Soil amino acid spike-in", use_container_width=True):
+                if st.button("🏆 Soil amino acid spike-in", use_container_width=True):
                     st.session_state.first_message = "Make a table where you rank (highest to lowest) which of these bacteria you predict will be most competitive for a mixture of proteogenic amino acids based on having both a high substrate preferences and high growth rates. Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea?"
                     st.session_state.button_clicked = True
                     st.rerun()
             with col3_adv:
-                if st.button("Soil xylose spike-in", use_container_width=True):
+                if st.button("🍬 Soil xylose spike-in", use_container_width=True):
                     st.session_state.first_message = "Make a table where you rank (highest to lowest) of which of these bacteria you predict will be most competitive for aldehydo-D-xylose based on having both a high substrate preferences and high growth rates. Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea"
                     st.session_state.button_clicked = True
                     st.rerun()
