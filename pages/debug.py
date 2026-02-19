@@ -436,7 +436,4 @@ Executing tool calls...
                 file.write(json.dumps(st.session_state.messages))
 
 ## Make a password to block open access
-password = st.text_input("Enter password to access debug mode:", type="password")
-
-if password == "massspec":
-    gemini_chat()
+gemini_chat()

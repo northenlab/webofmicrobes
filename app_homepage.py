@@ -43,19 +43,21 @@ def get_gemini_client():
 @st.cache_data
 def get_preprompt():
     """Read and cache the preprompt from disk."""
-    return open("./prompts/wom_prompt.txt", "r").read()
+    return open("./prompts/wom_prompt_v2.txt", "r").read()
 
 client = get_gemini_client()
 llm_config = types.GenerateContentConfig(
     temperature=0.1,
     seed=42,
     top_k=1,
-    system_instruction=get_preprompt()
+    system_instruction=get_preprompt(),
+    thinking_config=types.ThinkingConfig(thinking_level="high")
 )
 
 
 # Debug mode toggle - set to False in production
 DEBUG_MODE = True
+DEBUG_LLM = False
 
 def debug_log(label: str, content):
     """Write debug info to the sidebar instead of main area."""
@@ -143,6 +145,24 @@ import json
 import re
 
 TOOL_CALL_PATTERN = re.compile(r"```tool_call\s*\n(.*?)\n```", re.DOTALL)
+DEVELOPER_TAG_PATTERN = re.compile(r"<developer>.*?</developer>", re.DOTALL | re.IGNORECASE)
+
+def strip_developer_tag(content: str) -> tuple[str, str, bool]:
+    if not content:
+        return content, "", False
+    # Extract developer tags
+    developer_tags = DEVELOPER_TAG_PATTERN.findall(content)
+    developer_text = "\n".join(developer_tags)
+    # Remove developer tags
+    cleaned, count = DEVELOPER_TAG_PATTERN.subn("", content)
+    return cleaned.strip(), developer_text, count > 0
+
+def save_developer_snapshot(chat_id: str, messages: list, developer_text: str) -> None:
+    developer_dir = os.path.join("/app/chat", "developer")
+    os.makedirs(developer_dir, exist_ok=True)
+    snapshot_path = os.path.join(developer_dir, f"{chat_id}.json")
+    with open(snapshot_path, "w") as file:
+        file.write(json.dumps({"messages": messages, "developer": developer_text}))
 
 def parse_tool_calls(llm_response: str) -> list:
     calls = []
@@ -182,10 +202,10 @@ def execute_all_tool_calls(tool_calls: list) -> tuple[str, bool]:
     return combined, any_errors
 
 
-def display_assistant_message(content: str):
+def display_assistant_message(content: str, tool_calls: bool = False):
     """
     Display assistant message, hiding tool calls in expanders.
-    """
+    """    
     # Find all tool call matches
     matches = list(TOOL_CALL_PATTERN.finditer(content))
     
@@ -194,40 +214,67 @@ def display_assistant_message(content: str):
         st.markdown(content)
         return
     
+    
     # Track position in content
     last_end = 0
-    
-    # Process each tool call
-    for i, match in enumerate(matches):
-        # Display text before this tool call
-        text_before = content[last_end:match.start()].strip()
-        if text_before:
-            st.markdown(text_before)
-        
-        # Display tool call in expander
-        tool_json = match.group(1).strip()
-        try:
-            tool_data = json.loads(tool_json)
-            tool_name = tool_data.get("tool", "unknown")
-            tool_label = tool_data.get("query") or tool_data.get("command") or f"call {i+1}"
+
+    # Hiding this part
+    with st.expander(f"🔧 LLM Response with Tool Call(s)", expanded=False):
+        # Process each tool call
+        for i, match in enumerate(matches):
+            # Display text before this tool call
+            text_before = content[last_end:match.start()].strip()
+            if text_before:
+                st.markdown(text_before)
             
-            with st.expander(f"🔧 Tool Call: {tool_name} - {tool_label}", expanded=False):
-                st.code(json.dumps(tool_data, indent=2), language="json")
-        except json.JSONDecodeError:
-            with st.expander(f"🔧 Tool Call {i+1}", expanded=False):
-                st.code(tool_json, language="json")
+            # Display tool call in expander
+            tool_json = match.group(1).strip()
+            try:
+                tool_data = json.loads(tool_json)
+                tool_name = tool_data.get("tool", "unknown")
+                tool_label = tool_data.get("query") or tool_data.get("command") or f"call {i+1}"
+                
+                with st.expander(f"🔧 Tool Call: {tool_name} - {tool_label}", expanded=False):
+                    st.code(json.dumps(tool_data, indent=2), language="json")
+            except json.JSONDecodeError:
+                with st.expander(f"🔧 Tool Call {i+1}", expanded=False):
+                    st.code(tool_json, language="json")
+            
+            last_end = match.end()
         
-        last_end = match.end()
+        # Display any remaining text after the last tool call
+        text_after = content[last_end:].strip()
+        if text_after:
+            st.markdown(text_after)
+
+def send_message_to_llm(gemini_chat, message: str, stream: bool = True):
+    """Send message to LLM and optionally stream the response.
     
-    # Display any remaining text after the last tool call
-    text_after = content[last_end:].strip()
-    if text_after:
-        st.markdown(text_after)
-
-def send_message_to_gemini(gemini_chat, message: str) -> str:
-    response = gemini_chat.send_message(message)
-
-    return response
+    Args:
+        gemini_chat: The Gemini chat session
+        message: The message to send
+        stream: If True, returns a generator that yields chunks. If False, returns complete response.
+    
+    Returns:
+        Generator yielding text chunks if stream=True, otherwise returns response object
+    """
+    if DEBUG_LLM:
+        debug_log("Sending Message to LLM", message)
+        from types import SimpleNamespace
+        response_obj = SimpleNamespace()
+        response_obj.text = "This is a dummy response for debugging purposes. {}".format(str(uuid.uuid4()))
+        import time
+        time.sleep(3)  # Simulate response time
+        return response_obj
+    
+    if stream:
+        # Use streaming API
+        response_stream = gemini_chat.send_message_stream(message)
+        return response_stream
+    else:
+        # Use non-streaming API
+        response = gemini_chat.send_message(message)
+        return response
 
 def gemini_chat():
 
@@ -247,12 +294,19 @@ def gemini_chat():
             history=history
         )
 
-    first_message = "Ask me about microbial substrate preferences, growth rates and microbiome design"
-
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+       with st.chat_message(message["role"]):
+           if message["role"] == "user":
+               st.markdown(message["content"])
+           else:
+               for part in message["content"]:
+                    if part.get("tool_calls", False):
+                        display_assistant_message(part["content"], tool_calls=True)
+                    else:
+                        display_assistant_message(part["content"], tool_calls=False)
+           
+    first_message = "Ask me about microbial substrate preferences, growth rates and microbiome design"
 
     # Example questions - only show if no messages yet and no button clicked
     if len(st.session_state.messages) == 0 and not st.session_state.get("first_message", ""):
@@ -288,15 +342,7 @@ def gemini_chat():
     if user_input := st.chat_input(first_message, key="chat_input"):
         prompt = user_input
 
-    # Character limit
-    MAX_CHARS = 2000
-
     if prompt:
-        # Check character limit
-        if len(prompt) > MAX_CHARS:
-            st.warning(f"⚠️ Your message is too long ({len(prompt)} characters). Please limit to {MAX_CHARS} characters.")
-            st.stop()
-
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
 
@@ -304,95 +350,90 @@ def gemini_chat():
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Send user's message to Gemini and get a response
-        response = send_message_to_gemini(st.session_state.gemini_chat, prompt)
-        assistant_response = response.text
+        with st.chat_message("assistant"):
+            # Lets allow a loop of maximum 6 iterations of tool calls and LLM responses to prevent infinite loops in case of errors
+            MAX_ITERATIONS = 6
+            CURRENT_ITERATION = 0
+            all_responses = []
+            developer_tag_found = False
+            for _ in range(MAX_ITERATIONS):
+                CURRENT_ITERATION += 1
 
-        # Check for tool calls in the response
-        tool_calls = parse_tool_calls(assistant_response)
+                # Send user's message to LLM and get a streaming response
+                response_stream = send_message_to_llm(st.session_state.gemini_chat, prompt, stream=True)
+                
+                # Accumulate the streamed response
+                assistant_response = ""
+                message_placeholder = st.empty()
+                
+                for chunk in response_stream:
+                    if hasattr(chunk, 'text') and chunk.text:
+                        assistant_response += chunk.text
+                        # Update the display with accumulated text
+                        message_placeholder.markdown(assistant_response + "▌")
+                
+                assistant_response, developer_text, developer_hit = strip_developer_tag(assistant_response)
+                developer_tag_found = developer_tag_found or developer_hit
 
-        debug_log("Parsed Tool Calls", tool_calls)
+                # Remove the cursor and show final text
+                message_placeholder.markdown(assistant_response)
 
-        if tool_calls:
-            # Execute all tool calls
-            combined_output, any_errors = execute_all_tool_calls(tool_calls)
+                # now lets check for tool calls
+                tool_calls = parse_tool_calls(assistant_response)
 
-            # Add the initial response to history
-            st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+                all_responses.append({"content": assistant_response, "tool_calls": len(tool_calls) > 0})
 
-            # Display the initial response (with tool calls)
-            with st.chat_message("assistant"):
-                display_assistant_message(assistant_response)
+                if tool_calls:
+                    # Clear the placeholder and show formatted version with tool calls
+                    message_placeholder.empty()
+                    display_assistant_message(assistant_response, tool_calls=True)
+                    notice_text = """---
 
-            if any_errors:
-                debug_log("Errors Detected", "Giving LLM one chance to fix")
-
-                error_msg = f"""One or more tool calls returned errors:
-```json
-{combined_output}
-```
-"""
-                retry_response = send_message_to_gemini(st.session_state.gemini_chat, error_msg)
-                retry_text = retry_response.text
-
-                debug_log("Retry Response", retry_text)
-
-                retry_calls = parse_tool_calls(retry_text)
-
-                if retry_calls:
-                    debug_log("Retry Tool Calls", retry_calls)
-                    combined_output, any_errors = execute_all_tool_calls(retry_calls)
-
-                    st.session_state.messages.append({"role": "assistant", "content": retry_text})
-                    with st.chat_message("assistant"):
-                        display_assistant_message(retry_text)
-
-                    if any_errors:
-                        final_text = f"I tried to fix the commands but still encountered errors. The APIs returned:\n```json\n{combined_output}\n```\n\nPlease check your query and try again with different parameters."
-                        st.session_state.messages.append({"role": "assistant", "content": final_text})
-                        with st.chat_message("assistant"):
-                            st.markdown(final_text)
-                    else:
-                        tool_msg = f"Tool outputs:\n```json\n{combined_output}\n```\n\nPlease interpret all of these results together for the user."
-                        final_response = send_message_to_gemini(st.session_state.gemini_chat, tool_msg)
-                        final_text = final_response.text
-
-                        st.session_state.messages.append({"role": "assistant", "content": final_text})
-                        with st.chat_message("assistant"):
-                            st.markdown(final_text)
+Executing tool calls...
+                                
+---
+                                """
+                    display_assistant_message(notice_text)
+                    all_responses.append({"content": notice_text, "tool_calls": True})
                 else:
-                    st.session_state.messages.append({"role": "assistant", "content": retry_text})
-                    with st.chat_message("assistant"):
-                        display_assistant_message(retry_text)
-            else:
-                # No errors - send all tool outputs back to Gemini for interpretation
-                tool_msg = f"Tool outputs:\n```json\n{combined_output}\n```\n\nPlease interpret all of these results together for the user."
+                    # For non-tool-call responses, the streaming display is already shown
+                    all_responses.append({"content": assistant_response, "tool_calls": False})
 
-                debug_log("Tool Message", tool_msg)
+                if tool_calls:
+                    # Execute all tool calls
+                    combined_output, any_errors = execute_all_tool_calls(tool_calls)
 
-                # Send to LLM
-                final_response = send_message_to_gemini(st.session_state.gemini_chat, tool_msg)
+                    # there is a tool call, which means we should send the results back to the LLM for interpretation
+                    if not any_errors:
+                        # Send tool outputs back to LLM for interpretation
+                        tool_msg = f"Tool outputs:\n```json\n{combined_output}\n```\n\nPlease interpret all of these results together for the user. Just a note, you are allowed to do recursive tool calls, this is currently {CURRENT_ITERATION} of {MAX_ITERATIONS}."
 
-                debug_log("Final Response", final_response.text)
+                        # TODO: If we're on the last one, we should give it a special prompt that says "This is the last iteration, you must not make any more tool calls after this, just give a final answer to the user based on all the information you have, including the tool outputs from this message"
 
-                final_text = final_response.text
+                        prompt = tool_msg
+                        
+                        continue
+                    else:
+                        error_msg = f"""One or more tool calls returned errors:
+                                ```json
+                                {combined_output}
+                                ```
+                                """
+                        prompt = error_msg
+                        continue
+                else:
+                    break  # No tool calls, exit the loop
 
-                st.session_state.messages.append({"role": "assistant", "content": final_text})
+            st.session_state.messages.append({"role": "assistant", "content": all_responses})
 
-                with st.chat_message("assistant"):
-                    st.markdown(final_text)
-        else:
-            # No tool calls, just display the response normally
-            st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+            if developer_tag_found:
+                save_developer_snapshot(st.session_state["chat_id"], st.session_state.messages, developer_text)
 
-            with st.chat_message("assistant"):
-                st.markdown(assistant_response)
+            # Saving the chat history
+            chat_history_filename = os.path.join("/app/chat/{}.json".format(st.session_state["chat_id"]))
+            
+            with open(chat_history_filename, "w") as file:
+                file.write(json.dumps(st.session_state.messages))
 
-        # Saving the chat history
-        chat_history_filename = os.path.join("/app/chat/{}.json".format(st.session_state["chat_id"]))
-        
-        with open(chat_history_filename, "w") as file:
-            file.write(json.dumps(st.session_state.messages))
-
-if True:
-    gemini_chat()
+## Make a password to block open access
+gemini_chat()
