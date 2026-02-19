@@ -318,7 +318,7 @@ def gemini_chat():
     if len(st.session_state.messages) == 0 and not st.session_state.get("first_message", ""):
         with example_container.container():
             st.markdown("**Simple queries:**")
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
 
             with col1:
                 if st.button("🦠 What does Pseudomonas like to eat?", use_container_width=True):
@@ -335,6 +335,12 @@ def gemini_chat():
             with col3:
                 if st.button("⚖️ Compare Burkholderia and Variovorax", use_container_width=True):
                     st.session_state.first_message = "Compare Burkholderia and Variovorax"
+                    st.session_state.button_clicked = True
+                    example_container.empty()
+                    st.rerun()
+            with col4:
+                if st.button("Tell me about your tools", use_container_width=True):
+                    st.session_state.first_message = "Tell me about your tools"
                     st.session_state.button_clicked = True
                     example_container.empty()
                     st.rerun()
