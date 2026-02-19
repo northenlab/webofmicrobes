@@ -69,6 +69,11 @@ def debug_log(label: str, content):
                 else:
                     st.code(str(content), language="text")
 
+# Sidebar disclaimer
+st.sidebar.info(
+    """This is an early-stage release of a general purpose microbiome agent for predicting and interpreting exometabolite mediated dynamics in isolates and communities. Currently, the model is limited to 226 isolates across 68 Genera and 119 metabolites so use caution when interpreting and using the results. We provide several illustrative examples and anticipate that the accuracy of the model will continue to increase with additional data."""
+)
+
 # Initialize chat_id for history link
 if "chat_id" not in st.session_state:
     st.session_state["chat_id"] = str(uuid.uuid4())
@@ -137,7 +142,7 @@ else:
 #     </p>
 # </div>
 # """, unsafe_allow_html=True)
-st.caption("Explore microbial substrate preferences and growth rates using AI-assisted search.")
+st.caption("Explore microbial substrate preferences and growth rates using AI-assisted search.  The WoM agent is a collaboration between [northenlab.org](https://www.northenlab.org/) and [cs.ucr.edu/~mingxunw](https://www.cs.ucr.edu/~mingxunw/)")
 
 # ── Tool call patterns ──────────────────────────────────────────────
 
@@ -309,25 +314,49 @@ def gemini_chat():
     first_message = "Ask me about microbial substrate preferences, growth rates and microbiome design"
 
     # Example questions - only show if no messages yet and no button clicked
+    example_container = st.empty()
     if len(st.session_state.messages) == 0 and not st.session_state.get("first_message", ""):
-        st.markdown("**Try an example question:**")
-        col1, col2, col3 = st.columns(3)
+        with example_container.container():
+            st.markdown("**Simple queries:**")
+            col1, col2, col3 = st.columns(3)
 
-        with col1:
-            if st.button("🦠 What does Pseudomonas like to eat?", use_container_width=True):
-                st.session_state.first_message = "What does Pseudomonas like to eat?"
-                st.session_state.button_clicked = True
-                st.rerun()
-        with col2:
-            if st.button("🧪 Which microbes consume glutamate?", use_container_width=True):
-                st.session_state.first_message = "Which microbes consume glutamate?"
-                st.session_state.button_clicked = True
-                st.rerun()
-        with col3:
-            if st.button("⚖️ Compare Burkholderia and Variovorax", use_container_width=True):
-                st.session_state.first_message = "Compare Burkholderia and Variovorax"
-                st.session_state.button_clicked = True
-                st.rerun()
+            with col1:
+                if st.button("🦠 What does Pseudomonas like to eat?", use_container_width=True):
+                    st.session_state.first_message = "What does Pseudomonas like to eat?"
+                    st.session_state.button_clicked = True
+                    example_container.empty()
+                    st.rerun()
+            with col2:
+                if st.button("🧪 Which microbes consume glutamate?", use_container_width=True):
+                    st.session_state.first_message = "Which microbes consume glutamate?"
+                    st.session_state.button_clicked = True
+                    example_container.empty()
+                    st.rerun()
+            with col3:
+                if st.button("⚖️ Compare Burkholderia and Variovorax", use_container_width=True):
+                    st.session_state.first_message = "Compare Burkholderia and Variovorax"
+                    st.session_state.button_clicked = True
+                    example_container.empty()
+                    st.rerun()
+
+            st.markdown("**Exploratory new tools: Predicting microbial interactions and microbiome responses:**")
+            col1_adv, col2_adv, col3_adv = st.columns(3)
+
+            with col1_adv:
+                if st.button("Predict Pseudomonas", use_container_width=True):
+                    st.session_state.first_message = "For Pseudomonas, rank all 23 of these substrates from highest to lowest preference: phenylalanine, glycine, threonine, isoleucine, leucine, lysine, serine, alanine, proline, arginine, glutamate, adenosine, guanine, hypoxanthine, uridine, 4-guanidinobutanoic acid, glucose, fructose, mannose, arabinose, trehalose, maltose, mannitol"
+                    st.session_state.button_clicked = True
+                    st.rerun()
+            with col2_adv:
+                if st.button("Soil amino acid spike-in", use_container_width=True):
+                    st.session_state.first_message = "Make a table where you rank (highest to lowest) which of these bacteria you predict will be most competitive for a mixture of proteogenic amino acids based on having both a high substrate preferences and high growth rates. Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea?"
+                    st.session_state.button_clicked = True
+                    st.rerun()
+            with col3_adv:
+                if st.button("Soil xylose spike-in", use_container_width=True):
+                    st.session_state.first_message = "Make a table where you rank (highest to lowest) of which of these bacteria you predict will be most competitive for aldehydo-D-xylose based on having both a high substrate preferences and high growth rates. Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea"
+                    st.session_state.button_clicked = True
+                    st.rerun()
 
     if "first_message" not in st.session_state:
         st.session_state.first_message = ""
