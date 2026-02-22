@@ -3,6 +3,7 @@ import os
 import time
 import uuid
 import json
+from display_chat import display_assistant_message
 
 # Write the page label
 st.set_page_config(
@@ -28,4 +29,11 @@ chat_history = json.loads(open(f"/app/chat/{chat_id}.json").read())
 # Display chat messages from history on app rerun
 for message in chat_history:
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+        if message["role"] == "user":
+            st.markdown(message["content"])
+        else:
+            for part in message["content"]:
+                if part.get("tool_calls", False):
+                    display_assistant_message(part["content"], tool_calls=True)
+                else:
+                    display_assistant_message(part["content"], tool_calls=False)

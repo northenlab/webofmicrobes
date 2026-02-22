@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-from tool_calls import execute_tool_call
+from tool_calls import execute_tool_call, parse_tool_calls
+from display_chat import display_assistant_message
 
 load_dotenv()
 
@@ -151,9 +152,6 @@ st.caption("Explore microbial substrate preferences and growth rates using AI-as
 # ── Tool call patterns ──────────────────────────────────────────────
 
 import json
-import re
-
-TOOL_CALL_PATTERN = re.compile(r"```tool_call\s*\n(.*?)\n```", re.DOTALL)
 DEVELOPER_TAG_PATTERN = re.compile(r"<developer>.*?</developer>", re.DOTALL | re.IGNORECASE)
 
 def strip_developer_tag(content: str) -> tuple[str, str, bool]:
@@ -173,15 +171,6 @@ def save_developer_snapshot(chat_id: str, messages: list, developer_text: str) -
     with open(snapshot_path, "w") as file:
         file.write(json.dumps({"messages": messages, "developer": developer_text}))
 
-def parse_tool_calls(llm_response: str) -> list:
-    calls = []
-    for match in TOOL_CALL_PATTERN.finditer(llm_response):
-        try:
-            call = json.loads(match.group(1).strip())
-            calls.append(call)
-        except json.JSONDecodeError:
-            continue
-    return calls
 
 
 
@@ -211,50 +200,7 @@ def execute_all_tool_calls(tool_calls: list) -> tuple[str, bool]:
     return combined, any_errors
 
 
-def display_assistant_message(content: str, tool_calls: bool = False):
-    """
-    Display assistant message, hiding tool calls in expanders.
-    """    
-    # Find all tool call matches
-    matches = list(TOOL_CALL_PATTERN.finditer(content))
-    
-    if not matches:
-        # No tool calls, display normally
-        st.markdown(content)
-        return
-    
-    
-    # Track position in content
-    last_end = 0
 
-    # Hiding this part
-    with st.expander(f"🔧 LLM Response with Tool Call(s)", expanded=False):
-        # Process each tool call
-        for i, match in enumerate(matches):
-            # Display text before this tool call
-            text_before = content[last_end:match.start()].strip()
-            if text_before:
-                st.markdown(text_before)
-            
-            # Display tool call in expander
-            tool_json = match.group(1).strip()
-            try:
-                tool_data = json.loads(tool_json)
-                tool_name = tool_data.get("tool", "unknown")
-                tool_label = tool_data.get("query") or tool_data.get("command") or f"call {i+1}"
-                
-                with st.expander(f"🔧 Tool Call: {tool_name} - {tool_label}", expanded=False):
-                    st.code(json.dumps(tool_data, indent=2), language="json")
-            except json.JSONDecodeError:
-                with st.expander(f"🔧 Tool Call {i+1}", expanded=False):
-                    st.code(tool_json, language="json")
-            
-            last_end = match.end()
-        
-        # Display any remaining text after the last tool call
-        text_after = content[last_end:].strip()
-        if text_after:
-            st.markdown(text_after)
 
 def send_message_to_llm(gemini_chat, message: str, stream: bool = True):
     """Send message to LLM and optionally stream the response.

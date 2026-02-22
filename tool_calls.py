@@ -1,5 +1,18 @@
 import requests
 import json
+import re
+
+TOOL_CALL_PATTERN = re.compile(r"```tool_call\s*\n(.*?)\n```", re.DOTALL)
+
+def parse_tool_calls(llm_response: str) -> list:
+    calls = []
+    for match in TOOL_CALL_PATTERN.finditer(llm_response):
+        try:
+            call = json.loads(match.group(1).strip())
+            calls.append(call)
+        except json.JSONDecodeError:
+            continue
+    return calls
 
 
 def execute_tool_call(tool_info: dict) -> tuple[str, bool]:
