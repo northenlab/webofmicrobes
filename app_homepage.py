@@ -107,6 +107,10 @@ Lawrence Berkeley National Laboratory.
 - You don't need exact names — fuzzy matching will find close matches
 - You can ask follow-up questions in the same chat
 - Click **New Chat** to start fresh
+
+**References**
+We would like to acknowledge the following manuscripts for tools and data
+- Xu, Liang, Emily Zakem, and J. L. Weissman. "Improved maximum growth rate prediction from microbial genomes by integrating phylogenetic information." Nature Communications 16.1 (2025): 4256. 
 """)
     st.caption(f"Model: {MODEL_NAME}")
 # Sidebar header for debug logs
