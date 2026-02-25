@@ -1,9 +1,14 @@
 import streamlit as st
+from streamlit.components.v1 import html
 import os
 import time
 import uuid
 import json
 from display_chat import display_assistant_message
+
+# Add a tracking token
+html('<script async defer data-website-id="0b8faebf-f345-4b89-a5d2-7cbe1fd7d88d" src="https://analytics.gnps2.org/umami.js"></script>', width=0, height=0)
+html('<script async defer data-website-id="74bc9983-13c4-4da0-89ae-b78209c13aaf" src="https://analytics.gnps2.org/umami.js"></script>', width=0, height=0)
 
 # Write the page label
 st.set_page_config(
