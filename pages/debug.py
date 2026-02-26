@@ -224,15 +224,24 @@ def send_message_to_llm(messages: list[dict], stream: bool = True):
         top_k=1
     )
 
-def build_litellm_messages() -> list[dict]:
+def build_litellm_messages(existing_messages, current_running_messages) -> list[dict]:
     messages = [{"role": "system", "content": get_preprompt()}]
-    for msg in st.session_state.messages:
-        if msg["role"] == "user":
+
+    for msg in existing_messages:
+        if msg["display_role"] == "user":
             messages.append({"role": "user", "content": msg["content"]})
         else:
-            llm_content = msg.get("llm_content")
-            if llm_content:
-                messages.append({"role": "assistant", "content": llm_content})
+            for part in msg["content"]:
+                # When None, we didn't intend to display it
+                if part.get("llm_role", None) is not None:
+                    messages.append({"role": part["llm_role"], "content": part["content"]})
+    
+    # adding on the current messages
+    for part in current_running_messages:
+        # When None, we didn't intend to display it
+        if part.get("llm_role", None) is not None:
+            messages.append({"role": part["llm_role"], "content": part["content"]})
+
     return messages
 
 
@@ -244,8 +253,8 @@ def gemini_chat():
 
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
-       with st.chat_message(message["role"]):
-           if message["role"] == "user":
+       with st.chat_message(message["display_role"]):
+           if message["display_role"] == "user":
                st.markdown(message["content"])
            else:
                for part in message["content"]:
@@ -329,7 +338,7 @@ def gemini_chat():
 
     if prompt:
         # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"display_role": "user", "content": prompt})
 
         # Display user message
         with st.chat_message("user"):
@@ -339,17 +348,22 @@ def gemini_chat():
             # Lets allow a loop of maximum 6 iterations of tool calls and LLM responses to prevent infinite loops in case of errors
             MAX_ITERATIONS = 6
             CURRENT_ITERATION = 0
-            all_responses = []
-            model_texts = []
+            current_llm_responses = []
             developer_tag_found = False
-            conversation_messages = build_litellm_messages()
+
             for _ in range(MAX_ITERATIONS):
                 CURRENT_ITERATION += 1
 
-                # Send user's message to LLM and get a streaming response
-                response_stream = send_message_to_llm(conversation_messages, stream=True)
+                # Formatting old messages and what we're currently working on for the LLM
+                existing_messages = st.session_state.messages.copy()
+                previous_conversation_formatted = build_litellm_messages(existing_messages, current_llm_responses)
+
+                debug_log("Formatted Messages for LLM", previous_conversation_formatted)
                 
-                # Accumulate the streamed response
+                # send messages to LLM and get streamed response
+                response_stream = send_message_to_llm(previous_conversation_formatted, stream=True)
+                
+                # Accumulate the streamed response for streaming display
                 assistant_response = ""
                 message_placeholder = st.empty()
                 
@@ -365,24 +379,24 @@ def gemini_chat():
                 
                 assistant_response, developer_text, developer_hit = strip_developer_tag(assistant_response)
                 developer_tag_found = developer_tag_found or developer_hit
-                model_texts.append(assistant_response)
-
+                
                 # Remove the cursor and show final text
                 message_placeholder.markdown(assistant_response)
 
                 # now lets check for tool calls
                 tool_calls = parse_tool_calls(assistant_response)
 
-                all_responses.append({"content": assistant_response, "tool_calls": len(tool_calls) > 0})
+                current_llm_responses.append({  "content": assistant_response, 
+                                                "tool_calls": len(tool_calls) > 0,
+                                                "llm_role": "assistant"})
 
                 if not tool_calls:
                     # For non-tool-call responses, the streaming display is already shown
-                    all_responses.append({"content": assistant_response, "tool_calls": False})
+                    break
                 else:
                     # Clear the placeholder and show formatted version with tool calls
                     message_placeholder.empty()
                     display_assistant_message(assistant_response, tool_calls=True)
-                    conversation_messages.append({"role": "assistant", "content": assistant_response})
 
                     notice_text = """---
 
@@ -391,11 +405,10 @@ Executing tool calls...
 ---
                                 """
                     display_assistant_message(notice_text)
-                    all_responses.append({"content": notice_text, "tool_calls": True})
+                    current_llm_responses.append({"content": notice_text, 
+                                                    "tool_calls": True, 
+                                                    "llm_role": None})
 
-                    
-
-                if tool_calls:
                     # Execute all tool calls
                     combined_output, any_errors = execute_all_tool_calls(tool_calls)
 
@@ -406,7 +419,8 @@ Executing tool calls...
 
                         # TODO: If we're on the last one, we should give it a special prompt that says "This is the last iteration, you must not make any more tool calls after this, just give a final answer to the user based on all the information you have, including the tool outputs from this message"
 
-                        conversation_messages.append({"role": "user", "content": tool_msg})
+                        current_llm_responses.append({"content": tool_msg, "tool_calls": True, "llm_role": "user"})
+
                         continue
                     else:
                         error_msg = f"""One or more tool calls returned errors:
@@ -414,12 +428,11 @@ Executing tool calls...
                                 {combined_output}
                                 ```
                                 """
-                        conversation_messages.append({"role": "user", "content": error_msg})
+                        current_llm_responses.append({"content": error_msg, "tool_calls": True, "llm_role": "user"})
                         continue
-                else:
-                    break  # No tool calls, exit the loop
 
-            st.session_state.messages.append({"role": "assistant", "content": all_responses, "llm_content": "\n\n".join(model_texts)})
+
+            st.session_state.messages.append({"display_role": "assistant", "content": current_llm_responses})
 
             if developer_tag_found:
                 save_developer_snapshot(st.session_state["chat_id"], st.session_state.messages, developer_text)
@@ -428,7 +441,7 @@ Executing tool calls...
             chat_history_filename = os.path.join("/app/chat/{}.json".format(st.session_state["chat_id"]))
             
             with open(chat_history_filename, "w") as file:
-                file.write(json.dumps(st.session_state.messages))
+                file.write(json.dumps(st.session_state.messages, indent=2))
 
 ## Make a password to block open access
 gemini_chat()

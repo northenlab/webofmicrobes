@@ -37,7 +37,7 @@ for message in chat_history:
         if message["role"] == "user":
             st.markdown(message["content"])
         else:
-            for part in message["content"]:
+            for i, part in enumerate(message["content"]):
                 if part.get("tool_calls", False):
                     display_assistant_message(part["content"], tool_calls=True)
                 else:
