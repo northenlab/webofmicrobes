@@ -24,25 +24,69 @@ st.set_page_config(
     layout="wide"
 )
 
-# Configure Gemini API
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+#LLM_PROVIDER="GEMINI"
+LLM_PROVIDER="LITELLM"
 
-# Model name
-#MODEL_NAME = "gemini-2.0-flash"
-#MODEL_NAME = "gemini-2.5-flash"
-MODEL_NAME = "gemini-3-flash-preview"
-#MODEL_NAME = "gemini-3-pro-preview"
+
+if LLM_PROVIDER == "GEMINI":
+    #MODEL_NAME = "gemini/gemini-2.0-flash"
+    #MODEL_NAME = "gemini/gemini-2.5-flash"
+    MODEL_NAME = "gemini/gemini-3-flash-preview"
+    #MODEL_NAME = "gemini/gemini-3-pro-preview"
+elif LLM_PROVIDER == "LITELLM":
+    MODEL_NAME = "litellm_proxy/gptoss120b"
+
+def completion_wrapper(messages, stream=True):
+    """Wrapper for the completion function to allow easy switching between providers."""
+    if LLM_PROVIDER == "GEMINI":
+        # Configure Gemini API
+        GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+
+        if stream:
+            return completion(
+                model=MODEL_NAME,
+                messages=messages,
+                stream=True,
+                temperature=0.1,
+                top_k=1
+            )
+
+        return completion(
+            model=MODEL_NAME,
+            messages=messages,
+            stream=False,
+            temperature=0.1,
+            top_k=1
+        )
+
+    elif LLM_PROVIDER == "LITELLM":
+        proxy_api_key = os.getenv("LITELLM_PROXY_API_KEY", None)  # Optional: API key for proxy auth
+        proxy_url = os.getenv("LITELLM_PROXY_URL", "http://localhost:4000")  # Default proxy URL
+
+        if stream:
+            return completion(
+                model=MODEL_NAME,
+                messages=messages,
+                api_base=proxy_url,
+                api_key=proxy_api_key,
+                stream=True
+        )
+        
+        return completion(
+            model=MODEL_NAME,  # Model name as configured in proxy
+            messages=messages,
+            api_base=proxy_url,
+            api_key=proxy_api_key,
+            stream=False
+        )
+
+
 
 @st.cache_data
 def get_preprompt():
     """Read and cache the preprompt from disk."""
     return open("./prompts/wom_prompt_v2.txt", "r").read()
 
-def get_litellm_model() -> str:
-    """Resolve the LiteLLM model name for Gemini."""
-    if MODEL_NAME.startswith("gemini/"):
-        return MODEL_NAME
-    return f"gemini/{MODEL_NAME}"
 
 
 # Debug mode toggle - set to False in production
@@ -204,25 +248,9 @@ def send_message_to_llm(messages: list[dict], stream: bool = True):
             return fake_stream()
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=response_text))])
 
-    os.environ["GEMINI_API_KEY"] = GEMINI_KEY or ""
-    model_name = get_litellm_model()
 
-    if stream:
-        return completion(
-            model=model_name,
-            messages=messages,
-            stream=True,
-            temperature=0.1,
-            top_k=1
-        )
+    return completion_wrapper(messages, stream=stream)
 
-    return completion(
-        model=model_name,
-        messages=messages,
-        stream=False,
-        temperature=0.1,
-        top_k=1
-    )
 
 def build_litellm_messages(existing_messages, current_running_messages) -> list[dict]:
     messages = [{"role": "system", "content": get_preprompt()}]
