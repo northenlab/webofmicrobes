@@ -12,3 +12,5 @@ scikit-learn>=1.3.0
 
 # PyTorch (for KG operations)
 torch>=2.0.0
+
+litellm
