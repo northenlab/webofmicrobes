@@ -12,12 +12,18 @@ import json
 
 mcp = FastMCP("My MCP Server")
 
-@mcp.tool
+@mcp.tool(
+    name="hello world greet",           # Custom tool name for the LLM
+    description="None.", # Custom description
+)
 def greet(name: str) -> str:
     """Simple connectivity check for the MCP server."""
     return f"Hello, {name}!"
 
-@mcp.tool
+@mcp.tool(
+    name="taxonomy levels for growth rate",           # Custom tool name for the LLM
+    description="This is an API provided by the Web of Microbes growth-rate service that will return ", # Custom description
+)
 def taxalevels() -> str:
     """List taxonomy levels used by the growth-rate API (for query scoping)."""
     # get it from growth-rate service
@@ -27,6 +33,17 @@ def taxalevels() -> str:
         return json.dumps(data, indent=2)
     else:
         return "Error fetching taxonomy levels."
+
+
+# GROWTH RATE LOOKUPS:
+# - You can look up predicted microbial doubling times using the growth rate tool
+# - Available levels: domain, phylum, class, order, family, genus
+# - Available stats: mean, median, min, max, std
+# - Default level is genus and default stat is median if not specified
+# - Example: "I'll run: growth_rate query="Pseudomonas" level=genus stat=median"
+# - Uses fuzzy matching, so approximate names work
+# - Source: Phydon growth rate predictions
+# - Doubling times are in hours
 
 if __name__ == "__main__":
     mcp.run(transport="http", host="0.0.0.0", port=8000)
