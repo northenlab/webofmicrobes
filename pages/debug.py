@@ -417,6 +417,8 @@ Executing tool calls...
                         # Send tool outputs back to LLM for interpretation
                         tool_msg = f"Tool outputs:\n```json\n{combined_output}\n```\n\nPlease interpret all of these results together for the user. Just a note, you are allowed to do recursive tool calls, this is currently {CURRENT_ITERATION} of {MAX_ITERATIONS}."
 
+                        display_assistant_message(tool_msg)
+
                         # TODO: If we're on the last one, we should give it a special prompt that says "This is the last iteration, you must not make any more tool calls after this, just give a final answer to the user based on all the information you have, including the tool outputs from this message"
 
                         current_llm_responses.append({"content": tool_msg, "tool_calls": True, "llm_role": "user"})
@@ -428,6 +430,8 @@ Executing tool calls...
                                 {combined_output}
                                 ```
                                 """
+                        display_assistant_message(error_msg)
+
                         current_llm_responses.append({"content": error_msg, "tool_calls": True, "llm_role": "user"})
                         continue
 
