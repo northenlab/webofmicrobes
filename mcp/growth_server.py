@@ -1,3 +1,11 @@
+"""
+MCP server for the Web of Microbes growth-rate service.
+
+Purpose: expose lightweight tools that help agents discover taxonomy levels
+and interact with the growth-rate API used to look up predicted microbial
+doubling times.
+"""
+
 from fastmcp import FastMCP
 import requests
 import json
@@ -6,10 +14,12 @@ mcp = FastMCP("My MCP Server")
 
 @mcp.tool
 def greet(name: str) -> str:
+    """Simple connectivity check for the MCP server."""
     return f"Hello, {name}!"
 
 @mcp.tool
 def taxalevels() -> str:
+    """List taxonomy levels used by the growth-rate API (for query scoping)."""
     # get it from growth-rate service
     response = requests.get("http://growth-rate:5000/levels")
     if response.status_code == 200:
