@@ -10,4 +10,7 @@ wom/benchmark_results/
 wom/figures/
 wom/manuscript_figures/
 wom/raw/
+chat/
+wom/exometabolite_data/
+wom/chebi_source
 wom/data
