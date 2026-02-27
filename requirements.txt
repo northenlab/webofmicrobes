@@ -3,6 +3,8 @@ pandas
 requests
 plotly
 flask
+gunicorn
+flask-cors
 
 # Data processing
 numpy>=1.24.0
