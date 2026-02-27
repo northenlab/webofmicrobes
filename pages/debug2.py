@@ -43,7 +43,7 @@ def get_gemini_client():
 @st.cache_data
 def get_preprompt():
     """Read and cache the preprompt from disk."""
-    return open("./wom_refactor/wom_agent_system_prompt.md", "r").read()
+    return open("./wom/wom_agent_system_prompt.md", "r").read()
 
 client = get_gemini_client()
 llm_config = types.GenerateContentConfig(

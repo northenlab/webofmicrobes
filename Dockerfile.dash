@@ -22,4 +22,4 @@ RUN /bin/bash -c 'source activate python310 && pip install -r requirements.txt'
 RUN /bin/bash -c 'source activate python310 && pip install rapidfuzz'
 
 COPY . /app
-WORKDIR /app/wom_refactor
+WORKDIR /app/wom

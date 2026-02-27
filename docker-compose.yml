@@ -41,7 +41,7 @@ services:
       - default
       - nginx-net
     restart: unless-stopped
-    command: /app/wom_refactor/run_api_server.sh
+    command: /app/wom/run_api_server.sh
     logging:
       driver: json-file
       options:
