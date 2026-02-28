@@ -313,6 +313,162 @@ class WRMFModel(BaseEmbeddingModel):
 
 
 # =============================================================================
+# Implicit BPR Model (from implicit library)
+# =============================================================================
+
+class ImplicitBPRModel(BaseEmbeddingModel):
+    """BPR using the implicit library's optimized C++ implementation.
+    
+    Bayesian Personalized Ranking optimized with efficient sampling.
+    
+    Reference: Rendle et al. (2009) "BPR: Bayesian Personalized Ranking from
+    Implicit Feedback"
+    """
+    
+    def __init__(self, embedding_dim: int = 32):
+        super().__init__(embedding_dim)
+    
+    def fit(
+        self,
+        positives: dict[int, set[int]],
+        n_microbes: int,
+        n_metabolites: int,
+        iterations: int = 100,
+        learning_rate: float = 0.01,
+        regularization: float = 0.01,
+        verbose: bool = False,
+    ) -> "ImplicitBPRModel":
+        """Fit BPR model using implicit library.
+        
+        Args:
+            positives: Dict mapping microbe_idx -> set of positive metabolite_idx
+            n_microbes: Total number of microbes
+            n_metabolites: Total number of metabolites
+            iterations: Number of training iterations
+            learning_rate: Learning rate
+            regularization: L2 regularization strength
+            verbose: Whether to show progress
+        
+        Returns:
+            self
+        """
+        try:
+            from implicit.bpr import BayesianPersonalizedRanking
+            from scipy.sparse import csr_matrix
+        except ImportError:
+            raise ImportError("ImplicitBPR requires 'implicit' library: pip install implicit")
+        
+        self.n_microbes = n_microbes
+        self.n_metabolites = n_metabolites
+        
+        # Build sparse matrix (microbes × metabolites)
+        rows, cols, data = [], [], []
+        for m_idx, pos_set in positives.items():
+            for met_idx in pos_set:
+                rows.append(m_idx)
+                cols.append(met_idx)
+                data.append(1.0)
+        
+        sparse_matrix = csr_matrix(
+            (data, (rows, cols)),
+            shape=(n_microbes, n_metabolites),
+        )
+        
+        model = BayesianPersonalizedRanking(
+            factors=self.embedding_dim,
+            learning_rate=learning_rate,
+            regularization=regularization,
+            iterations=iterations,
+            random_state=42,
+        )
+        
+        model.fit(sparse_matrix, show_progress=verbose)
+        
+        self._microbe_embeddings = model.user_factors
+        self._metabolite_embeddings = model.item_factors
+        self._fitted = True
+        
+        return self
+
+
+# =============================================================================
+# LMF Model (Logistic Matrix Factorization)
+# =============================================================================
+
+class LMFModel(BaseEmbeddingModel):
+    """Logistic Matrix Factorization using implicit library.
+    
+    Probabilistic approach to matrix factorization with maximum-likelihood
+    estimation for implicit feedback data.
+    """
+    
+    def __init__(self, embedding_dim: int = 32):
+        super().__init__(embedding_dim)
+    
+    def fit(
+        self,
+        positives: dict[int, set[int]],
+        n_microbes: int,
+        n_metabolites: int,
+        iterations: int = 30,
+        learning_rate: float = 1.0,
+        regularization: float = 0.1,
+        verbose: bool = False,
+    ) -> "LMFModel":
+        """Fit LMF model using implicit library.
+        
+        Args:
+            positives: Dict mapping microbe_idx -> set of positive metabolite_idx
+            n_microbes: Total number of microbes
+            n_metabolites: Total number of metabolites
+            iterations: Number of training iterations
+            learning_rate: Learning rate
+            regularization: L2 regularization strength
+            verbose: Whether to show progress
+        
+        Returns:
+            self
+        """
+        try:
+            from implicit.lmf import LogisticMatrixFactorization
+            from scipy.sparse import csr_matrix
+        except ImportError:
+            raise ImportError("LMF requires 'implicit' library: pip install implicit")
+        
+        self.n_microbes = n_microbes
+        self.n_metabolites = n_metabolites
+        
+        # Build sparse matrix (microbes × metabolites)
+        rows, cols, data = [], [], []
+        for m_idx, pos_set in positives.items():
+            for met_idx in pos_set:
+                rows.append(m_idx)
+                cols.append(met_idx)
+                data.append(1.0)
+        
+        sparse_matrix = csr_matrix(
+            (data, (rows, cols)),
+            shape=(n_microbes, n_metabolites),
+        )
+        
+        model = LogisticMatrixFactorization(
+            factors=self.embedding_dim,
+            learning_rate=learning_rate,
+            regularization=regularization,
+            iterations=iterations,
+            random_state=42,
+        )
+        
+        model.fit(sparse_matrix, show_progress=verbose)
+        
+        self._microbe_embeddings = model.user_factors
+        self._metabolite_embeddings = model.item_factors
+        self._fitted = True
+        
+        return self
+
+
+# =============================================================================
 # SVD Model
 # =============================================================================
 

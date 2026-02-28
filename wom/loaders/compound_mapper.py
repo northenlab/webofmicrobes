@@ -6,6 +6,7 @@ Provides fuzzy matching of compound names to ChEBI entries with InChI-based cano
 import gzip
 import json
 import logging
+import re
 from pathlib import Path
 from urllib.request import Request, urlopen
 
@@ -70,6 +71,9 @@ def normalize_compound_name(name: str) -> str:
         return ""
     
     s = str(name).strip().lower()
+
+    # Remove XML/HTML tags that occasionally appear in names
+    s = re.sub(r"<[^>]+>", "", s)
     
     # Normalize whitespace
     s = " ".join(s.split())
@@ -101,6 +105,24 @@ def normalize_compound_name(name: str) -> str:
     }
     
     return compound_fixes.get(s, s)
+
+
+def clean_html_tags(name: str) -> str:
+    """Remove HTML/XML tags from display names while preserving formatting.
+    
+    Specifically designed for display purposes - keeps spaces and text intact.
+    E.g., <em>D</em>-glucose -> D-glucose
+    """
+    if pd.isna(name) or not isinstance(name, str):
+        return name
+    
+    # Remove HTML/XML tags but preserve the content inside
+    cleaned = re.sub(r"<[^>]+>", "", name)
+    
+    # Clean up any excess whitespace
+    cleaned = " ".join(cleaned.split())
+    
+    return cleaned
 
 
 # =============================================================================
@@ -208,10 +230,90 @@ def build_chebi_database(force: bool = False) -> pd.DataFrame:
     chebi = names.merge(compounds, on="compound_id", how="left")
     chebi = chebi.merge(struct_merged, on="compound_id", how="left")
     
-    # Use primary name as best_name if available, otherwise use name
-    chebi["best_name"] = chebi["primary_name"].fillna(chebi["name"])
+    # Clean display names (remove XML/HTML tags)
+    chebi["name"] = chebi["name"].fillna("").astype(str).str.replace(r"<[^>]+>", "", regex=True).str.strip()
+    chebi["primary_name"] = chebi["primary_name"].fillna("").astype(str).str.replace(r"<[^>]+>", "", regex=True).str.strip()
+
+    # Keep only entries with InChIKey and derive first-block grouping key
+    chebi = chebi[pd.notna(chebi["inchi_key"])].copy()
+    chebi["first_block_inchi_key"] = chebi["inchi_key"].str.split("-").str[0]
+
+    # Prefer unspecific stereochemistry names as representative when available,
+    # then preferred names, then synonyms, then IUPAC/brand-like names.
+    chebi["name_rank"] = 4
+    if "name_type" in chebi.columns:
+        type_rank = {
+            "SYNONYM": 3,
+            "IUPAC NAME": 4,
+            "UNIPROT NAME": 1,
+            "INN": 3,
+            "BRAND NAME": 4,
+        }
+        chebi["name_rank"] = chebi["name_type"].map(type_rank).fillna(4).astype(int)
+
+    # Rows where name equals primary_name are preferred names
+    is_preferred = (chebi["primary_name"] != "") & (chebi["name"] == chebi["primary_name"])
+    chebi.loc[is_preferred, "name_rank"] = 2
+
+    # Unspecific stereochemistry markers in InChIKey are best representatives
+    unspecific = chebi["inchi_key"].str.contains("UHFFFAOYSA", na=False)
+    chebi.loc[unspecific, "name_rank"] = 1
+
+    # Add name length for sorting (prefer shorter names)
+    chebi["name_length"] = chebi["name"].str.len()
+
+    # Create a secondary rank for type preference: UNIPROT > Preferred > others
+    # Use name_rank as primary, and a secondary criterion that favors UNIPROT/Preferred names
+    type_secondary = {
+        "UNIPROT NAME": 0,  # Highest priority
+        "PREFERRED NAME": 1,
+        "SYNONYM": 2,
+        "INN": 2,
+        "IUPAC NAME": 3,
+        "BRAND NAME": 3,
+    }
+    chebi["type_secondary"] = chebi["name_type"].map(type_secondary).fillna(4).astype(int)
+
+    # Choose representative name per first-block InChIKey
+    # Strategy: Prefer "Goldilocks zone" names (5-60 chars) to avoid both acronyms and IUPAC names
+    # Sort by: name_rank (lower is better): UNIPROT>Preferred>Synonym>IUPAC
+    #          type_secondary (UNIPROT > Preferred > others - secondary tiebreaker)
+    #          name_length (shorter is better)
+    #          compound_id (lower ChEBI ID preferred - more established)
+    rep_candidates = chebi[["first_block_inchi_key", "name", "name_rank", "type_secondary", "name_length", "compound_id"]].copy()
+    rep_candidates = rep_candidates[rep_candidates["name"] != ""]
     
-    # Add normalized names for matching (using same name as old code for compatibility)
+    # First, try to select from "Goldilocks zone" names (5-60 chars)
+    goldilocks_candidates = rep_candidates[(rep_candidates["name_length"] >= 5) & (rep_candidates["name_length"] <= 60)].copy()
+    goldilocks_candidates = goldilocks_candidates.sort_values(
+        ["name_rank", "type_secondary", "name_length", "compound_id"],
+        ascending=[True, True, True, True]
+    )
+    goldilocks_names = goldilocks_candidates.drop_duplicates(subset=["first_block_inchi_key"], keep="first")
+    goldilocks_names = goldilocks_names[["first_block_inchi_key", "name"]].rename(columns={"name": "best_name"})
+    
+    # For compounds without Goldilocks names, fall back to any name (sorted by same logic)
+    all_candidates = rep_candidates.sort_values(
+        ["name_rank", "type_secondary", "name_length", "compound_id"],
+        ascending=[True, True, True, True]
+    )
+    all_names = all_candidates.drop_duplicates(subset=["first_block_inchi_key"], keep="first")
+    all_names = all_names[["first_block_inchi_key", "name"]].rename(columns={"name": "best_name"})
+    
+    # Prefer Goldilocks names, but use fallback if none exists
+    rep_names = goldilocks_names.merge(all_names, on="first_block_inchi_key", how="outer", suffixes=("", "_fallback"))
+    rep_names["best_name"] = rep_names["best_name"].fillna(rep_names["best_name_fallback"])
+    rep_names = rep_names[["first_block_inchi_key", "best_name"]]
+    
+    chebi = chebi.merge(rep_names, on="first_block_inchi_key", how="left")
+
+    # Fallback if any representative is still missing
+    chebi["best_name"] = chebi["best_name"].fillna(chebi["primary_name"]).fillna(chebi["name"])
+    
+    # Clean HTML tags from best_name for display
+    chebi["best_name"] = chebi["best_name"].apply(clean_html_tags)
+
+    # Add normalized names for matching (synonyms + preferred names)
     chebi["name_for_matching"] = chebi["name"].apply(normalize_compound_name)
     
     # Remove empty names
@@ -231,7 +333,22 @@ def build_chebi_database(force: bool = False) -> pd.DataFrame:
 
 def load_chebi() -> pd.DataFrame:
     """Load ChEBI database, building if necessary."""
-    return build_chebi_database(force=False)
+    cache_path = CACHE_FILES["chebi"]
+    if cache_path.exists():
+        cached = pd.read_parquet(cache_path)
+
+        # Rebuild if cache predates first-block grouping or still has XML tags.
+        missing_grouping = "first_block_inchi_key" not in cached.columns
+        dirty_names = False
+        if "best_name" in cached.columns:
+            dirty_names = cached["best_name"].astype(str).str.contains(r"<[^>]+>", regex=True, na=False).any()
+
+        if not missing_grouping and not dirty_names:
+            return cached
+
+        logger.info("ChEBI cache is outdated; rebuilding with first-block grouping and cleaned names")
+
+    return build_chebi_database(force=True)
 
 
 # =============================================================================

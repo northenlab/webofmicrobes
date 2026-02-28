@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 from core.types import ModelArtifacts, Taxonomy, TrainingData
-from core.models import BaseEmbeddingModel, BPRModel, WRMFModel, SVDModel
+from core.models import BaseEmbeddingModel, BPRModel, ImplicitBPRModel, LMFModel, WRMFModel, SVDModel
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,11 @@ def save_model_artifacts(
         )
     
     # Save metadata
+    # Convert positives dict (int -> set) to JSON-serializable format
+    positives_json = {}
+    for m_idx, pos_set in artifacts.training_data.positives.items():
+        positives_json[str(m_idx)] = list(pos_set)
+    
     metadata = {
         "model_type": model_type,
         "embedding_dim": model.embedding_dim,
@@ -61,6 +66,7 @@ def save_model_artifacts(
         "n_metabolites": model.n_metabolites,
         "microbe_to_idx": artifacts.training_data.microbe_to_idx,
         "metabolite_to_idx": artifacts.training_data.metabolite_to_idx,
+        "positives": positives_json,
         "microbe_taxonomy": {
             mid: {
                 "kingdom": tax.kingdom,
@@ -138,6 +144,28 @@ def load_model_artifacts(
         model._metabolite_embeddings = data["metabolite_embeddings"]
         model._fitted = True
         
+    elif model_type == "ImplicitBPRModel":
+        model_path = input_dir / "model.npz"
+        data = np.load(model_path)
+        
+        model = ImplicitBPRModel(embedding_dim=embedding_dim)
+        model.n_microbes = n_microbes
+        model.n_metabolites = n_metabolites
+        model._microbe_embeddings = data["microbe_embeddings"]
+        model._metabolite_embeddings = data["metabolite_embeddings"]
+        model._fitted = True
+        
+    elif model_type == "LMFModel":
+        model_path = input_dir / "model.npz"
+        data = np.load(model_path)
+        
+        model = LMFModel(embedding_dim=embedding_dim)
+        model.n_microbes = n_microbes
+        model.n_metabolites = n_metabolites
+        model._microbe_embeddings = data["microbe_embeddings"]
+        model._metabolite_embeddings = data["metabolite_embeddings"]
+        model._fitted = True
+        
     elif model_type == "SVDModel":
         model_path = input_dir / "model.npz"
         data = np.load(model_path)
@@ -153,14 +181,19 @@ def load_model_artifacts(
     
     logger.info(f"Loaded {model_type} from {input_dir}")
     
-    # Reconstruct TrainingData (without positives - those aren't saved)
-    # Note: positives dict is not needed for inference, only for training
+    # Reconstruct TrainingData with positives
+    positives_dict = {}
+    if "positives" in metadata:
+        # Convert back from JSON format (str keys -> int keys, lists -> sets)
+        for m_idx_str, pos_list in metadata["positives"].items():
+            positives_dict[int(m_idx_str)] = set(pos_list)
+    
     training_data = TrainingData(
         n_microbes=n_microbes,
         n_metabolites=n_metabolites,
         microbe_to_idx=metadata["microbe_to_idx"],
         metabolite_to_idx=metadata["metabolite_to_idx"],
-        positives={},  # Empty for loaded models
+        positives=positives_dict,
         microbe_taxonomy=microbe_taxonomy,
     )
     

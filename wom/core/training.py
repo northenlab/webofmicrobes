@@ -6,7 +6,7 @@ from typing import Optional
 import numpy as np
 
 from core.types import TrainingData, ModelArtifacts, Taxonomy
-from core.models import BaseEmbeddingModel, BPRModel, WRMFModel, SVDModel
+from core.models import BaseEmbeddingModel, BPRModel, ImplicitBPRModel, LMFModel, WRMFModel, SVDModel
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +22,15 @@ def train_model(
     
     Args:
         training_data: TrainingData object with microbes, metabolites, and interactions
-        model_type: One of "bpr", "wrmf", "svd"
+        model_type: One of "bpr", "implicit_bpr", "lmf", "wrmf", "svd"
         embedding_dim: Embedding dimensionality
         verbose: Whether to show training progress
         **model_kwargs: Model-specific training parameters
             BPR: n_epochs, batch_size, learning_rate
+            Implicit_BPR: iterations, learning_rate, regularization
+            LMF: iterations, learning_rate, regularization
             WR-MF: iterations, regularization
+            SVD: (none)
     
     Returns:
         ModelArtifacts with fitted model and metadata
@@ -41,6 +44,10 @@ def train_model(
     model_type = model_type.lower()
     if model_type == "bpr":
         model = BPRModel(embedding_dim=embedding_dim)
+    elif model_type == "implicit_bpr":
+        model = ImplicitBPRModel(embedding_dim=embedding_dim)
+    elif model_type == "lmf":
+        model = LMFModel(embedding_dim=embedding_dim)
     elif model_type == "wrmf":
         model = WRMFModel(embedding_dim=embedding_dim)
     elif model_type == "svd":

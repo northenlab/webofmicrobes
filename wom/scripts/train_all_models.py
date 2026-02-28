@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 """Train all model types with optimal hyperparameters.
 
-Trains 6 models total:
-- BPR, WR-MF, SVD on consumed metabolites (decreased)
-- BPR, WR-MF, SVD on secreted metabolites (increased)
+Trains 10 models total:
+- BPR, Implicit BPR, LMF, WR-MF, SVD on consumed metabolites (decreased)
+- BPR, Implicit BPR, LMF, WR-MF, SVD on secreted metabolites (increased)
 
-Uses optimal dimensions for each model type:
+Uses optimal dimensions and hyperparameters for each model type:
 - SVD: 8 dimensions
-- WR-MF: 128 dimensions  
-- BPR: 32 dimensions
+- WR-MF: 128 dimensions, 50 iterations, 0.1 regularization
+- BPR: 32 dimensions, 1000 epochs, 256 batch_size, 0.01 learning_rate
+- Implicit BPR: 32 dimensions, 100 iterations, 0.01 learning_rate, 0.01 regularization
+- LMF: 32 dimensions, 30 iterations, 1.0 learning_rate, 0.1 regularization
 """
 
 import sys
@@ -33,6 +35,8 @@ def train_all_models():
     model_configs = [
         ("svd", 8, {}),
         ("bpr", 32, {"n_epochs": 1000, "batch_size": 256, "learning_rate": 0.01}),
+        ("implicit_bpr", 32, {"iterations": 500, "learning_rate": 0.01, "regularization": 0.0}),
+        ("lmf", 32, {"iterations": 30, "learning_rate": 1.0, "regularization": 0.1}),
         ("wrmf", 128, {"iterations": 50, "regularization": 0.1}),
     ]
     
@@ -123,11 +127,15 @@ def train_all_models():
     logger.info("=" * 80)
     logger.info("\nQuery consumed metabolites:")
     logger.info("  python scripts/wom.py --model-dir trained_models/bpr_consumed compounds --microbes genus:Bosea")
+    logger.info("  python scripts/wom.py --model-dir trained_models/implicit_bpr_consumed compounds --microbes genus:Bosea")
+    logger.info("  python scripts/wom.py --model-dir trained_models/lmf_consumed compounds --microbes genus:Bosea")
     logger.info("  python scripts/wom.py --model-dir trained_models/wrmf_consumed compounds --microbes genus:Bosea")
     logger.info("  python scripts/wom.py --model-dir trained_models/svd_consumed compounds --microbes genus:Bosea")
     
     logger.info("\nQuery secreted metabolites:")
     logger.info("  python scripts/wom.py --model-dir trained_models/bpr_secreted compounds --microbes genus:Bosea")
+    logger.info("  python scripts/wom.py --model-dir trained_models/implicit_bpr_secreted compounds --microbes genus:Bosea")
+    logger.info("  python scripts/wom.py --model-dir trained_models/lmf_secreted compounds --microbes genus:Bosea")
     logger.info("  python scripts/wom.py --model-dir trained_models/wrmf_secreted compounds --microbes genus:Bosea")
     logger.info("  python scripts/wom.py --model-dir trained_models/svd_secreted compounds --microbes genus:Bosea")
     

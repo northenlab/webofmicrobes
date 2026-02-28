@@ -253,7 +253,16 @@ def build_exometabolite_dataframe(force: bool = False) -> pd.DataFrame:
 
 def load_exometabolite() -> pd.DataFrame:
     """Load exometabolite data, building if necessary."""
-    return build_exometabolite_dataframe(force=False)
+    df = build_exometabolite_dataframe(force=False)
+
+    # If cached representative names still contain XML/HTML tags,
+    # rebuild to pick up cleaned ChEBI mapping.
+    has_dirty_names = df["representative_compound"].astype(str).str.contains(r"<[^>]+>", regex=True, na=False).any()
+    if has_dirty_names:
+        logger.info("Exometabolite cache contains tagged representative names; rebuilding cache")
+        df = build_exometabolite_dataframe(force=True)
+
+    return df
 
 
 # =============================================================================
