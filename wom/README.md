@@ -92,6 +92,43 @@ curl -X POST http://localhost:5000/api/query \
   -d '{"command": "compounds", "microbes": "genus:Bosea", "top": 10}'
 ```
 
+## Shared Core: CLI & Web API
+
+Both the command-line interface and REST API share the same query logic, ensuring consistency:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  User Interface Layer                               │
+├──────────────────┬──────────────────────────────────┤
+│  scripts/wom.py  │  scripts/wom_api.py (Flask)      │
+│  (argparse CLI)  │  (REST endpoints)                │
+└──────────────────┴──────────────────────────────────┘
+         ↓                     ↓
+┌─────────────────────────────────────────────────────┐
+│  Shared Core Logic                                  │
+├─────────────────────────────────────────────────────┤
+│  execute_query(command, params, engine)            │
+│  - Routes 10 commands to appropriate handlers       │
+│  - Validates parameters                            │
+│  - Calls QueryEngine methods                       │
+└─────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────┐
+│  API Layer (api/)                                   │
+├─────────────────────────────────────────────────────┤
+│  QueryEngine - Coordinates all queries              │
+│  Query Types - 10 specific query implementations    │
+└─────────────────────────────────────────────────────┘
+```
+
+**Benefits:**
+- Single implementation of query logic (no duplication)
+- Both interfaces always in sync
+- Changes tested in all interfaces simultaneously
+- Easy to add new query types
+
+See [tests/test_execute_query.py](tests/test_execute_query.py) for comprehensive testing of the shared core.
+
 ## Explain Mode
 
 ```bash
@@ -153,11 +190,22 @@ scripts/    # CLI & training (wom.py, wom_api.py, train_model.py)
 ## Testing
 
 ```bash
-python scripts/test_data_loading.py
-python scripts/test_model_training.py
-python scripts/test_query_system.py
-python scripts/test_explain_mode.py
+# Run all tests (209 tests)
+uv run pytest tests/
+
+# Run comprehensive model tests (all 5 models)
+uv run pytest tests/test_all_models.py -q
+
+# Run integration tests for interfaces
+uv run pytest tests/test_execute_query.py -q      # Shared core (both CLI & API)
+uv run pytest tests/test_cli.py -q                # CLI-specific
+uv run pytest tests/test_web_api.py -q            # Web API-specific
+
+# Run specific test class
+uv run pytest tests/test_api_query_engine.py::TestCompoundsForMicrobesQuery
 ```
+
+See [tests/README.md](tests/README.md) for detailed testing information.
 
 ## Notes
 

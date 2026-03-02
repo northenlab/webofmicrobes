@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+logs/
+figures/
+figures2/
+checkpoints/
+trained_models/*/
+*.pt
+manuscript_figures/
+
+# Scripts (not needed for tests)
+scripts/
+
+# Docs
+docs/
+*.md

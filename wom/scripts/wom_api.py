@@ -204,7 +204,16 @@ def schema():
 def query():
     """Execute a query."""
     try:
-        data = request.get_json()
+        # Handle invalid JSON (empty body or malformed JSON)
+        try:
+            data = request.get_json()
+        except Exception as e:
+            # get_json() raises BadRequest for invalid/empty JSON or wrong content-type
+            logger.debug(f"Invalid JSON in request: {e}")
+            return jsonify({
+                "success": False,
+                "error": "Invalid JSON in request body"
+            }), 400
         
         if not data or "command" not in data:
             return jsonify({
