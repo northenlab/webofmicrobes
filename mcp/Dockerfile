@@ -14,7 +14,11 @@ RUN echo "export PATH=$CONDA_DIR:$PATH" >> ~/.bashrc
 # Forcing version of Python
 RUN mamba create -n python310 python=3.10 -y
 
-RUN /bin/bash -c 'source activate python310 && pip install requests fastmcp'
+COPY requirements.txt .
+RUN /bin/bash -c 'source activate python310 && pip install -r requirements.txt'
+
+# rapidfuzz
+RUN /bin/bash -c 'source activate python310 && pip install requests fastmcp rapidfuzz'
 
 COPY . /app
 WORKDIR /app

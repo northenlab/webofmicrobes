@@ -10,6 +10,12 @@ from fastmcp import FastMCP
 import requests
 import random
 import json
+import sys
+
+sys.path.insert(0, "./wom")  # Ensure the /app directory is in the Python path for imports
+
+from api.query_engine import QueryEngine
+from api.query_types import QueryConfig
 
 mcp = FastMCP("My MCP Server")
 
@@ -54,6 +60,43 @@ def secret_code_final(input_code: str) -> str:
     # Generate a random secret code
     secret_code = int(input_code) + 1
     return str(secret_code)
+
+### These are the tools for WOM
+
+@mcp.tool(
+    name="wom_compounds",
+    description="""This is an API provided by the Web of Microbes that will return a list of compounds that microbes interact with.
+    Here are the parameter descriptions:
+
+    """,
+)
+def wom_compounds(microbes: str, top: int = 20, compute_distinctive: bool = True, background_level: str = None, min_score: float = None) -> str:
+    command = "compounds"
+
+    data = {
+        "microbes": microbes,
+        "top": top,
+        "compute_distinctive": compute_distinctive,
+        "background_level": background_level,
+        "min_score": min_score,
+    }
+
+    engine = get_engine()
+    config = QueryConfig()
+
+    response = execute_query(command, data, engine, config)
+
+    return response
+
+    # "parameters": {
+    #             "microbes": {"type": "string", "required": True, "description": "Microbes to query (format: 'genus:Name,isolate:ID')"},
+    #             "top": {"type": "integer", "default": 20, "description": "Number of top results per microbe"},
+    #             "compute_distinctive": {"type": "boolean", "default": True, "description": "Compute distinctive scores"},
+    #             "background_level": {"type": "string", "optional": True, "description": "Background level for distinctive scores"},
+    #             "min_score": {"type": "float", "optional": True, "description": "Minimum raw score threshold"},
+    #         },
+
+    return ""
 
 
 
