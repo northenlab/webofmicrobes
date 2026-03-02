@@ -16,6 +16,8 @@ sys.path.insert(0, "./wom")  # Ensure the /app directory is in the Python path f
 
 from api.query_engine import QueryEngine
 from api.query_types import QueryConfig
+from scripts.wom import execute_query
+
 
 mcp = FastMCP("My MCP Server")
 

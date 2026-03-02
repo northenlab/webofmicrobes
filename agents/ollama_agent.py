@@ -14,8 +14,8 @@ import os
 load_dotenv()  # Load environment variables from .env file
 
 class TestAgent:
-    #mcp_server = MCPServerStreamableHTTP(url='http://wom-mcp:8000/mcp', max_retries=3) 
-    mcp_server = MCPServerStreamableHTTP(url='http://localhost:8000/mcp', max_retries=3) 
+    mcp_server = MCPServerStreamableHTTP(url='http://wom-mcp:8000/mcp', max_retries=3) 
+    #mcp_server = MCPServerStreamableHTTP(url='http://localhost:8000/mcp', max_retries=3) 
     def __init__(self, model_name: str, base_url: str):
         #self.model = OpenAIModel(model_name=model_name, provider=OpenAIProvider(base_url=base_url))
         self.model = GoogleModel(model_name="gemini-3-flash-preview", provider=GoogleProvider(api_key=os.getenv("GEMINI_API_KEY")))

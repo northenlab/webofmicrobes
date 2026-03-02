@@ -11,7 +11,6 @@ services:
       - ./pages:/app/pages:rw
     networks:
       - default
-      - nginx-net
     restart: unless-stopped
     command: /app/run_server.sh
     logging:
@@ -58,27 +57,27 @@ services:
   #     LETSENCRYPT_EMAIL: mwang87@gmail.com
   #     MODEL_DIR: trained_models/bpr_consumed
       
-  growth-rate:
-    build:
-      context: growth_rate
-      dockerfile: Dockerfile
-    container_name: growth-rate
-    working_dir: /app
-    volumes:
-      - ./growth_rate/logs:/app/logs:rw
-    networks:
-      - default
-      - nginx-net
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 8000M
+  # growth-rate:
+  #   build:
+  #     context: growth_rate
+  #     dockerfile: Dockerfile
+  #   container_name: growth-rate
+  #   working_dir: /app
+  #   volumes:
+  #     - ./growth_rate/logs:/app/logs:rw
+  #   networks:
+  #     - default
+  #     - nginx-net
+  #   restart: unless-stopped
+  #   logging:
+  #     driver: json-file
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 8000M
 
   wom-mcp:
     build:
@@ -88,7 +87,6 @@ services:
     working_dir: /app
     networks:
       - default
-      - nginx-net
     restart: unless-stopped
     logging:
       driver: json-file
@@ -102,7 +100,7 @@ services:
     environment:
       MODEL_DIR: trained_models/bpr_consumed
 
-networks:
-  nginx-net:
-    external:
-      name: nginx-net
+# networks:
+#   nginx-net:
+#     external:
+#       name: nginx-net

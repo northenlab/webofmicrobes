@@ -25,4 +25,4 @@ WORKDIR /app
 
 # set the entry point for mcp server
 # source activate python310 && python /app/growth_server.py
-ENTRYPOINT ["/bin/bash", "-c", "source activate python310 && python /app/wom_mcp_server.py"]
+ENTRYPOINT ["/bin/bash", "-c", "source activate python310 && python /app/mcp/wom_mcp_server.py"]
