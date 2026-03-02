@@ -3,12 +3,17 @@ pandas
 requests
 plotly
 flask
+gunicorn
+flask-cors
 
 # Data processing
 numpy>=1.24.0
 pandas>=2.0.0
 scipy>=1.11.0
 scikit-learn>=1.3.0
+
+# Collaborative filtering
+implicit>=0.6.0
 
 # PyTorch (for KG operations)
 torch>=2.0.0
