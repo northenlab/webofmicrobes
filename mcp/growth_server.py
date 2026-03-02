@@ -8,20 +8,57 @@ doubling times.
 
 from fastmcp import FastMCP
 import requests
+import random
 import json
 
 mcp = FastMCP("My MCP Server")
 
 @mcp.tool(
-    name="hello world greet",           # Custom tool name for the LLM
+    name="hello_world_greet",           # Custom tool name for the LLM
     description="None.", # Custom description
 )
 def greet(name: str) -> str:
     """Simple connectivity check for the MCP server."""
-    return f"Hello, {name}!"
+    return f"Hello, {name}! Here is a number to remember {random.randint(1, 100)}."
+
+# Testing for multistep calls
+@mcp.tool(
+    name="secret_code_step1",
+    description="First step of a multistep tool that generates a secret code and returns a code_id.",
+)
+def secret_code_step1() -> str:
+    """First step of a multistep tool that generates a secret code and returns a code_id."""
+    # Generate a random secret code
+    secret_code = "44"
+
+    return secret_code
 
 @mcp.tool(
-    name="taxonomy levels for growth rate",           # Custom tool name for the LLM
+    name="secret_code_step2",
+    description="Second step of a multistep tool that takes the result from secret_code_step1 and changes the answer",
+)
+def secret_code_step2(input_code: str) -> str:
+    """Second step of a multistep tool that takes the result from secret_code_step1 and changes the answer."""
+    # Generate a random secret code
+    secret_code = int(input_code) + 1
+    return str(secret_code)
+
+
+# final step
+@mcp.tool(
+    name="secret_code_final",
+    description="Final step of a multistep tool that takes the result from secret_code_step2 and returns the final secret code",
+)
+def secret_code_final(input_code: str) -> str:
+    """Final step of a multistep tool that takes the result from secret_code_step2 and returns the final secret code."""
+    # Generate a random secret code
+    secret_code = int(input_code) + 1
+    return str(secret_code)
+
+
+
+@mcp.tool(
+    name="taxonomy_levels_for_growth_rate",           # Custom tool name for the LLM
     description="This is an API provided by the Web of Microbes growth-rate service that will return ", # Custom description
 )
 def taxalevels() -> str:
