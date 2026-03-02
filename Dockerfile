@@ -21,5 +21,8 @@ RUN /bin/bash -c 'source activate python310 && pip install -r requirements.txt'
 # google-genai (new SDK)
 RUN /bin/bash -c 'source activate python310 && pip install google-genai python-dotenv'
 
+# mcp
+RUN /bin/bash -c 'source activate python310 && pip install mcp'
+
 COPY . /app
 WORKDIR /app

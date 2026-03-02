@@ -1,3 +1,6 @@
+run_outside:
+	streamlit run app_homepage.py
+
 server-compose-build-nocache:
 	docker compose --compatibility build --no-cache
 
