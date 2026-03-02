@@ -57,6 +57,7 @@ services:
       LETSENCRYPT_HOST: wom-api.gnps2.org
       LETSENCRYPT_EMAIL: mwang87@gmail.com
       MODEL_DIR: trained_models/bpr_consumed
+      
   growth-rate:
     build:
       context: growth_rate
@@ -78,6 +79,27 @@ services:
       resources:
         limits:
           memory: 8000M
+
+  wom-mcp:
+    build:
+      context: mcp
+      dockerfile: Dockerfile
+    container_name: wom-mcp
+    working_dir: /app
+    networks:
+      - default
+      - nginx-net
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 8000M
+
 networks:
   nginx-net:
     external:

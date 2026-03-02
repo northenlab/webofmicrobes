@@ -13,3 +13,7 @@ services:
   growth-rate:
     ports:
     - "5003:5000"
+
+  growth-rate-mcp:
+    ports:
+    - "8000:8000"

@@ -17,3 +17,7 @@ implicit>=0.6.0
 
 # PyTorch (for KG operations)
 torch>=2.0.0
+
+litellm
+nest_asyncio
+fastmcp
