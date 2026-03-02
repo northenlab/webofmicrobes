@@ -78,11 +78,11 @@ services:
         limits:
           memory: 8000M
 
-  growth-rate-mcp:
+  wom-mcp:
     build:
       context: mcp
       dockerfile: Dockerfile
-    container_name: growth-rate-mcp
+    container_name: wom-mcp
     working_dir: /app
     networks:
       - default
@@ -97,6 +97,7 @@ services:
       resources:
         limits:
           memory: 8000M
+
 networks:
   nginx-net:
     external:
