@@ -4,6 +4,12 @@ from pydantic import BaseModel
 from pydantic_ai.messages import ModelResponse, ToolCallPart, TextPart
 import asyncio 
 
+st.set_page_config(
+    page_title="Web of Microbes Agent",
+    page_icon="🕸️", # spider web icon
+    layout="wide",
+)
+
 
 def display_assistant_message(agent_message_list):
     """
@@ -34,8 +40,8 @@ if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
 # Streamlit UI
-st.title("💬 Chat with Ollama Agent")
-st.caption("🚀 A chatbot powered by Ollama Agent")
+st.title("🕸️ Web of Microbes")
+st.caption("Explore microbial substrate preferences and growth rates using AI-assisted search. The WoM agent is a collaboration between northenlab.org and cs.ucr.edu/~mingxunw")
 
 # Display conversation history
 for msg in st.session_state["messages"]:
@@ -46,10 +52,10 @@ for msg in st.session_state["messages"]:
         st.chat_message("user").write(msg["content"])
 
 # Input box for user query at the bottom
-if user_query := st.chat_input("Type your message here..."):
+if user_query := st.chat_input("Ask me about microbial substrate preferences, growth rates, or microbiome design..."):
     # Add user message to session state
-    #st.session_state["messages"].append({"role": "user", "content": user_query})
-    #st.chat_message("user").write(user_query)
+    st.session_state["messages"].append({"role": "user", "content": user_query})
+    st.chat_message("user").write(user_query)
 
     # Agent response
     with st.spinner("Agent is thinking..."):
