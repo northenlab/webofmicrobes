@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()  # Load environment variables from .env file
-system_prompt_filename = 'prompts/wom_agent_system_prompt_mcp_version.md'
+system_prompt_filename = './prompts/wom_agent_system_prompt_mcp_version.md'
 logger = logging.getLogger(__name__)
 # check working directory and if system prompt file exists
 if not os.path.isfile(system_prompt_filename):
