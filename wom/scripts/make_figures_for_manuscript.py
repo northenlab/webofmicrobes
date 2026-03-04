@@ -2024,6 +2024,154 @@ def figure_8_experimental_validation_all_models(
         logger.info(f"\n{summary}")
 
 
+def export_taxonomic_score_matrices(
+    artifacts: ModelArtifacts,
+    output_dir: Path,
+):
+    """Export three TSV tables with taxonomic multiindex (rows) and metabolites (columns).
+    
+    Creates three separate TSV files:
+    - raw_scores: Matrix of raw prediction scores
+    - distinctive_scores: Matrix of distinctive scores (relative to global background)
+    - ranks: Matrix of metabolite ranks per organism
+    
+    Each row represents a single organism with multiindex: kingdom, class, order, family, genus, isolate
+    Each column represents a metabolite.
+    
+    Args:
+        artifacts: ModelArtifacts object containing model and training data
+        output_dir: Output directory (will be created if it doesn't exist)
+    """
+    model = artifacts.model
+    training_data = artifacts.training_data
+    
+    n_microbes = training_data.n_microbes
+    n_metabolites = training_data.n_metabolites
+    idx_to_metabolite = training_data.idx_to_metabolite
+    idx_to_microbe = training_data.idx_to_microbe
+    microbe_taxonomy = training_data.microbe_taxonomy
+    
+    # Ensure output directory exists
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    logger.info(f"Exporting taxonomic score matrices to {output_dir}")
+    
+    # Build metabolite column headers (in order)
+    metabolite_names = [idx_to_metabolite[i] for i in range(n_metabolites)]
+    
+    # Accumulate data for all three matrices
+    raw_score_rows = []
+    distinctive_score_rows = []
+    rank_rows = []
+    
+    index_rows = []  # For multiindex (kingdom, class, order, family, genus, isolate)
+    
+    # Compute global background for distinctive scores
+    global_embeddings = model.microbe_embeddings.mean(axis=0)
+    metabolite_embeddings = model.metabolite_embeddings
+    global_scores = metabolite_embeddings @ global_embeddings
+    
+    # Process each organism
+    for microbe_idx in range(n_microbes):
+        microbe_id = idx_to_microbe[microbe_idx]
+        
+        # Get taxonomy
+        taxonomy = microbe_taxonomy.get(microbe_id)
+        if taxonomy is None:
+            logger.warning(f"No taxonomy found for {microbe_id}, skipping")
+            continue
+        
+        # Extract taxonomy levels (use kingdom instead of phylum)
+        kingdom = taxonomy.kingdom or "Unknown"
+        class_ = taxonomy.class_ or "Unknown"
+        order = taxonomy.order or "Unknown"
+        family = taxonomy.family or "Unknown"
+        genus = taxonomy.genus or "Unknown"
+        isolate = microbe_id  # Use the organism ID as isolate name
+        
+        # Get raw scores
+        raw_scores = model.predict_scores(microbe_idx)
+        
+        # Get distinctive scores (relative to global background)
+        # distinctive = organism_specific_score
+        microbe_embedding = model.microbe_embeddings[microbe_idx]
+        embedding_relative = microbe_embedding - global_embeddings
+        distinctive_scores = metabolite_embeddings @ embedding_relative
+        
+        # Get ranks (1 = best, n = worst)
+        # argsort gives indices in ascending order; negate scores for descending
+        # Then argsort again to get ranks
+        rank_indices = np.argsort(-raw_scores)  # Indices sorted by score (best to worst)
+        ranks = np.empty_like(rank_indices)
+        ranks[rank_indices] = np.arange(1, len(rank_indices) + 1)  # Assign ranks 1, 2, 3, ...
+        
+        # Store taxonomy info
+        index_rows.append((kingdom, class_, order, family, genus, isolate))
+        
+        # Store scores and ranks
+        raw_score_rows.append(raw_scores)
+        distinctive_score_rows.append(distinctive_scores)
+        rank_rows.append(ranks)
+    
+    if len(raw_score_rows) == 0:
+        logger.error("No valid organisms found for export")
+        return
+    
+    logger.info(f"Exporting {len(raw_score_rows)} organisms")
+    
+    # Convert to numpy arrays
+    raw_scores_array = np.array(raw_score_rows, dtype=np.float32)
+    distinctive_scores_array = np.array(distinctive_score_rows, dtype=np.float32)
+    ranks_array = np.array(rank_rows, dtype=np.int32)
+    
+    # Create multiindex
+    multiindex = pd.MultiIndex.from_tuples(
+        index_rows,
+        names=["kingdom", "class", "order", "family", "genus", "isolate"]
+    )
+    
+    # Create DataFrames
+    df_raw_scores = pd.DataFrame(
+        raw_scores_array,
+        index=multiindex,
+        columns=metabolite_names,
+        dtype=np.float32
+    )
+    
+    df_distinctive_scores = pd.DataFrame(
+        distinctive_scores_array,
+        index=multiindex,
+        columns=metabolite_names,
+        dtype=np.float32
+    )
+    
+    df_ranks = pd.DataFrame(
+        ranks_array,
+        index=multiindex,
+        columns=metabolite_names,
+        dtype=np.int32
+    )
+    
+    # Save as TSVs
+    raw_scores_path = output_dir / "taxonomic_raw_scores.tsv"
+    distinctive_scores_path = output_dir / "taxonomic_distinctive_scores.tsv"
+    ranks_path = output_dir / "taxonomic_ranks.tsv"
+    
+    df_raw_scores.to_csv(raw_scores_path, sep="\t")
+    df_distinctive_scores.to_csv(distinctive_scores_path, sep="\t")
+    df_ranks.to_csv(ranks_path, sep="\t")
+    
+    logger.info(f"Saved raw scores to {raw_scores_path}")
+    logger.info(f"Saved distinctive scores to {distinctive_scores_path}")
+    logger.info(f"Saved ranks to {ranks_path}")
+    
+    # Print summary statistics
+    logger.info(f"Raw scores - min: {df_raw_scores.values.min():.3f}, max: {df_raw_scores.values.max():.3f}, mean: {df_raw_scores.values.mean():.3f}")
+    logger.info(f"Distinctive scores - min: {df_distinctive_scores.values.min():.3f}, max: {df_distinctive_scores.values.max():.3f}, mean: {df_distinctive_scores.values.mean():.3f}")
+    logger.info(f"Ranks - min: {df_ranks.values.min()}, max: {df_ranks.values.max()}, mean: {df_ranks.values.mean():.1f}")
+
+
 # =============================================================================
 # CLI
 # =============================================================================
@@ -2101,6 +2249,11 @@ if __name__ == "__main__":
         default=30,
         help="Number of top predictions for precision@k and recall@k in Figure 8 (default: 30)",
     )
+    parser.add_argument(
+        "--export-tsv",
+        action="store_true",
+        help="Export taxonomic score matrices (raw scores, distinctive scores, ranks) as TSVs",
+    )
 
     args = parser.parse_args()
     
@@ -2120,8 +2273,8 @@ if __name__ == "__main__":
         except Exception as e:
             logger.error(f"Failed to generate Figure 1: {e}")
     
-    # For figures 2/3/6/7, load the single model
-    if any(f in args.figures for f in [2, 3, 6, 7]):
+    # For figures 2/3/6/7 and TSV export, load the single model
+    if any(f in args.figures for f in [2, 3, 6, 7]) or args.export_tsv:
         logger.info(f"Loading model from {args.model_dir}")
         try:
             artifacts = load_model_artifacts(args.model_dir)
@@ -2131,6 +2284,14 @@ if __name__ == "__main__":
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             sys.exit(1)
+
+        # Export taxonomic score matrices as TSVs
+        if args.export_tsv:
+            try:
+                logger.info("Exporting taxonomic score matrices to TSV")
+                export_taxonomic_score_matrices(artifacts, args.output_dir)
+            except Exception as e:
+                logger.error(f"Failed to export taxonomic score matrices: {e}")
 
         # Figure 3: Genus x metabolite biclustering heatmap
         if 3 in args.figures:

@@ -12,7 +12,14 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()  # Load environment variables from .env file
-
+system_prompt_filename = 'prompts/wom_agent_system_prompt_mcp_version.md'
+logger = logging.getLogger(__name__)
+# check working directory and if system prompt file exists
+if not os.path.isfile(system_prompt_filename):
+    logger.error(f"System prompt file not found: {system_prompt_filename}")
+    raise FileNotFoundError(f"System prompt file not found: {system_prompt_filename}")
+else:
+    logger.info(f"System prompt file found: {system_prompt_filename}")
 class TestAgent:
     mcp_server = MCPServerStreamableHTTP(url='http://wom-mcp:8000/mcp', max_retries=3) 
     #mcp_server = MCPServerStreamableHTTP(url='http://localhost:8000/mcp', max_retries=3) 
@@ -22,11 +29,7 @@ class TestAgent:
         #self.model = OpenAIModel(model_name=model_name, provider=OpenAIProvider(base_url=base_url)) # OpenRouter
         self.agent = Agent(
             self.model,
-            system_prompt=(
-                "You are chat bot assistant."
-                "You can use available tools to help users when required."
-                "When you call tools you should explain to the user what you called and what was the results."
-            ),
+            system_prompt=open(system_prompt_filename, "r").read(),
             mcp_servers=[self.mcp_server],
         )
     # async def run(self, query: str, previous_result=None):
