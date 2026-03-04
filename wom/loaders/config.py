@@ -51,7 +51,7 @@ CHEBI_SOURCES = {
 # Exometabolite data sources
 EXOMETABOLITE_SOURCES = [
     EXOMETABOLITE_DATA_DIR / "wom_1.tsv",
-    EXOMETABOLITE_DATA_DIR / "wom_2.tsv",
+    # EXOMETABOLITE_DATA_DIR / "wom_2.tsv",
     EXOMETABOLITE_DATA_DIR / "wom_3.tsv",
     EXOMETABOLITE_DATA_DIR / "wom_4.tsv",
     EXOMETABOLITE_DATA_DIR / "wom_5.tsv",
@@ -61,6 +61,7 @@ EXOMETABOLITE_SOURCES = [
     EXOMETABOLITE_DATA_DIR / "wom_9.csv",
     EXOMETABOLITE_DATA_DIR / "wom_10.csv",
     EXOMETABOLITE_DATA_DIR / "wom_11.csv",
+    EXOMETABOLITE_DATA_DIR / "nature_2021_wom_format.tsv"
 ]
 
 # Phylogeny mapping

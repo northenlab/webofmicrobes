@@ -298,6 +298,7 @@ def run_figure1_oos_benchmark(
 # Taxonomy ordering: class → order → family → genus
 # We'll build this dynamically from the data, but define class-level colors
 CLASS_COLORS = {
+    # Original 9 classes (preserved)
     "Actinomycetes": "#1f77b4",
     "Bacilli": "#ff7f0e",
     "Alphaproteobacteria": "#2ca02c",
@@ -307,6 +308,18 @@ CLASS_COLORS = {
     "Sphingobacteriia": "#7f7f7f",
     "Cytophagia": "#bcbd22",
     "Cyanophyceae": "#17becf",
+    # New classes (11 additional)
+    "Actinobacteria": "#3498db",        # bright blue
+    "Bacteroidia": "#e74c3c",           # red
+    "Chitinophagia": "#f39c12",         # orange
+    "Clostridia": "#16a085",            # teal
+    "Coriobacteriia": "#9b59b6",        # purple
+    "Deltaproteobacteria": "#34495e",   # dark slate
+    "Erysipelotrichia": "#e67e22",      # darker orange
+    "Fusobacteriia": "#1abc9c",         # turquoise
+    "Negativicutes": "#d35400",         # burnt orange
+    "Tissierellia": "#c0392b",          # dark red
+    "Verrucomicrobiae": "#27ae60",      # green
 }
 
 DEFAULT_CLASS_COLOR = "#aaaaaa"
@@ -601,8 +614,9 @@ def figure_2_tsne(
     
     tax_table = pd.DataFrame(tax_data)
 
-    classes = sorted(tax_table["class"].unique())
-    genera = sorted(tax_table["genus"].unique())
+    # Filter out NaN values before sorting to avoid type comparison errors
+    classes = sorted([c for c in tax_table["class"].unique() if pd.notna(c)])
+    genera = sorted([g for g in tax_table["genus"].unique() if pd.notna(g)])
 
     class_color_map = {c: get_class_color(c) for c in classes}
     # Assign markers per genus
@@ -645,9 +659,10 @@ def figure_2_tsne(
     # Build legend grouped by class
     legend_handles = []
     for cls in classes:
-        cls_genera = sorted(
-            tax_table[tax_table["class"] == cls]["genus"].unique()
-        )
+        cls_genera = sorted([
+            g for g in tax_table[tax_table["class"] == cls]["genus"].unique()
+            if pd.notna(g)
+        ])
         color = class_color_map[cls]
 
         legend_handles.append(
