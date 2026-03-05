@@ -214,31 +214,35 @@ def build_exometabolite_dataframe(force: bool = False) -> pd.DataFrame:
     # Convert assertion values to labels
     df["assertion"] = df["assertion_value"].apply(_assertion_label)
     
-    # Filter to compounds consumed by at least MIN_CONSUMERS organisms
+    # Filter to compounds with biologically active assertions
+    # (consumed OR secreted) in at least MIN_CONSUMERS organisms.
     if MIN_CONSUMERS > 0:
+        active_mask = df["assertion"].isin(["consumed", "secreted"])
         consumer_counts = (
-            df[df["assertion"] == "consumed"]
+            df[active_mask]
             .groupby("representative_compound")["organism_id"]
             .nunique()
         )
         valid_compounds = consumer_counts[consumer_counts >= MIN_CONSUMERS].index.tolist()
         df = df[df["representative_compound"].isin(valid_compounds)]
         logger.info(
-            f"After filtering to compounds consumed by ≥{MIN_CONSUMERS} organisms: "
+            f"After filtering to compounds with active assertions in ≥{MIN_CONSUMERS} organisms: "
             f"{len(df):,} observations, {len(valid_compounds)} compounds"
         )
     
-    # Filter to organisms that consume at least MIN_METABOLITES compounds
+    # Filter to organisms with active assertions (consumed OR secreted)
+    # for at least MIN_METABOLITES compounds.
     if MIN_METABOLITES > 0:
+        active_mask = df["assertion"].isin(["consumed", "secreted"])
         metabolite_counts = (
-            df[df["assertion"] == "consumed"]
+            df[active_mask]
             .groupby("organism_id")["representative_compound"]
             .nunique()
         )
         valid_organisms = metabolite_counts[metabolite_counts >= MIN_METABOLITES].index.tolist()
         df = df[df["organism_id"].isin(valid_organisms)]
         logger.info(
-            f"After filtering to organisms consuming ≥{MIN_METABOLITES} metabolites: "
+            f"After filtering to organisms with active assertions for ≥{MIN_METABOLITES} metabolites: "
             f"{len(df):,} observations, {len(valid_organisms)} organisms"
         )
     

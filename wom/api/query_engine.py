@@ -37,6 +37,40 @@ logger = logging.getLogger(__name__)
 
 class QueryEngine:
     """Execute queries against a trained model."""
+
+    @staticmethod
+    def _infer_interaction_type(model_dir: Path) -> str:
+        """Infer interaction type from model directory name."""
+        model_name = model_dir.name.lower()
+        if "secreted" in model_name:
+            return "secreted"
+        if "consumed" in model_name:
+            return "consumed"
+        return "unknown"
+
+    @staticmethod
+    def _resolve_model_dir(model_dir: Path, config: QueryConfig) -> Path:
+        """Resolve model directory from config when a generic path is provided.
+
+        Resolution rules:
+        - If model_dir points to `trained_models/latest`, resolve to
+          `trained_models/{model_type}_{interaction_type}` when interaction_type is explicit.
+        - If model_dir points to `trained_models`, resolve similarly.
+        - Otherwise, treat model_dir as an explicit model path and keep it unchanged.
+        """
+        model_dir = Path(model_dir)
+        model_dir_name = model_dir.name.lower()
+
+        if config.interaction_type in {"consumed", "secreted"}:
+            resolved_name = f"{config.model_type}_{config.interaction_type}"
+
+            if model_dir_name == "latest":
+                return model_dir.parent / resolved_name
+
+            if model_dir_name == "trained_models":
+                return model_dir / resolved_name
+
+        return model_dir
     
     def __init__(self, model_dir: str | Path, config: Optional[QueryConfig] = None):
         """Initialize query engine.
@@ -46,11 +80,29 @@ class QueryEngine:
             config: Query configuration (uses defaults if None)
         """
         self.config = config or QueryConfig()
-        self.model_dir = Path(model_dir)
+        requested_model_dir = Path(model_dir)
+
+        # If interaction type was not specified, infer from requested model path.
+        if self.config.interaction_type == "auto":
+            self.config.interaction_type = self._infer_interaction_type(requested_model_dir)
+
+        # Resolve generic model paths using model_type + interaction_type.
+        self.model_dir = self._resolve_model_dir(requested_model_dir, self.config)
+
+        # Re-infer interaction type from resolved path if still unknown.
+        if self.config.interaction_type == "unknown":
+            self.config.interaction_type = self._infer_interaction_type(self.model_dir)
         
         # Lazy-loaded
         self._artifacts: Optional[ModelArtifacts] = None
         self._chebi_data: Optional[dict] = None
+
+    def _base_metadata(self) -> dict:
+        """Common metadata included in all query responses."""
+        return {
+            "model_dir": str(self.model_dir),
+            "interaction_type": self.config.interaction_type,
+        }
     
     @property
     def artifacts(self) -> ModelArtifacts:
@@ -181,7 +233,7 @@ class QueryEngine:
                     success=False,
                     query_type="compounds_for_microbes",
                     results=[],
-                    metadata={"input_validation": validation.to_dict()},
+                    metadata={**self._base_metadata(), "input_validation": validation.to_dict()},
                     error=f"None of the {validation.total_requested} microbes could be matched. Check spelling and availability."
                 )
             
@@ -285,6 +337,7 @@ class QueryEngine:
                 query_type="compounds_for_microbes",
                 results=results,
                 metadata={
+                    **self._base_metadata(),
                     "n_microbes_queried": len(query.microbes),
                     "top_k": query.top_k,
                 }
@@ -296,6 +349,7 @@ class QueryEngine:
                 success=False,
                 query_type="compounds_for_microbes",
                 results=[],
+                metadata=self._base_metadata(),
                 error=str(e)
             )
     
@@ -318,7 +372,7 @@ class QueryEngine:
                     success=False,
                     query_type="microbes_for_compounds",
                     results=[],
-                    metadata={"input_validation": validation.to_dict()},
+                    metadata={**self._base_metadata(), "input_validation": validation.to_dict()},
                     error=f"None of the {validation.total_requested} compounds could be matched or are in the model"
                 )
             
@@ -391,6 +445,7 @@ class QueryEngine:
             
             # Build metadata with validation info
             metadata = {
+                **self._base_metadata(),
                 "compounds_queried": mapped_names,
                 "n_compounds": len(mapped_names),
                 "level": query.level,
@@ -415,6 +470,7 @@ class QueryEngine:
                 success=False,
                 query_type="microbes_for_compounds",
                 results=[],
+                metadata=self._base_metadata(),
                 error=str(e)
             )
     
@@ -1261,6 +1317,8 @@ class QueryEngine:
                 "embedding_dim": self.artifacts.embedding_dim,
                 "n_microbes": self.artifacts.model.n_microbes,
                 "n_metabolites": self.artifacts.model.n_metabolites,
+                "interaction_type": self.config.interaction_type,
+                "model_dir": str(self.model_dir),
             }
             
             if query.include_stats:
@@ -1282,7 +1340,7 @@ class QueryEngine:
                 success=True,
                 query_type="model_info",
                 results=[info],
-                metadata={}
+                metadata=self._base_metadata()
             )
         
         except Exception as e:
@@ -1291,5 +1349,6 @@ class QueryEngine:
                 success=False,
                 query_type="model_info",
                 results=[],
+                metadata=self._base_metadata(),
                 error=str(e)
             )

@@ -42,15 +42,124 @@ from api.query_types import (
 )
 
 wom_dir = Path(api.__file__).parent.parent
-model_dir = wom_dir / "trained_models" / "bpr_consumed"
+trained_models_dir = wom_dir / "trained_models"
+_ENGINE_CACHE: dict[tuple[str, str], QueryEngine] = {}
 
-# Create config
-config = QueryConfig(
-    model_dir=model_dir,
-    output_format='json',
-    verbose=True,
-    explain=True,
-)
+_TOOL_INTENTS = {
+  "compounds_for_microbes": {
+    "query_direction": "microbe_to_metabolite",
+    "inverse_tool": "microbes_for_compounds",
+    "use_when": "User asks what metabolites a microbe is predicted to consume or secrete",
+  },
+  "microbes_for_compounds": {
+    "query_direction": "metabolite_to_microbe",
+    "inverse_tool": "compounds_for_microbes",
+    "use_when": "User asks which microbes are predicted to consume or secrete specific metabolites",
+  },
+  "selective_metabolites": {
+    "query_direction": "target_vs_competitor_metabolite_selectivity",
+    "inverse_tool": None,
+    "use_when": "User asks which metabolites differentiate a target microbe from competitors",
+  },
+  "metabolite_environment_fitness": {
+    "query_direction": "environment_to_microbe_ranking",
+    "inverse_tool": None,
+    "use_when": "User asks which microbes perform best in a metabolite environment",
+  },
+  "niche_metabolites": {
+    "query_direction": "microbe_to_distinctive_metabolites",
+    "inverse_tool": None,
+    "use_when": "User asks for niche-specific metabolite preferences",
+  },
+  "competition_analysis": {
+    "query_direction": "metabolite_winner_across_microbes",
+    "inverse_tool": None,
+    "use_when": "User asks who wins metabolite-by-metabolite competition",
+  },
+  "rank_substrates": {
+    "query_direction": "microbe_to_ranked_subset_of_metabolites",
+    "inverse_tool": None,
+    "use_when": "User asks to rank a specific substrate subset for microbes",
+  },
+  "search_compound": {
+    "query_direction": "name_to_model_compound_mapping",
+    "inverse_tool": None,
+    "use_when": "User input is uncertain, synonym-heavy, or requires fuzzy compound matching",
+  },
+  "list_taxa": {
+    "query_direction": "taxonomy_discovery",
+    "inverse_tool": None,
+    "use_when": "User asks what taxa are available before running predictive queries",
+  },
+  "model_info": {
+    "query_direction": "model_metadata_lookup",
+    "inverse_tool": None,
+    "use_when": "User asks what model/direction is loaded and dataset coverage stats",
+  },
+}
+
+
+def _get_wom_engine(
+  model_type: str = "bpr",
+  interaction_type: str = "consumed",
+) -> tuple[QueryEngine, QueryConfig]:
+  """Get cached QueryEngine + QueryConfig for model type and interaction type."""
+  model_type = model_type.lower()
+  interaction_type = interaction_type.lower()
+
+  valid_model_types = {"bpr", "implicit_bpr", "lmf", "wrmf", "svd"}
+  valid_interactions = {"consumed", "secreted"}
+
+  if model_type not in valid_model_types:
+    raise ValueError(
+      f"Invalid model_type '{model_type}'. Valid: {sorted(valid_model_types)}"
+    )
+  if interaction_type not in valid_interactions:
+    raise ValueError(
+      f"Invalid interaction_type '{interaction_type}'. Valid: {sorted(valid_interactions)}"
+    )
+
+  cache_key = (model_type, interaction_type)
+  if cache_key not in _ENGINE_CACHE:
+    cfg = QueryConfig(
+      model_type=model_type,
+      model_dir=trained_models_dir / "latest",
+      interaction_type=interaction_type,
+      output_format='json',
+      verbose=True,
+      explain=True,
+    )
+    _ENGINE_CACHE[cache_key] = QueryEngine(cfg.model_dir, cfg)
+
+  engine = _ENGINE_CACHE[cache_key]
+  return engine, engine.config
+
+
+def _serialize_wom_response(
+  response,
+  tool_name: str,
+  model_type: str,
+  interaction_type: str,
+) -> str:
+  """Serialize query response with orchestration metadata for LLM routing."""
+  payload = response.to_dict()
+  metadata = payload.setdefault("metadata", {})
+
+  tool_intent = _TOOL_INTENTS.get(tool_name, {})
+  metadata["orchestration"] = {
+    "tool": tool_name,
+    "query_direction": tool_intent.get("query_direction"),
+    "inverse_tool": tool_intent.get("inverse_tool"),
+    "use_when": tool_intent.get("use_when"),
+    "model_type": model_type,
+    "interaction_type": interaction_type,
+    "semantic_interpretation": (
+      "higher score suggests stronger predicted secretion propensity"
+      if interaction_type == "secreted"
+      else "higher score suggests stronger predicted consumption propensity"
+    ),
+  }
+  return json.dumps(payload, indent=2)
 
 
 
@@ -102,7 +211,7 @@ def secret_code_final(input_code: str) -> str:
 
 @mcp.tool(
     name="compounds_for_microbes",
-    description="""DIRECT MODEL PREDICTION: Retrieve raw metabolite preferences and distinctive scores for microbes.
+  description="""DIRECT MODEL PREDICTION: Retrieve raw metabolite interaction preferences and distinctive scores for microbes (consumption OR secretion based on interaction_type).
 
 This function directly accesses trained model predictions. Raw scores are computed via:
   raw_score = microbe_embedding · metabolite_embeddings^T (dot product of learned embeddings)
@@ -133,6 +242,13 @@ PARAMETERS:
   
 - min_score (optional): Minimum raw score threshold. Only return compounds with scores >= this value
 
+- interaction_type (optional, default='consumed'): Interaction direction to query
+  Valid values: 'consumed', 'secreted'
+  Use 'secreted' to analyze production/secretion models
+
+- model_type (optional, default='bpr'): Model family to query
+  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+
 RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether the query succeeded
@@ -152,13 +268,15 @@ EXAMPLE USAGE:
     """,
 )
 def compounds_for_microbes(
-    microbes: str, 
-    top: int = 20, 
-    compute_distinctive: bool = True, 
-    background_level: str = None, 
-    min_score: float = None
+  microbes: str,
+  top: int = 20,
+  compute_distinctive: bool = True,
+  background_level: str = None,
+  min_score: float = None,
+  interaction_type: str = "consumed",
+  model_type: str = "bpr",
 ) -> str:
-    """Query compounds consumed by microbes.
+    """Query compounds associated with microbes (consumed or secreted).
     
     Args:
         microbes: Comma-separated microbes in format 'level:name' (e.g., 'genus:Escherichia')
@@ -171,7 +289,10 @@ def compounds_for_microbes(
         JSON string with query results
     """
     try:
-        engine = QueryEngine(model_dir, config)
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
         
         query = CompoundsForMicrobesQuery.from_string(
             microbes,
@@ -179,13 +300,18 @@ def compounds_for_microbes(
             compute_distinctive=compute_distinctive,
             background_level=background_level,
             min_score=min_score,
-            config=config,
+            config=query_config,
         )
         
         response = engine.query_compounds_for_microbes(query)
         
         # Serialize to JSON string so LLM receives structured data
-        return json.dumps(response.to_dict(), indent=2)
+        return _serialize_wom_response(
+          response,
+          tool_name="compounds_for_microbes",
+          model_type=model_type,
+          interaction_type=interaction_type,
+        )
     
     except ValueError as e:
         # Input validation error
@@ -215,6 +341,12 @@ PARAMETERS:
 - min_score (optional, default=0.7): Minimum fuzzy match score (0.0-1.0)
   Higher values = stricter matching
 
+- interaction_type (optional, default='consumed'): Which model direction to search against
+  Valid values: 'consumed', 'secreted'
+
+- model_type (optional, default='bpr'): Model family to search against
+  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+
 RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether query succeeded
@@ -230,21 +362,31 @@ EXAMPLE USAGE:
 def search_compound(
     query: str,
     fuzzy: bool = True,
-    min_score: float = 0.7
+    min_score: float = 0.7,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
 ) -> str:
     """Search for compound names by fuzzy or exact matching."""
     try:
-        engine = QueryEngine(model_dir, config)
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
         
         search_query = SearchCompoundQuery(
             query=query,
             fuzzy=fuzzy,
             min_score=min_score,
-            config=config,
+            config=query_config,
         )
         
         response = engine.query_search_compound(search_query)
-        return json.dumps(response.to_dict(), indent=2)
+        return _serialize_wom_response(
+          response,
+          tool_name="search_compound",
+          model_type=model_type,
+          interaction_type=interaction_type,
+        )
     
     except Exception as e:
         return json.dumps({
@@ -263,6 +405,12 @@ PARAMETERS:
   
 - include_counts (optional, default=True): Include number of isolates per taxon
 
+- interaction_type (optional, default='consumed'): Which model direction provides taxa context
+  Valid values: 'consumed', 'secreted'
+
+- model_type (optional, default='bpr'): Model family providing taxa context
+  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+
 RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether query succeeded
@@ -278,20 +426,30 @@ EXAMPLE USAGE:
 )
 def list_taxa(
     level: str = "genus",
-    include_counts: bool = True
+    include_counts: bool = True,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
 ) -> str:
     """List available taxa at a given taxonomic level."""
     try:
-        engine = QueryEngine(model_dir, config)
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
         
         taxa_query = ListTaxaQuery(
             level=level,
             include_counts=include_counts,
-            config=config,
+            config=query_config,
         )
         
         response = engine.query_list_taxa(taxa_query)
-        return json.dumps(response.to_dict(), indent=2)
+        return _serialize_wom_response(
+          response,
+          tool_name="list_taxa",
+          model_type=model_type,
+          interaction_type=interaction_type,
+        )
     
     except Exception as e:
         return json.dumps({
@@ -302,20 +460,20 @@ def list_taxa(
 
 @mcp.tool(
     name="microbes_for_compounds",
-    description="""DIRECT MODEL PREDICTION: Retrieve which microbes consume given compounds (inverse of compounds_for_microbes).
+  description="""DIRECT MODEL PREDICTION: Retrieve which microbes are most associated with given compounds (consumption OR secretion based on interaction_type; inverse of compounds_for_microbes).
 
-This function retrieves raw metabolite consumption predictions aggregated at a taxonomic level.
+This function retrieves raw metabolite interaction predictions aggregated at a taxonomic level.
 Raw scores are computed via:
   raw_score = microbe_embedding · metabolite_embeddings^T (dot product)
 
 Scores for multiple compounds are aggregated using specified method:
   - 'mean': average of scores across queried compounds
-  - 'sum': total accumulated score (better for synergistic consumption)
-  - 'max': maximum score (identifies best single compound consumption)
+  - 'sum': total accumulated score (better for synergistic interaction potential)
+  - 'max': maximum score (identifies best single-compound interaction)
 
 When querying at taxonomic levels, the function reports: mean_score, std_score,
 compound-specific scores, aggregation method used. This shows both overall preference
-and per-compound consumption patterns.
+and per-compound interaction patterns.
     
 PARAMETERS:
 - compounds (required): Compounds to query as comma-separated list
@@ -331,6 +489,12 @@ PARAMETERS:
   Valid values: 'mean' (average preference), 'sum' (total consumption potential), 'max' (best single compound)
   
 - min_score (optional): Minimum score threshold for results after aggregation
+
+- interaction_type (optional, default='consumed'): Interaction direction to query
+  Valid values: 'consumed', 'secreted'
+
+- model_type (optional, default='bpr'): Model family to query
+  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -354,11 +518,16 @@ def microbes_for_compounds(
     level: str = "genus",
     top: int = 10,
     agg_method: str = "mean",
-    min_score: float = None
+  min_score: float = None,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
 ) -> str:
     """Find microbes that consume given compounds."""
     try:
-        engine = QueryEngine(model_dir, config)
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
         
         query_obj = MicrobesForCompoundsQuery.from_string(
             compounds,
@@ -366,11 +535,16 @@ def microbes_for_compounds(
             top_k=top,
             agg_method=agg_method,
             min_score=min_score,
-            config=config,
+            config=query_config,
         )
         
         response = engine.query_microbes_for_compounds(query_obj)
-        return json.dumps(response.to_dict(), indent=2)
+        return _serialize_wom_response(
+          response,
+          tool_name="microbes_for_compounds",
+          model_type=model_type,
+          interaction_type=interaction_type,
+        )
     
     except ValueError as e:
         return json.dumps({
@@ -421,6 +595,12 @@ PARAMETERS:
   
 - min_selectivity (optional): Minimum selectivity score to include in results
 
+- interaction_type (optional, default='consumed'): Interaction direction for score computation
+  Valid values: 'consumed', 'secreted'
+
+- model_type (optional, default='bpr'): Model family to use
+  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+
 RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether query succeeded  
@@ -443,11 +623,16 @@ def selective_metabolites(
     competitors: str,
     top: int = 20,
     method: str = "difference",
-    min_selectivity: float = None
+  min_selectivity: float = None,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
 ) -> str:
     """Find metabolites selective for target over competitors."""
     try:
-        engine = QueryEngine(model_dir, config)
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
         
         query_obj = SelectiveMetabolitesQuery.from_strings(
             target,
@@ -455,11 +640,16 @@ def selective_metabolites(
             top_k=top,
             method=method,
             min_selectivity=min_selectivity,
-            config=config,
+            config=query_config,
         )
         
         response = engine.query_selective_metabolites(query_obj)
-        return json.dumps(response.to_dict(), indent=2)
+        return _serialize_wom_response(
+          response,
+          tool_name="selective_metabolites",
+          model_type=model_type,
+          interaction_type=interaction_type,
+        )
     
     except ValueError as e:
         return json.dumps({
@@ -493,6 +683,12 @@ PARAMETERS:
 - microbes (optional): Restrict ranking to specific microbes (comma-separated 'level:Name')
   If not provided, ranks all microbes at the given level
 
+- interaction_type (optional, default='consumed'): Interaction direction for fitness scoring
+  Valid values: 'consumed', 'secreted'
+
+- model_type (optional, default='bpr'): Model family to use
+  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+
 RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether query succeeded
@@ -510,11 +706,16 @@ def metabolite_environment_fitness(
     level: str = "genus",
     top: int = 10,
     fitness_method: str = "sum",
-    microbes: str = None
+  microbes: str = None,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
 ) -> str:
     """Rank microbes by fitness in a metabolite environment."""
     try:
-        engine = QueryEngine(model_dir, config)
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
         
         query_obj = MetaboliteEnvironmentFitnessQuery.from_strings(
             metabolites,
@@ -522,11 +723,16 @@ def metabolite_environment_fitness(
             level=level,
             top_k=top,
             fitness_method=fitness_method,
-            config=config,
+            config=query_config,
         )
         
         response = engine.query_metabolite_environment_fitness(query_obj)
-        return json.dumps(response.to_dict(), indent=2)
+        return _serialize_wom_response(
+          response,
+          tool_name="metabolite_environment_fitness",
+          model_type=model_type,
+          interaction_type=interaction_type,
+        )
     
     except ValueError as e:
         return json.dumps({
@@ -573,6 +779,12 @@ PARAMETERS:
   
 - min_distinctive_score (optional): Minimum distinctive score to include
 
+- interaction_type (optional, default='consumed'): Interaction direction for score computation
+  Valid values: 'consumed', 'secreted'
+
+- model_type (optional, default='bpr'): Model family to use
+  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+
 RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether query succeeded
@@ -597,22 +809,32 @@ def niche_metabolites(
     microbe: str,
     top: int = 20,
     background_level: str = None,
-    min_distinctive_score: float = None
+  min_distinctive_score: float = None,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
 ) -> str:
     """Find distinctive (niche) metabolites for a microbe."""
     try:
-        engine = QueryEngine(model_dir, config)
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
         
         query_obj = NicheMetabolitesQuery.from_string(
             microbe,
             top_k=top,
             background_level=background_level,
             min_distinctive_score=min_distinctive_score,
-            config=config,
+            config=query_config,
         )
         
         response = engine.query_niche_metabolites(query_obj)
-        return json.dumps(response.to_dict(), indent=2)
+        return _serialize_wom_response(
+          response,
+          tool_name="niche_metabolites",
+          model_type=model_type,
+          interaction_type=interaction_type,
+        )
     
     except ValueError as e:
         return json.dumps({
@@ -655,6 +877,12 @@ PARAMETERS:
   False (default) = use raw model scores
   True = use distinctive scores (raw - background_mean) for niche-based competition
 
+- interaction_type (optional, default='consumed'): Interaction direction for score computation
+  Valid values: 'consumed', 'secreted'
+
+- model_type (optional, default='bpr'): Model family to use
+  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+
 RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether query succeeded
@@ -683,21 +911,31 @@ EXAMPLE USAGE:
 def competition_analysis(
     microbes: str,
     metabolites: str,
-    use_distinctive: bool = False
+  use_distinctive: bool = False,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
 ) -> str:
     """Analyze competition between microbes for metabolites."""
     try:
-        engine = QueryEngine(model_dir, config)
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
         
         query_obj = CompetitionAnalysisQuery.from_string(
             microbes,
             metabolites,
             use_distinctive=use_distinctive,
-            config=config,
+            config=query_config,
         )
         
         response = engine.query_competition_analysis(query_obj)
-        return json.dumps(response.to_dict(), indent=2)
+        return _serialize_wom_response(
+          response,
+          tool_name="competition_analysis",
+          model_type=model_type,
+          interaction_type=interaction_type,
+        )
     
     except ValueError as e:
         return json.dumps({
@@ -744,6 +982,12 @@ PARAMETERS:
   False (default) = rank by raw model scores
   True = rank by distinctive scores (niche-specific preferences)
 
+- interaction_type (optional, default='consumed'): Interaction direction for ranking
+  Valid values: 'consumed', 'secreted'
+
+- model_type (optional, default='bpr'): Model family to use
+  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+
 RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether query succeeded
@@ -773,22 +1017,32 @@ def rank_substrates(
     microbes: str,
     substrates: str,
     top: int = 10,
-    use_distinctive: bool = False
+  use_distinctive: bool = False,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
 ) -> str:
     """Rank specific substrates for given microbes."""
     try:
-        engine = QueryEngine(model_dir, config)
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
         
         query_obj = RankSubstratesQuery.from_string(
             microbes,
             substrates,
             top_k=top,
             use_distinctive=use_distinctive,
-            config=config,
+            config=query_config,
         )
         
         response = engine.query_rank_substrates(query_obj)
-        return json.dumps(response.to_dict(), indent=2)
+        return _serialize_wom_response(
+          response,
+          tool_name="rank_substrates",
+          model_type=model_type,
+          interaction_type=interaction_type,
+        )
     
     except ValueError as e:
         return json.dumps({
@@ -809,6 +1063,12 @@ def rank_substrates(
     
 PARAMETERS:
 - include_stats (optional, default=True): Include detailed statistics
+
+- interaction_type (optional, default='consumed'): Which interaction model to inspect
+  Valid values: 'consumed', 'secreted'
+
+- model_type (optional, default='bpr'): Model family to inspect
+  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -831,18 +1091,30 @@ EXAMPLE USAGE:
 - Summary only: include_stats=False
     """,
 )
-def model_info(include_stats: bool = True) -> str:
+def model_info(
+  include_stats: bool = True,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
+) -> str:
     """Get model information and statistics."""
     try:
-        engine = QueryEngine(model_dir, config)
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
         
         query_obj = ModelInfoQuery(
             include_stats=include_stats,
-            config=config,
+            config=query_config,
         )
         
         response = engine.query_model_info(query_obj)
-        return json.dumps(response.to_dict(), indent=2)
+        return _serialize_wom_response(
+          response,
+          tool_name="model_info",
+          model_type=model_type,
+          interaction_type=interaction_type,
+        )
     
     except Exception as e:
         return json.dumps({
