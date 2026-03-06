@@ -13,6 +13,7 @@ import numpy as np
 from .config import (
     EXOMETABOLITE_SOURCES,
     PHYLOGENY_FILE,
+    ENVIRONMENTS_FILE,
     CACHE_FILES,
     MIN_CONSUMERS,
     MIN_METABOLITES,
@@ -267,6 +268,139 @@ def load_exometabolite() -> pd.DataFrame:
         df = build_exometabolite_dataframe(force=True)
 
     return df
+
+
+def build_environment_dataframe(
+    force: bool = False,
+    min_mapped_fraction: float = 0.5,
+) -> pd.DataFrame:
+    """Load and process environment metabolite data.
+    
+    Loads environments.tsv which contains environment names, descriptions,
+    and lists of metabolites in each environment. Maps compound names to
+    ChEBI representatives and flags environments with low mapping rates.
+    
+    Returns:
+        DataFrame with columns:
+            - compound: Original compound name from environments.tsv
+            - environment_name: Name of the environment
+            - doi: Reference DOI
+            - environment_description: Description of environment
+            - representative_compound: Mapped ChEBI best name
+            - chebi_id: ChEBI identifier
+            - match_score: Fuzzy match score (0-1)
+            - match_type: 'exact', 'fuzzy', or 'none'
+            - in_model: Boolean indicating if compound is in exometabolite model
+    
+    Args:
+        force: If True, rebuild even if cache exists
+        min_mapped_fraction: Minimum fraction of compounds that must be mapped
+                           for environment to be considered valid (default: 0.5)
+    """
+    cache_path = CACHE_FILES["environments"]
+    
+    if not force and cache_path.exists():
+        logger.info("Loading environment data from cache")
+        return pd.read_parquet(cache_path)
+    
+    logger.info("Building environment dataframe...")
+    
+    if not ENVIRONMENTS_FILE.exists():
+        raise FileNotFoundError(f"Environments file not found: {ENVIRONMENTS_FILE}")
+    
+    # Load environments file
+    df = pd.read_csv(ENVIRONMENTS_FILE, sep="\t")
+    logger.info(f"Loaded {len(df):,} rows from environments.tsv")
+    logger.info(f"  Unique environments: {df['environment_name'].nunique()}")
+    logger.info(f"  Unique compounds: {df['compound'].nunique()}")
+    
+    # Load ChEBI for mapping
+    chebi = load_chebi()
+    
+    # Normalize compound names
+    df['compound_normalized'] = df['compound'].apply(normalize_compound_name)
+    
+    # Map compound names to ChEBI
+    logger.info("Mapping environment compound names to ChEBI...")
+    unique_names = df['compound_normalized'].unique().tolist()
+    mappings = map_compound_names_batch(unique_names, chebi)
+    
+    # Create mapping dicts
+    name_to_repr = {name: mapping.representative_name for name, mapping in mappings.items()}
+    name_to_chebi = {name: mapping.chebi_id for name, mapping in mappings.items()}
+    name_to_score = {name: mapping.match_score for name, mapping in mappings.items()}
+    name_to_match_type = {name: mapping.match_type for name, mapping in mappings.items()}
+    
+    df['representative_compound'] = df['compound_normalized'].map(name_to_repr)
+    df['chebi_id'] = df['compound_normalized'].map(name_to_chebi)
+    df['match_score'] = df['compound_normalized'].map(name_to_score)
+    df['match_type'] = df['compound_normalized'].map(name_to_match_type)
+    
+    # Log mapping stats
+    exact = sum(1 for m in mappings.values() if m.match_type == 'exact')
+    fuzzy = sum(1 for m in mappings.values() if m.match_type == 'fuzzy')
+    unmatched = sum(1 for m in mappings.values() if m.match_type == 'none')
+    logger.info(
+        f"Compound mapping: {exact} exact, {fuzzy} fuzzy, {unmatched} unmatched "
+        f"out of {len(unique_names)} unique names"
+    )
+    
+    # Check which compounds are in the exometabolite model
+    logger.info("Checking which compounds are in exometabolite model...")
+    exo_df = load_exometabolite()
+    model_compounds = set(exo_df['representative_compound'].unique())
+    df['in_model'] = df['representative_compound'].isin(model_compounds)
+    
+    # Analyze environment mapping quality
+    logger.info("\nEnvironment mapping quality:")
+    env_stats = []
+    for env_name, env_group in df.groupby('environment_name'):
+        total = len(env_group)
+        mapped = env_group['representative_compound'].notna().sum()
+        in_model = env_group['in_model'].sum()
+        mapped_frac = mapped / total if total > 0 else 0
+        in_model_frac = in_model / total if total > 0 else 0
+        
+        env_stats.append({
+            'environment_name': env_name,
+            'total_compounds': total,
+            'mapped_compounds': mapped,
+            'in_model_compounds': in_model,
+            'mapped_fraction': mapped_frac,
+            'in_model_fraction': in_model_frac,
+            'status': 'valid' if in_model_frac >= min_mapped_fraction else 'low_coverage'
+        })
+        
+        status_marker = "✓" if in_model_frac >= min_mapped_fraction else "⚠"
+        logger.info(
+            f"  {status_marker} {env_name}: {total} compounds, "
+            f"{mapped}/{total} mapped ({mapped_frac:.1%}), "
+            f"{in_model}/{total} in model ({in_model_frac:.1%})"
+        )
+    
+    # Add environment quality flag
+    env_status_map = {row['environment_name']: row['status'] for row in env_stats}
+    df['environment_status'] = df['environment_name'].map(env_status_map)
+    
+    # Save detailed stats
+    stats_df = pd.DataFrame(env_stats)
+    stats_path = cache_path.parent / "environment_stats.csv"
+    stats_df.to_csv(stats_path, index=False)
+    logger.info(f"\nSaved environment stats to: {stats_path}")
+    
+    # Save to cache
+    logger.info(f"Saving to cache: {cache_path}")
+    df.to_parquet(cache_path)
+    
+    logger.info(f"\nEnvironment dataframe built with {len(df):,} rows")
+    logger.info(f"Valid environments: {sum(1 for s in env_stats if s['status'] == 'valid')}/{len(env_stats)}")
+    
+    return df
+
+
+def load_environments() -> pd.DataFrame:
+    """Load environment data, building if necessary."""
+    return build_environment_dataframe(force=False)
 
 
 # =============================================================================

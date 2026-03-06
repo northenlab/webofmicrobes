@@ -67,6 +67,9 @@ EXOMETABOLITE_SOURCES = [
 # Phylogeny mapping
 PHYLOGENY_FILE = EXOMETABOLITE_DATA_DIR / "phylogeny.tsv"
 
+# Environment data
+ENVIRONMENTS_FILE = EXOMETABOLITE_DATA_DIR / "environments.tsv"
+
 # =============================================================================
 # Cache Files
 # =============================================================================
@@ -75,6 +78,7 @@ CACHE_FILES = {
     "chebi": PROCESSED_DATA_DIR / "chebi.parquet",
     "compound_map": PROCESSED_DATA_DIR / "compound_name_to_chebi.json",
     "exometabolite": PROCESSED_DATA_DIR / "exometabolite.parquet",
+    "environments": PROCESSED_DATA_DIR / "environments.parquet",
     # Model files will be added as: {model_type}_{preference_type}_*.npz
 }
 

@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from loaders.compound_mapper import build_chebi_database
-from loaders.loaders import build_exometabolite_dataframe, prepare_training_data
+from loaders.loaders import build_exometabolite_dataframe, build_environment_dataframe, prepare_training_data
 from loaders.config import CHEBI_SOURCE_DIR, PROCESSED_DATA_DIR, EXOMETABOLITE_DATA_DIR
 from core.types import AssertionType
 
@@ -87,6 +87,37 @@ def main():
         logger.error(f"❌ Failed to build exometabolite data: {e}", exc_info=True)
         return 1
     
+    # Step 2.5: Build environment dataframe
+    logger.info("")
+    logger.info("=" * 70)
+    logger.info("STEP 2.5: Building environment dataframe")
+    logger.info("=" * 70)
+    logger.info("Loading environments.tsv and mapping compounds to model")
+    logger.info("")
+    
+    try:
+        env_df = build_environment_dataframe(force=True)  # Force rebuild
+        logger.info("")
+        logger.info(f"✅ Environment data built successfully:")
+        logger.info(f"   - {len(env_df):,} total compound-environment pairs")
+        logger.info(f"   - {env_df['environment_name'].nunique()} unique environments")
+        logger.info(f"   - {env_df['compound'].nunique()} unique compounds")
+        
+        # Show environment quality
+        mapped = env_df['representative_compound'].notna().sum()
+        in_model = env_df['in_model'].sum()
+        logger.info(f"   - {mapped:,} compounds mapped to ChEBI")
+        logger.info(f"   - {in_model:,} compounds found in exometabolite model")
+        
+        # Show environment status distribution
+        status_counts = env_df.groupby('environment_name')['environment_status'].first().value_counts()
+        logger.info(f"   - Environment quality:")
+        for status, count in status_counts.items():
+            logger.info(f"     • {status}: {count} environments")
+    except Exception as e:
+        logger.error(f"❌ Failed to build environment data: {e}", exc_info=True)
+        return 1
+    
     # Step 3: Prepare training data
     logger.info("")
     logger.info("=" * 70)
@@ -133,6 +164,8 @@ def main():
     logger.info(f"  {CHEBI_SOURCE_DIR}/chebi_structures.tsv.gz (downloaded)")
     logger.info(f"  {PROCESSED_DATA_DIR}/chebi.parquet (processed)")
     logger.info(f"  {PROCESSED_DATA_DIR}/exometabolite.parquet (processed)")
+    logger.info(f"  {PROCESSED_DATA_DIR}/environments.parquet (processed)")
+    logger.info(f"  {PROCESSED_DATA_DIR}/environment_stats.csv (stats)")
     logger.info("")
     logger.info("Ready for model training!")
     

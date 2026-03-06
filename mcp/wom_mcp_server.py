@@ -39,6 +39,9 @@ from api.query_types import (
     SearchCompoundQuery,
     ListTaxaQuery,
     ModelInfoQuery,
+    ListEnvironmentsQuery,
+    SearchEnvironmentQuery,
+    GetEnvironmentCompoundsQuery,
 )
 
 wom_dir = Path(api.__file__).parent.parent
@@ -95,6 +98,21 @@ _TOOL_INTENTS = {
     "query_direction": "model_metadata_lookup",
     "inverse_tool": None,
     "use_when": "User asks what model/direction is loaded and dataset coverage stats",
+  },
+  "list_environments": {
+    "query_direction": "environment_discovery",
+    "inverse_tool": None,
+    "use_when": "User asks what environments are available or wants to see all environment options",
+  },
+  "search_environment": {
+    "query_direction": "environment_name_matching",
+    "inverse_tool": None,
+    "use_when": "User mentions an environment name but it might not be exact, needs fuzzy matching",
+  },
+  "get_environment_compounds": {
+    "query_direction": "environment_to_compound_list",
+    "inverse_tool": "microbes_for_compounds",
+    "use_when": "User asks about microbes that grow on an environment; first get compounds, then query microbes",
   },
 }
 
@@ -1121,7 +1139,236 @@ def model_info(
             "success": False,
             "error": f"Failed to get model info: {str(e)}"
         }, indent=2)
+
+
+@mcp.tool(
+    name="list_environments",
+    description="""List all available metabolite environments for querying microbe preferences.
     
+ENVIRONMENTS are pre-defined collections of metabolites from specific ecological contexts
+(e.g., plant root exudates, culture media). Use this to discover what environments are
+available before querying microbe performance on those environments.
+
+PARAMETERS:
+- include_stats (optional, default=True): Include coverage statistics
+- min_coverage (optional, default=0.0): Filter to environments with at least this fraction
+  of compounds present in the model (0.0 to 1.0)
+
+- interaction_type (optional, default='consumed'): Which model to query
+  Valid values: 'consumed', 'secreted'
+
+- model_type (optional, default='bpr'): Model family
+  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+
+RESPONSE FORMAT:
+Returns JSON with:
+- success (bool): Whether query succeeded
+- results (list): Each environment has:
+  - environment_name: Name of the environment
+  - n_compounds: Total compounds in environment
+  - n_in_model: How many are present in the model
+  - coverage_fraction: Fraction available (n_in_model / n_compounds)
+  - description: What this environment represents
+  - doi: Reference for the environment data
+  - status: 'valid' or 'low_coverage'
+- metadata (dict): Query details and orchestration info
+- error (string): Error message if success=False
+
+EXAMPLE USAGE:
+- List all environments: (no parameters)
+- Only high-coverage environments: min_coverage=0.8
+- Check secretion model environments: interaction_type='secreted'
+    """,
+)
+def list_environments(
+    include_stats: bool = True,
+    min_coverage: float = 0.0,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
+) -> str:
+    """List available metabolite environments."""
+    try:
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
+        
+        query_obj = ListEnvironmentsQuery(
+            include_stats=include_stats,
+            min_coverage=min_coverage,
+            config=query_config,
+        )
+        
+        response = engine.query_list_environments(query_obj)
+        return _serialize_wom_response(
+            response,
+            tool_name="list_environments",
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
+    
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": f"Failed to list environments: {str(e)}"
+        }, indent=2)
+
+
+@mcp.tool(
+    name="search_environment",
+    description="""Fuzzy search for environment names to find the correct environment.
+    
+Use this when you have a partial or approximate environment name and need to find
+the exact match. Helpful for user queries like 'avena' -> 'Avena barbata root exudate'.
+
+PARAMETERS:
+- query (required): Partial or approximate environment name to search
+  Examples: 'avena', 'R2A', 'minimal', 'yeast'
+
+- max_results (optional, default=5): Maximum number of matches to return
+- min_score (optional, default=0.6): Minimum fuzzy match score (0.0 to 1.0)
+
+- interaction_type (optional, default='consumed'): Which model to query
+  Valid values: 'consumed', 'secreted'
+
+- model_type (optional, default='bpr'): Model family
+  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+
+RESPONSE FORMAT:
+Returns JSON with:
+- success (bool): Whether query succeeded
+- results (list): Each match has:
+  - environment_name: Exact environment name (use this for get_environment_compounds)
+  - match_score: How well it matched the query (0.0 to 1.0)
+  - n_compounds: Total compounds in this environment
+  - n_in_model: How many are in the model
+  - description: What this environment represents
+- metadata (dict): Query details and orchestration info
+- error (string): Error message if success=False
+
+EXAMPLE USAGE:
+- Find Avena environments: query='avena'
+- Match R2A media: query='R2A'
+- Broad search: query='minimal', max_results=10
+    """,
+)
+def search_environment(
+    query: str,
+    max_results: int = 5,
+    min_score: float = 0.6,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
+) -> str:
+    """Fuzzy search for environment names."""
+    try:
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
+        
+        query_obj = SearchEnvironmentQuery(
+            query=query,
+            max_results=max_results,
+            min_score=min_score,
+            config=query_config,
+        )
+        
+        response = engine.query_search_environment(query_obj)
+        return _serialize_wom_response(
+            response,
+            tool_name="search_environment",
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
+    
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": f"Failed to search environments: {str(e)}"
+        }, indent=2)
+
+
+@mcp.tool(
+    name="get_environment_compounds",
+    description="""Get the list of metabolites that define a specific environment.
+    
+This is the KEY TOOL for queries like 'Which microbes grow on Avena barbata exudates?'
+
+WORKFLOW:
+1. Use this tool to get the compound list for an environment
+2. Extract the representative_compound names from the results
+3. Pass those compounds to 'microbes_for_compounds' tool to find which microbes consume them
+
+PARAMETERS:
+- environment_name (required): Exact environment name
+  Get this from 'list_environments' or 'search_environment'
+  Examples: 'NLDM', 'R2A', 'Avena barbata root exudate (2018KZ)'
+
+- only_in_model (optional, default=True): Only return compounds present in the model
+  Set to False to see all compounds including unmapped ones
+
+- interaction_type (optional, default='consumed'): Which model to check against
+  Valid values: 'consumed', 'secreted'
+
+- model_type (optional, default='bpr'): Model family
+  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+
+RESPONSE FORMAT:
+Returns JSON with:
+- success (bool): Whether query succeeded
+- results (list): Each compound has:
+  - original_name: Name from the environment definition
+  - representative_compound: Mapped model name (use this for microbes_for_compounds!)
+  - chebi_id: ChEBI identifier
+  - match_type: 'exact', 'fuzzy', or 'none'
+  - match_score: Mapping confidence (0.0 to 1.0)
+  - in_model: Boolean indicating availability
+- metadata (dict): Environment description, compound count, orchestration info
+- error (string): Error message if success=False
+
+EXAMPLE USAGE:
+- Get NLDM compounds: environment_name='NLDM'
+- Get all Avena compounds: environment_name='Avena barbata root exudate (2018KZ)'
+- Include unmapped: environment_name='R2A', only_in_model=False
+
+FOLLOW-UP PATTERN:
+After getting compounds, use 'microbes_for_compounds' with the representative_compound
+values to find which microbes consume those metabolites.
+    """,
+)
+def get_environment_compounds(
+    environment_name: str,
+    only_in_model: bool = True,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
+) -> str:
+    """Get metabolites in a specific environment."""
+    try:
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
+        
+        query_obj = GetEnvironmentCompoundsQuery(
+            environment_name=environment_name,
+            only_in_model=only_in_model,
+            config=query_config,
+        )
+        
+        response = engine.query_get_environment_compounds(query_obj)
+        return _serialize_wom_response(
+            response,
+            tool_name="get_environment_compounds",
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
+    
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": f"Failed to get environment compounds: {str(e)}"
+        }, indent=2)
+
 
 @mcp.tool(
     name="taxonomy_levels_for_growth_rate",

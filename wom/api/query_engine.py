@@ -17,6 +17,7 @@ from core.io import load_model_artifacts
 from core.training import compute_taxonomy_embeddings
 from core.validation import InputMatchResult, InputValidationSummary
 from loaders.compound_mapper import load_chebi, map_compound_name
+from loaders.loaders import load_environments
 from .query_types import (
     QueryConfig,
     QueryResponse,
@@ -30,6 +31,9 @@ from .query_types import (
     SearchCompoundQuery,
     ListTaxaQuery,
     ModelInfoQuery,
+    ListEnvironmentsQuery,
+    SearchEnvironmentQuery,
+    GetEnvironmentCompoundsQuery,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,6 +100,7 @@ class QueryEngine:
         # Lazy-loaded
         self._artifacts: Optional[ModelArtifacts] = None
         self._chebi_data: Optional[dict] = None
+        self._environment_data = None
 
     def _base_metadata(self) -> dict:
         """Common metadata included in all query responses."""
@@ -129,6 +134,13 @@ class QueryEngine:
         if self._chebi_data is None:
             self._chebi_data = load_chebi()
         return self._chebi_data
+    
+    @property
+    def environment_data(self):
+        """Lazy-load environment data."""
+        if self._environment_data is None:
+            self._environment_data = load_environments()
+        return self._environment_data
     
     # =========================================================================
     # Input Validation Helpers
@@ -1348,6 +1360,210 @@ class QueryEngine:
             return QueryResponse(
                 success=False,
                 query_type="model_info",
+                results=[],
+                metadata=self._base_metadata(),
+                error=str(e)
+            )
+    
+    # =========================================================================
+    # Environment Query Methods
+    # =========================================================================
+    
+    def query_list_environments(
+        self,
+        query: ListEnvironmentsQuery
+    ) -> QueryResponse:
+        """List available environments with statistics."""
+        try:
+            env_df = self.environment_data
+            
+            # Group by environment
+            env_groups = env_df.groupby('environment_name')
+            
+            results = []
+            for env_name, group in env_groups:
+                total = len(group)
+                in_model = group['in_model'].sum()
+                in_model_frac = in_model / total if total > 0 else 0
+                
+                # Filter by min_coverage if specified
+                if in_model_frac < query.min_coverage:
+                    continue
+                
+                env_info = {
+                    'environment_name': env_name,
+                    'n_compounds': total,
+                }
+                
+                if query.include_stats:
+                    mapped = group['representative_compound'].notna().sum()
+                    env_info.update({
+                        'n_mapped': mapped,
+                        'n_in_model': in_model,
+                        'coverage_fraction': round(in_model_frac, 3),
+                        'status': group['environment_status'].iloc[0],
+                        'description': group['environment_description'].iloc[0],
+                        'doi': group['doi'].iloc[0],
+                    })
+                
+                results.append(env_info)
+            
+            # Sort by coverage descending
+            if query.include_stats:
+                results.sort(key=lambda x: x['coverage_fraction'], reverse=True)
+            
+            return QueryResponse(
+                success=True,
+                query_type="list_environments",
+                results=results,
+                metadata={
+                    **self._base_metadata(),
+                    'n_environments': len(results),
+                    'min_coverage_filter': query.min_coverage,
+                }
+            )
+        
+        except Exception as e:
+            logger.error(f"Error in list_environments query: {e}", exc_info=True)
+            return QueryResponse(
+                success=False,
+                query_type="list_environments",
+                results=[],
+                metadata=self._base_metadata(),
+                error=str(e)
+            )
+    
+    def query_search_environment(
+        self,
+        query: SearchEnvironmentQuery
+    ) -> QueryResponse:
+        """Fuzzy search for environment names."""
+        try:
+            from rapidfuzz import process, fuzz
+            
+            env_df = self.environment_data
+            env_names = env_df['environment_name'].unique().tolist()
+            
+            # Fuzzy search
+            matches = process.extract(
+                query.query.lower(),
+                [name.lower() for name in env_names],
+                scorer=fuzz.WRatio,
+                score_cutoff=query.min_score * 100,
+                limit=query.max_results
+            )
+            
+            # Map back to original names
+            lower_to_orig = {name.lower(): name for name in env_names}
+            
+            results = []
+            for match_lower, score, _ in matches:
+                orig_name = lower_to_orig[match_lower]
+                env_group = env_df[env_df['environment_name'] == orig_name]
+                
+                results.append({
+                    'environment_name': orig_name,
+                    'match_score': round(score / 100, 3),
+                    'n_compounds': len(env_group),
+                    'n_in_model': env_group['in_model'].sum(),
+                    'description': env_group['environment_description'].iloc[0],
+                })
+            
+            return QueryResponse(
+                success=True,
+                query_type="search_environment",
+                results=results,
+                metadata={
+                    **self._base_metadata(),
+                    'query': query.query,
+                    'n_matches': len(results),
+                }
+            )
+        
+        except Exception as e:
+            logger.error(f"Error in search_environment query: {e}", exc_info=True)
+            return QueryResponse(
+                success=False,
+                query_type="search_environment",
+                results=[],
+                metadata=self._base_metadata(),
+                error=str(e)
+            )
+    
+    def query_get_environment_compounds(
+        self,
+        query: GetEnvironmentCompoundsQuery
+    ) -> QueryResponse:
+        """Get compounds in a specific environment."""
+        try:
+            env_df = self.environment_data
+            
+            # Find matching environment
+            env_group = env_df[env_df['environment_name'] == query.environment_name]
+            
+            if len(env_group) == 0:
+                # Try fuzzy match
+                from rapidfuzz import process, fuzz
+                env_names = env_df['environment_name'].unique().tolist()
+                best_match = process.extractOne(
+                    query.environment_name.lower(),
+                    [name.lower() for name in env_names],
+                    scorer=fuzz.WRatio
+                )
+                
+                if best_match and best_match[1] >= 80:
+                    lower_to_orig = {name.lower(): name for name in env_names}
+                    matched_name = lower_to_orig[best_match[0]]
+                    env_group = env_df[env_df['environment_name'] == matched_name]
+                    logger.info(f"Fuzzy matched '{query.environment_name}' to '{matched_name}'")
+                else:
+                    return QueryResponse(
+                        success=False,
+                        query_type="get_environment_compounds",
+                        results=[],
+                        metadata=self._base_metadata(),
+                        error=f"Environment not found: {query.environment_name}"
+                    )
+            
+            # Filter to only compounds in model if requested
+            if query.only_in_model:
+                env_group = env_group[env_group['in_model']].copy()
+            
+            # Build results
+            results = []
+            for _, row in env_group.iterrows():
+                compound_info = {
+                    'original_name': row['compound'],
+                    'representative_compound': row['representative_compound'],
+                    'chebi_id': row['chebi_id'],
+                    'match_type': row['match_type'],
+                    'match_score': round(row['match_score'], 3),
+                    'in_model': bool(row['in_model']),
+                }
+                results.append(compound_info)
+            
+            # Get environment metadata
+            first_row = env_df[env_df['environment_name'] == env_group.iloc[0]['environment_name']].iloc[0]
+            
+            return QueryResponse(
+                success=True,
+                query_type="get_environment_compounds",
+                results=results,
+                metadata={
+                    **self._base_metadata(),
+                    'environment_name': first_row['environment_name'],
+                    'description': first_row['environment_description'],
+                    'doi': first_row['doi'],
+                    'n_compounds': len(results),
+                    'only_in_model': query.only_in_model,
+                }
+            )
+        
+        except Exception as e:
+            logger.error(f"Error in get_environment_compounds query: {e}", exc_info=True)
+            return QueryResponse(
+                success=False,
+                query_type="get_environment_compounds",
                 results=[],
                 metadata=self._base_metadata(),
                 error=str(e)

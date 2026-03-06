@@ -1,0 +1,9 @@
+environment_name,total_compounds,mapped_compounds,in_model_compounds,mapped_fraction,in_model_fraction,status
+A+ minimal,1,1,1,1.0,1.0,valid
+A+ with Synechococcus extract,30,28,24,0.9333333333333333,0.8,valid
+A+ with yeast extract,47,43,40,0.9148936170212766,0.851063829787234,valid
+A+:MEBM (1:1),21,21,21,1.0,1.0,valid
+Avena barbata root exudate (2018KZ),101,80,67,0.7920792079207921,0.6633663366336634,valid
+NLDM,64,64,64,1.0,1.0,valid
+OE-MinimalGlucoseAA,20,20,20,1.0,1.0,valid
+R2A,95,88,86,0.9263157894736842,0.9052631578947369,valid

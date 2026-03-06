@@ -300,6 +300,40 @@ class ModelInfoQuery:
     config: QueryConfig = field(default_factory=QueryConfig)
 
 
+@dataclass
+class ListEnvironmentsQuery:
+    """Query: List available environments with metabolite counts."""
+    include_stats: bool = True  # Include compound counts and coverage stats
+    min_coverage: float = 0.0  # Filter to environments with >= this fraction in model
+    
+    config: QueryConfig = field(default_factory=QueryConfig)
+
+
+@dataclass
+class SearchEnvironmentQuery:
+    """Query: Fuzzy search for environment names."""
+    query: str
+    max_results: int = 5
+    min_score: float = 0.6  # Fuzzy matching score threshold
+    
+    config: QueryConfig = field(default_factory=QueryConfig)
+
+
+@dataclass
+class GetEnvironmentCompoundsQuery:
+    """Query: Get all compounds in a specific environment.
+    
+    Returns the list of compounds that define an environment, with their
+    mapped representative names and model availability. This allows queries
+    like 'Which microbes grow on Avena barbata exudates?' by first getting
+    the environment's compound list, then querying microbe preferences.
+    """
+    environment_name: str
+    only_in_model: bool = True  # Only return compounds present in the model
+    
+    config: QueryConfig = field(default_factory=QueryConfig)
+
+
 # =============================================================================
 # Query Response Types
 # =============================================================================
