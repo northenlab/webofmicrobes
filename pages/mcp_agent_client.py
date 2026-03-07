@@ -12,7 +12,7 @@ st.set_page_config(
 
 # Password gate
 st.write("Please enter the password to access the Web of Microbes Agent:")
-password = st.text_input("Password", type="text")  # we're not going to trigger password saver in the browser
+password = st.text_input("Password", type="default")  # we're not going to trigger password saver in the browser
 if password != "webofmicrobes":
     st.error("Incorrect password. Please try again.")
     st.stop()  # Stop execution if the password is incorrect
