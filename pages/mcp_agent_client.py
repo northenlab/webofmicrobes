@@ -10,6 +10,13 @@ st.set_page_config(
     layout="wide",
 )
 
+# Password gate
+st.write("Please enter the password to access the Web of Microbes Agent:")
+password = st.text_input("Password", type="password")
+if password != "webofmicrobes":
+    st.error("Incorrect password. Please try again.")
+    st.stop()  # Stop execution if the password is incorrect
+
 
 def display_assistant_message(agent_message_list):
     """
