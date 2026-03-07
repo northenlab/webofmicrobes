@@ -13,6 +13,8 @@ services:
       - default
     restart: unless-stopped
     command: /app/run_server.sh
+    ports:
+    - "5002:5000"
     logging:
       driver: json-file
       options:
