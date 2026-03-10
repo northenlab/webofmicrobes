@@ -4,18 +4,21 @@ from pydantic import BaseModel
 from pydantic_ai.messages import ModelResponse, ToolCallPart, TextPart
 import asyncio 
 
+DEBUG=True
+
 st.set_page_config(
     page_title="Web of Microbes Agent",
     page_icon="🕸️", # spider web icon
     layout="wide",
 )
 
-# Password gate
-st.write("Please enter the password to access the Web of Microbes Agent:")
-password = st.text_input("Password", type="default")  # we're not going to trigger password saver in the browser
-if password != "webofmicrobes":
-    st.error("Incorrect password. Please try again.")
-    st.stop()  # Stop execution if the password is incorrect
+if not DEBUG:
+    # Password gate
+    st.write("Please enter the password to access the Web of Microbes Agent:")
+    password = st.text_input("Password", type="default")  # we're not going to trigger password saver in the browser
+    if password != "webofmicrobes":
+        st.error("Incorrect password. Please try again.")
+        st.stop()  # Stop execution if the password is incorrect
 
 
 def display_assistant_message(agent_message_list):
@@ -47,8 +50,30 @@ if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
 # Streamlit UI
-st.title("🕸️ Web of Microbes")
+theme = st.get_option("theme.base")
+if theme == "dark":
+    st.image("images/wom_dark_transparent.png", width=300)
+else:
+    st.image("images/wom_light_transparent.png", width=300)
 st.caption("Explore microbial substrate preferences and growth rates using AI-assisted search. The WoM agent is a collaboration between northenlab.org and cs.ucr.edu/~mingxunw")
+
+# Example queries
+EXAMPLE_QUERIES = [
+    "What does Pseudomonas like to eat?",
+    "Which microbes consume glutamate?",
+    "Compare Burkholderia and Variovorax",
+    "Tell me about your tools",
+]
+example_container = st.empty()
+example_query = None
+if len(st.session_state["messages"]) == 0:
+    with example_container.container():
+        st.write("**Try an example query:**")
+        cols = st.columns(4)
+        for col, query in zip(cols, EXAMPLE_QUERIES):
+            if col.button(query, use_container_width=True):
+                example_query = query
+
 
 # Display conversation history
 for msg in st.session_state["messages"]:
@@ -59,7 +84,9 @@ for msg in st.session_state["messages"]:
         st.chat_message("user").write(msg["content"])
 
 # Input box for user query at the bottom
-if user_query := st.chat_input("Ask me about microbial substrate preferences, growth rates, or microbiome design..."):
+chat_input = st.chat_input("Ask me about microbial substrate preferences, growth rates, or microbiome design...")
+if user_query := (example_query or chat_input):
+    example_container.empty()
     # Add user message to session state
     st.session_state["messages"].append({"role": "user", "content": user_query})
     st.chat_message("user").write(user_query)
@@ -68,29 +95,8 @@ if user_query := st.chat_input("Ask me about microbial substrate preferences, gr
     with st.spinner("Agent is thinking..."):
         try:
             previous_agent_result = st.session_state.get("previous_agent_result", None)
-            #if previous_result:
-            #    print("Previous result:", previous_result.new_messages())  # Debug print to check the previous result
-            #    print(len(previous_result.all_messages()))  # Debug print to check the number of messages in the previous result
-            #    print(len(previous_result.new_messages()))  # Debug print to check the content of the first message in the previous result
 
-            # Run the agent and get the result
-            #result = agent.run_sync(user_query, previous_result=previous_result)
-
-
-            #with st.empty():
-            #    result = st.streaming(agent.run_streaming_sync(user_query, previous_result=previous_result))
-                
             result = agent.run_sync(user_query, previous_result=previous_agent_result)
-
-            #for msg in result.new_messages():
-            #    print("New message:", msg)  # Debug print to check each new message in the result
-            
-
-
-            #print("Agent result:", result)  # Debug print to check the raw result
-
-            #print("Agent result output:", result.all_messages()) # Debug print to check the output field of the result
-            
             st.session_state["previous_agent_result"] = result  # Store the previous result for potential future use
 
             # Extract the 'content' field from the JSON response
