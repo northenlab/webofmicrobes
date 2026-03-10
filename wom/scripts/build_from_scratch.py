@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from loaders.compound_mapper import build_chebi_database
 from loaders.loaders import build_exometabolite_dataframe, build_environment_dataframe, prepare_training_data
 from loaders.function_enrichment import build_function_enrichment_tables
+from loaders.genome_spot import build_genome_spot_parquets
 from loaders.config import CHEBI_SOURCE_DIR, PROCESSED_DATA_DIR, EXOMETABOLITE_DATA_DIR
 from core.types import AssertionType
 
@@ -144,6 +145,24 @@ def main():
         logger.error(f"❌ Failed to build function enrichment data: {e}", exc_info=True)
         return 1
     
+    # Step 2.8: Build GenomeSPOT culture condition parquets
+    logger.info("")
+    logger.info("=" * 70)
+    logger.info("STEP 2.8: Building GenomeSPOT culture condition parquets")
+    logger.info("=" * 70)
+    logger.info("Aggregating GenomeSPOT BacDive predictions by taxonomic level")
+    logger.info("")
+
+    genome_spot_tsv = EXOMETABOLITE_DATA_DIR / "genome-spot-all-bacdive-predictions.tsv"
+    try:
+        build_genome_spot_parquets(str(genome_spot_tsv), str(PROCESSED_DATA_DIR))
+        logger.info("✅ GenomeSPOT parquets built successfully (7 levels: domain → species)")
+    except FileNotFoundError as e:
+        logger.warning(f"⚠️ Skipping GenomeSPOT build: {e}")
+    except Exception as e:
+        logger.error(f"❌ Failed to build GenomeSPOT data: {e}", exc_info=True)
+        return 1
+
     # Step 3: Prepare training data
     logger.info("")
     logger.info("=" * 70)
@@ -198,6 +217,7 @@ def main():
     logger.info(f"  {PROCESSED_DATA_DIR}/function_reaction_catalog.parquet (optional, reaction-compound catalog)")
     logger.info(f"  {PROCESSED_DATA_DIR}/taxon_function_enrichment.parquet (optional, tf-idf enrichments)")
     logger.info(f"  {PROCESSED_DATA_DIR}/taxon_function_compound_support.parquet (optional, EC-compound support)")
+    logger.info(f"  {PROCESSED_DATA_DIR}/genome_spot_{{domain,phylum,...,species}}.parquet (GenomeSPOT culture conditions)")
     logger.info("")
     logger.info("Ready for model training!")
     

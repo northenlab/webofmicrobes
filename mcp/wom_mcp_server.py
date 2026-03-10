@@ -23,6 +23,9 @@ phydon.CACHE_DIR = "./growth_rate/cache"  # Set the cache directory to a known l
 
 sys.path.insert(1, "./wom")  # Ensure the /app directory is in the Python path for imports
 
+from loaders import genome_spot as genome_spot_module
+genome_spot_module.CACHE_DIR = "./wom/processed_data"
+
 from pathlib import Path
 import api
 from api.query_engine import QueryEngine
@@ -1749,6 +1752,112 @@ def taxonomy_levels_for_growth_rate(query: str, level: str = 'genus', stat: str 
         return json.dumps(response, indent=2)
     except Exception as e:
         return json.dumps({"error": f"Growth rate lookup failed: {str(e)}"})
+
+
+@mcp.tool(
+    name="culture_conditions_for_taxon",
+    description="""Look up predicted culture conditions for any microbial taxon using GenomeSPOT.
+
+Returns aggregated statistics (mean, median, std, se, count) for all ten
+culture condition predictions across every genome in the matched taxon group.
+
+PARAMETERS:
+- query (required): Organism name to search (fuzzy matching enabled)
+  Examples: 'Pseudomonas', 'Thermotoga', 'Archaeoglobus fulgidus'
+
+- level (optional, default='genus'): Taxonomic level to query
+  Valid values: 'domain', 'phylum', 'class', 'order', 'family', 'genus', 'species'
+
+CONDITIONS RETURNED (with mean, median, std, se, count each):
+- oxygen               Probability of oxygen tolerance (0=strict anaerobe, 1=aerobe)
+- temperature_optimum  Optimal growth temperature (°C)
+- temperature_min      Minimum growth temperature (°C)
+- temperature_max      Maximum growth temperature (°C)
+- salinity_optimum     Optimal salinity (% w/v NaCl)
+- salinity_min         Minimum salinity (% w/v NaCl)
+- salinity_max         Maximum salinity (% w/v NaCl)
+- ph_optimum           Optimal pH
+- ph_min               Minimum pH
+- ph_max               Maximum pH
+
+IMPORTANT: These are ML predictions from genomic sequence, not measured values.
+std is always returned — use it to gauge reliability. High std means the taxon
+is ecophysiologically diverse; low std indicates a more uniform lifestyle.
+count shows how many sequenced isolates informed the estimate.
+
+EXAMPLES:
+- culture_conditions_for_taxon(query='Pseudomonas', level='genus')
+- culture_conditions_for_taxon(query='Thermoproteota', level='phylum')
+    """,
+)
+def culture_conditions_for_taxon(query: str, level: str = "genus") -> str:
+    """Query all GenomeSPOT culture condition predictions for a taxon."""
+    try:
+        response = genome_spot_module.lookup(query=query, level=level)
+        if response is None or (isinstance(response, dict) and response.get("error")):
+            return json.dumps({
+                "error": f"No GenomeSPOT data found for '{query}' at {level} level"
+            })
+        return json.dumps(response, indent=2)
+    except Exception as e:
+        return json.dumps({"error": f"GenomeSPOT lookup failed: {str(e)}"})
+
+
+@mcp.tool(
+    name="lookup_culture_condition",
+    description="""Look up a single GenomeSPOT culture condition prediction for a taxon.
+
+Use this when you want focused statistics for one condition (e.g. optimal pH or
+temperature) rather than the full ten-condition report from culture_conditions_for_taxon.
+
+PARAMETERS:
+- query (required): Organism name to search (fuzzy matching enabled)
+
+- condition (required): Which condition to retrieve
+  Valid values:
+    'oxygen'               - oxygen tolerance probability (0=strict anaerobe, 1=aerobe)
+    'temperature_optimum'  - optimal growth temperature (°C)
+    'temperature_min'      - minimum growth temperature (°C)
+    'temperature_max'      - maximum growth temperature (°C)
+    'salinity_optimum'     - optimal salinity (% w/v NaCl)
+    'salinity_min'         - minimum salinity (% w/v NaCl)
+    'salinity_max'         - maximum salinity (% w/v NaCl)
+    'ph_optimum'           - optimal pH
+    'ph_min'               - minimum pH
+    'ph_max'               - maximum pH
+
+- level (optional, default='genus'): Taxonomic level to query
+  Valid values: 'domain', 'phylum', 'class', 'order', 'family', 'genus', 'species'
+
+- stat (optional, default='median'): Primary statistic to highlight
+  Valid values: 'mean', 'median', 'std', 'se', 'count'
+  NOTE: std is always returned regardless of this parameter — predictions carry
+  substantial inter-taxon variability and callers should always consider spread.
+
+EXAMPLES:
+- lookup_culture_condition(query='Pseudomonas', condition='temperature_optimum')
+- lookup_culture_condition(query='Halobacteria', condition='salinity_optimum', level='class', stat='mean')
+- lookup_culture_condition(query='Methanobacterium', condition='oxygen', level='genus')
+    """,
+)
+def lookup_culture_condition(
+    query: str,
+    condition: str,
+    level: str = "genus",
+    stat: str = "median",
+) -> str:
+    """Query a single GenomeSPOT culture condition for a taxon."""
+    try:
+        response = genome_spot_module.lookup(
+            query=query, level=level, condition=condition, stat=stat
+        )
+        if response is None or (isinstance(response, dict) and response.get("error")):
+            return json.dumps({
+                "error": f"No GenomeSPOT data found for '{query}' / '{condition}' at {level} level"
+            })
+        return json.dumps(response, indent=2)
+    except Exception as e:
+        return json.dumps({"error": f"GenomeSPOT condition lookup failed: {str(e)}"})
 
 
 @mcp.tool(
