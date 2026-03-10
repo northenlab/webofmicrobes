@@ -2,7 +2,12 @@ import streamlit as st
 from agents.ollama_agent import TestAgent
 from pydantic import BaseModel
 from pydantic_ai.messages import ModelResponse, ToolCallPart, TextPart
-import asyncio 
+import asyncio
+import uuid
+import json
+import os
+from display_chat import display_assistant_message, save_chat_history
+
 
 DEBUG=True
 
@@ -20,21 +25,6 @@ if not DEBUG:
         st.error("Incorrect password. Please try again.")
         st.stop()  # Stop execution if the password is incorrect
 
-
-def display_assistant_message(agent_message_list):
-    """
-    Display assistant message, hiding tool calls in expanders.
-    """
-
-    for msg in agent_message_list:
-        print("Agent message part:", msg)  # Debug print to check each part of the agent message
-
-        if msg["type"] == "text":
-            st.markdown(msg["content"])
-        elif msg["type"] == "tool_call":
-            with st.expander(f"Tool Call: {msg['tool_name']}", expanded=False):
-                st.code(f"Tool Call: {msg['tool_name']} --- Args: {msg['args']}", language="json")
-        
         
 
 
@@ -48,6 +38,46 @@ agent = TestAgent(
 # Initialize session state for conversation history
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
+if "chat_id" not in st.session_state:
+    st.session_state["chat_id"] = str(uuid.uuid4())
+
+# Sidebar
+st.sidebar.info(
+    """This is an early-stage release of a general purpose microbiome agent for predicting and interpreting exometabolite mediated dynamics in isolates and communities. Currently, the model is limited to 226 isolates across 68 Genera and 119 metabolites so use caution when interpreting and using the results."""
+)
+if st.sidebar.button("🔄 New Chat", use_container_width=True):
+    st.session_state["messages"] = []
+    st.session_state.pop("previous_agent_result", None)
+    st.session_state["chat_id"] = str(uuid.uuid4())
+    st.rerun()
+chat_id = st.session_state["chat_id"]
+st.sidebar.markdown(
+    f'<a href="/ChatHistory?chat_id={chat_id}" target="_self" style="text-decoration:none;">'
+    f'<button style="width:100%; padding:0.4rem; border-radius:0.5rem; border:1px solid #ccc; cursor:pointer;">📜 Chat History</button>'
+    f'</a>',
+    unsafe_allow_html=True
+)
+with st.sidebar.expander("ℹ️ About & Help"):
+    st.markdown("""
+**Web of Microbes** predicts which metabolites soil microbes
+prefer to consume, based on exometabolomics data from
+Lawrence Berkeley National Laboratory.
+
+**Try asking:**
+- "What does Pseudomonas like to eat?"
+- "Which microbes consume glutamate?"
+- "Compare Burkholderia and Variovorax"
+- "What is the growth rate of Pseudomonas?"
+
+**Tips:**
+- You don't need exact names — fuzzy matching will find close matches
+- You can ask follow-up questions in the same chat
+- Click **New Chat** to start fresh
+
+**References**
+We would like to acknowledge the following manuscripts for tools and data
+- Xu, Liang, Emily Zakem, and J. L. Weissman. "Improved maximum growth rate prediction from microbial genomes by integrating phylogenetic information." Nature Communications 16.1 (2025): 4256.
+""")
 
 # Streamlit UI
 theme = st.get_option("theme.base")
@@ -64,6 +94,21 @@ EXAMPLE_QUERIES = [
     "Compare Burkholderia and Variovorax",
     "Tell me about your tools",
 ]
+ADVANCED_QUERIES = [
+    {
+        "title": "Rank substrates for Pseudomonas",
+        "prompt": "For Pseudomonas, rank all 23 of these substrates from highest to lowest preference: phenylalanine, glycine, threonine, isoleucine, leucine, lysine, serine, alanine, proline, arginine, glutamate, adenosine, guanine, hypoxanthine, uridine, 4-guanidinobutanoic acid, glucose, fructose, mannose, arabinose, trehalose, maltose, mannitol",
+    },
+    {
+        "title": "Rank bacteria competitiveness for amino acids",
+        "prompt": "Make a table where you rank (highest to lowest) which of these bacteria you predict will be most competitive for a mixture of proteogenic amino acids based on having both a high substrate preferences and high growth rates. Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea",
+    },
+    {
+        "title": "Rank bacteria competitiveness for aldehydo-D-xylose",
+        "prompt": "Make a table where you rank (highest to lowest) of which of these bacteria you predict will be most competitive for aldehydo-D-xylose based on having both a high substrate preferences and high growth rates. Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea",
+    },
+]
+
 example_container = st.empty()
 example_query = None
 if len(st.session_state["messages"]) == 0:
@@ -73,6 +118,11 @@ if len(st.session_state["messages"]) == 0:
         for col, query in zip(cols, EXAMPLE_QUERIES):
             if col.button(query, use_container_width=True):
                 example_query = query
+        st.write("**Advanced queries:**")
+        adv_cols = st.columns(len(ADVANCED_QUERIES))
+        for col, item in zip(adv_cols, ADVANCED_QUERIES):
+            if col.button(item["title"], use_container_width=True):
+                example_query = item["prompt"]
 
 
 # Display conversation history
@@ -128,6 +178,7 @@ if user_query := (example_query or chat_input):
 
             # Add agent response to session state
             st.session_state["messages"].append({"role": "assistant", "content": model_response_list})
+            save_chat_history(st.session_state["chat_id"], st.session_state["messages"])
             with st.chat_message("assistant"):
                 display_assistant_message(model_response_list)
 
