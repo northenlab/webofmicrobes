@@ -9,7 +9,6 @@ import os
 from display_chat import display_assistant_message, save_chat_history
 
 
-DEBUG=True
 
 st.set_page_config(
     page_title="Web of Microbes Agent",
@@ -17,7 +16,8 @@ st.set_page_config(
     layout="wide",
 )
 
-if not DEBUG:
+
+if True:
     # Password gate
     st.write("Please enter the password to access the Web of Microbes Agent:")
     password = st.text_input("Password", type="default")  # we're not going to trigger password saver in the browser
