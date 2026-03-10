@@ -26,6 +26,7 @@ sys.path.insert(1, "./wom")  # Ensure the /app directory is in the Python path f
 from pathlib import Path
 import api
 from api.query_engine import QueryEngine
+from loaders.compound_mapper import map_compound_name
 
 from api.query_types import (
     QueryConfig,
@@ -42,6 +43,9 @@ from api.query_types import (
     ListEnvironmentsQuery,
     SearchEnvironmentQuery,
     GetEnvironmentCompoundsQuery,
+    ListFunctionEnrichmentTaxaQuery,
+    EnrichedFunctionsForTaxonQuery,
+    SubstrateGapQuery,
 )
 
 wom_dir = Path(api.__file__).parent.parent
@@ -113,6 +117,26 @@ _TOOL_INTENTS = {
     "query_direction": "environment_to_compound_list",
     "inverse_tool": "microbes_for_compounds",
     "use_when": "User asks about microbes that grow on an environment; first get compounds, then query microbes",
+  },
+  "list_function_enrichment_taxa": {
+    "query_direction": "taxonomy_to_available_function_profiles",
+    "inverse_tool": None,
+    "use_when": "User asks which taxa have annotated enzyme-enrichment profiles",
+  },
+  "enriched_functions_for_taxon": {
+    "query_direction": "taxon_to_enriched_enzyme_functions",
+    "inverse_tool": None,
+    "use_when": "User asks which EC functions are distinctive/enriched for a specific taxon; use include_bpr_scores=True to add BPR metabolic alignment scores alongside TF-IDF",
+  },
+  "explain_compound_group": {
+    "query_direction": "compound_name_to_group_members",
+    "inverse_tool": None,
+    "use_when": "User asks why a compound has an unexpected name, what compounds are grouped together, or which synonyms/stereoisomers share a representative name in WoM",
+  },
+  "analyze_substrate_gaps": {
+    "query_direction": "taxon_to_metabolite_enzyme_gaps",
+    "inverse_tool": "enriched_functions_for_taxon",
+    "use_when": "User asks about orphan enzymes, unexplained substrate preferences, catabolite repression candidates, or metabolites consumed without known enzymatic machinery",
   },
 }
 
@@ -1371,6 +1395,327 @@ def get_environment_compounds(
 
 
 @mcp.tool(
+    name="list_function_enrichment_taxa",
+    description="""List taxa that have UniProt-derived EC function enrichment profiles.
+
+  This tool is for discovery: use it to determine which taxa are available for
+  enzyme-function enrichment lookups before calling enriched_functions_for_taxon.
+
+  PARAMETERS:
+  - level (optional, default='genus'): Taxonomic level to inspect
+    Valid values: 'kingdom', 'phylum', 'class', 'order', 'family', 'genus'
+
+  - min_proteomes (optional, default=1): Minimum number of proteomes required
+    Filters sparse taxa with weak support
+
+  - include_counts (optional, default=True): Include proteome/function counts
+
+  - interaction_type (optional, default='consumed'): Model interaction context
+    Valid values: 'consumed', 'secreted'
+
+  - model_type (optional, default='bpr'): Model family context
+    Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+
+  RESPONSE FORMAT:
+  - success (bool)
+  - results (list): taxa with support metrics
+  - metadata (dict): query context + orchestration metadata
+  - error (string): present when success=False
+
+  EXAMPLE USAGE:
+  - list_function_enrichment_taxa(level='genus', min_proteomes=5)
+    """,
+)
+def list_function_enrichment_taxa(
+    level: str = "genus",
+    min_proteomes: int = 1,
+    include_counts: bool = True,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
+ ) -> str:
+    """List taxa with function enrichment coverage."""
+    try:
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
+
+        query_obj = ListFunctionEnrichmentTaxaQuery(
+            level=level,
+            min_proteomes=min_proteomes,
+            include_counts=include_counts,
+            config=query_config,
+        )
+
+        response = engine.query_list_function_enrichment_taxa(query_obj)
+        return _serialize_wom_response(
+            response,
+            tool_name="list_function_enrichment_taxa",
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
+
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": f"Failed to list function enrichment taxa: {str(e)}"
+        }, indent=2)
+
+
+@mcp.tool(
+    name="enriched_functions_for_taxon",
+    description="""Return EC functions ranked by taxonomic specialization for a specific taxon.
+
+  Combines two complementary signals:
+
+  1. TF-IDF specialization score (always included):
+     - Measures how characteristic an EC function is of THIS taxon relative to all taxa
+       in the database — not just whether the gene is present, but whether it is a
+       genomic hallmark of this taxonomic group
+     - term frequency = fraction of proteomes in the taxon containing the EC
+     - inverse document frequency = downweights ECs common across many taxa
+     - tfidf_score = tf * idf — high means the EC is a specialization of this taxon
+     - CAVEAT: specialization scores are less reliable for taxa with few sequenced isolates.
+       Always check n_proteomes_taxon per result and n_proteomes in metadata.
+       Genera or families with < ~5 isolates may show inflated or unstable scores.
+
+  2. BPR metabolic alignment (opt-in via include_bpr_scores=True):
+     - Projects each enzyme into BPR latent space via its linked WoM substrate compounds
+     - β_enzyme = mean of BPR item embeddings for that EC's associated compounds
+     - score = θ_taxon · β_enzyme (mean-centred across ECs in the result set)
+     - Positive = enzyme aligns with this taxon's metabolic niche; negative = misaligned
+     - Requires BPR model to be loaded (adds ~1 s the first time)
+
+  Use tfidf_score to rank genomically specialized enzymes.
+  Use bpr_alignment_score to identify which of those enzymes are metabolically active
+  given the compounds this taxon actually consumes or secretes.
+
+  Use this when users ask for distinctive enzyme activities/functions for a genus/family/etc.
+
+  PARAMETERS:
+  - level (required): Taxonomic level of the query taxon
+    Valid values: 'kingdom', 'phylum', 'class', 'order', 'family', 'genus'
+
+  - taxon (required): Taxon name at that level
+
+  - top_k (optional, default=25): Number of functions to return
+
+  - min_tfidf (optional): Filter by minimum specialization score
+  - min_frequency (optional): Filter by minimum within-taxon frequency (0-1)
+
+  - include_compounds (optional, default=True): Include top WoM compounds linked to each EC
+  - max_compounds_per_function (optional, default=5): Limit compounds listed per EC
+
+  - include_bpr_scores (optional, default=False): Add BPR metabolic alignment score to each EC
+    When True, each result gains a 'bpr_alignment_score' field (float or null if no linked
+    compounds appear in the BPR model)
+
+  - interaction_type (optional, default='consumed'): Model interaction context
+    Valid values: 'consumed', 'secreted'
+
+  - model_type (optional, default='bpr'): Model family context
+    Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+
+  RESPONSE FORMAT:
+  - success (bool)
+  - results (list): EC numbers ranked by specialization score; each entry includes
+    tfidf_score, tf_frequency, idf, n_proteomes_with_ec, n_proteomes_taxon,
+    and optionally bpr_alignment_score and associated_compounds
+  - metadata (dict): requested/matched taxon, n_proteomes (isolate count for the taxon),
+    filter settings, bpr_alignment_scores_included
+  - error (string): present when success=False
+
+  EXAMPLE USAGE:
+  - enriched_functions_for_taxon(level='genus', taxon='Pseudomonas', top_k=30)
+  - enriched_functions_for_taxon(level='genus', taxon='Burkholderia', include_bpr_scores=True)
+    """,
+)
+def enriched_functions_for_taxon(
+    level: str,
+    taxon: str,
+    top_k: int = 25,
+    min_tfidf: float | None = None,
+    min_frequency: float | None = None,
+    include_compounds: bool = True,
+    max_compounds_per_function: int = 5,
+    include_bpr_scores: bool = False,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
+ ) -> str:
+    """Get enriched EC functions for a taxon."""
+    try:
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
+
+        query_obj = EnrichedFunctionsForTaxonQuery(
+            level=level,
+            taxon=taxon,
+            top_k=top_k,
+            min_tfidf=min_tfidf,
+            min_frequency=min_frequency,
+            include_compounds=include_compounds,
+            max_compounds_per_function=max_compounds_per_function,
+            include_bpr_scores=include_bpr_scores,
+            config=query_config,
+        )
+
+        response = engine.query_enriched_functions_for_taxon(query_obj)
+        return _serialize_wom_response(
+            response,
+            tool_name="enriched_functions_for_taxon",
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
+
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": f"Failed to get enriched functions for taxon: {str(e)}"
+        }, indent=2)
+
+
+@mcp.tool(
+    name="explain_compound_group",
+    description="""Explain how a compound name is grouped and which representative name WoM chose for it.
+
+  WoM maps every compound to a single "representative name" drawn from the ChEBI
+  chemical ontology.  Two compounds share a representative name when their InChIKey
+  connectivity block (the first 14-character segment) is identical — meaning they
+  are structural isomers or stereoisomers of the same backbone.
+
+  The representative name is chosen by a simple, deterministic rubric — it is NOT
+  intended to favor one form of a compound over another biologically:
+    1. Names in the "Goldilocks zone" (5-60 characters) are preferred over very
+       short abbreviations and very long IUPAC strings
+    2. Within that, type priority: UniProt name > ChEBI preferred name > synonym >
+       IUPAC name > brand name
+    3. Shorter name wins ties; lower ChEBI ID (more established entry) breaks
+       remaining ties
+
+  Use this tool when:
+  - A compound appears under an unexpected name in results
+  - You want to know which synonyms or stereoisomers are collapsed into one entry
+  - You want to confirm whether a specific name is in the WoM model
+
+  PARAMETERS:
+  - compound (required): Any name for the compound (exact match attempted first,
+    then fuzzy)
+
+  RESPONSE FORMAT:
+  - success (bool)
+  - matched_input (dict): how the input name was resolved (name, chebi_id, match_type, score)
+  - representative_name (str): the name WoM uses for this compound group
+  - in_wom_model (bool): whether representative_name appears in the BPR training data
+  - grouping_key (str): first-block InChIKey shared by all group members
+  - group_size (int): total number of names (synonyms + stereoisomers) in the group
+  - group_members (list): all names in the group — each entry has:
+      name, chebi_id, name_type, inchi_key, is_representative
+  - rubric_explanation (str): plain-English summary of why this representative was chosen
+    """,
+)
+def explain_compound_group(compound: str) -> str:
+    """Return all names in a compound group and explain the representative name choice."""
+    try:
+        engine, _ = _get_wom_engine()
+        chebi = engine.chebi_data
+
+        # Map the input name to a ChEBI entry
+        mapping = map_compound_name(compound, chebi)
+        if mapping.representative_name is None:
+            return json.dumps({
+                "success": False,
+                "error": f"Could not match '{compound}' to any ChEBI entry",
+            }, indent=2)
+
+        # Find the first-block InChIKey for the matched entry
+        matched_rows = chebi[chebi["compound_id"] == mapping.chebi_id]
+        if matched_rows.empty:
+            # Fall back: find by best_name
+            matched_rows = chebi[chebi["best_name"] == mapping.representative_name]
+
+        if matched_rows.empty:
+            return json.dumps({
+                "success": False,
+                "error": f"Matched to '{mapping.representative_name}' but could not locate group in ChEBI data",
+            }, indent=2)
+
+        grouping_key = matched_rows.iloc[0]["first_block_inchi_key"]
+
+        # Get all members of the group
+        group_df = chebi[chebi["first_block_inchi_key"] == grouping_key].copy()
+        group_df = group_df[group_df["name"] != ""].drop_duplicates(subset=["name", "compound_id"])
+        group_df = group_df.sort_values(
+            ["name_rank", "type_secondary", "name_length", "compound_id"],
+            ascending=[True, True, True, True],
+        )
+
+        rep_name = mapping.representative_name
+        in_wom = rep_name in engine.artifacts.training_data.metabolite_to_idx
+
+        # Build group member list
+        members = []
+        for _, row in group_df.iterrows():
+            members.append({
+                "name": row["name"],
+                "chebi_id": row["compound_id"],
+                "name_type": row.get("name_type", None),
+                "inchi_key": row.get("inchi_key", None),
+                "is_representative": row["name"] == rep_name,
+            })
+
+        # Build rubric explanation
+        rep_row = group_df[group_df["name"] == rep_name]
+        if not rep_row.empty:
+            r = rep_row.iloc[0]
+            name_len = len(rep_name)
+            in_goldilocks = 5 <= name_len <= 60
+            type_label = r.get("name_type", "unknown type")
+            rubric_parts = [
+                f"The representative '{rep_name}' was chosen because:",
+                f"  • name type: {type_label} (type priority rank {int(r['name_rank'])})",
+                f"  • length: {name_len} chars — {'within' if in_goldilocks else 'outside'} the preferred 5-60 char Goldilocks zone",
+                f"  • ChEBI ID: {r['compound_id']} (lower = more established entry)",
+                "",
+                "Selection order (lower wins): UniProt name → ChEBI preferred → synonym → IUPAC → brand name;",
+                "then names in the 5-60 char range; then shortest; then lowest ChEBI ID.",
+                "",
+                "This rubric is deterministic and name-agnostic — it does not reflect biological preference.",
+            ]
+            rubric_explanation = "\n".join(rubric_parts)
+        else:
+            rubric_explanation = (
+                "Representative name chosen by: name type priority (UniProt > preferred > synonym > IUPAC > brand), "
+                "then Goldilocks length (5-60 chars), then shortest, then lowest ChEBI ID."
+            )
+
+        return json.dumps({
+            "success": True,
+            "matched_input": {
+                "query": compound,
+                "resolved_to": mapping.representative_name,
+                "chebi_id": mapping.chebi_id,
+                "match_type": mapping.match_type,
+                "match_score": round(mapping.match_score, 3),
+            },
+            "representative_name": rep_name,
+            "in_wom_model": in_wom,
+            "grouping_key": grouping_key,
+            "grouping_basis": "first 14-character block of InChIKey (connectivity — same for all stereoisomers)",
+            "group_size": len(members),
+            "group_members": members,
+            "rubric_explanation": rubric_explanation,
+        }, indent=2)
+
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": f"Failed to explain compound group: {str(e)}",
+        }, indent=2)
+
+
+@mcp.tool(
     name="taxonomy_levels_for_growth_rate",
     description="""Look up predicted microbial growth rates (doubling times) by taxonomy.
     
@@ -1394,7 +1739,7 @@ EXAMPLES:
 )
 def taxonomy_levels_for_growth_rate(query: str, level: str = 'genus', stat: str = 'median') -> str:
     """Query growth rate predictions from Phydon database.
-    
+
     Returns doubling time in hours with statistics.
     """
     try:
@@ -1404,6 +1749,94 @@ def taxonomy_levels_for_growth_rate(query: str, level: str = 'genus', stat: str 
         return json.dumps(response, indent=2)
     except Exception as e:
         return json.dumps({"error": f"Growth rate lookup failed: {str(e)}"})
+
+
+@mcp.tool(
+    name="analyze_substrate_gaps",
+    description="""Cross-reference BPR metabolite preference with annotated enzyme presence to find biological gaps.
+
+  Uses two independent signals that do NOT share data:
+  - BPR preference score: learned from exometabolite uptake/secretion experiments
+  - Enzyme annotation: derived from UniProt catalytic activity + ChEBI reaction data
+
+  Divergence between these signals is biologically informative:
+
+  ORPHAN ENZYME CANDIDATES (high BPR preference, no annotated enzyme):
+    The taxon strongly prefers this substrate in exometabolome data, but no homolog-based
+    enzyme annotation exists for its catabolism. Possible interpretations:
+    - Novel enzyme family with no characterized homologs (true orphan)
+    - Known enzyme with poor sequence similarity to characterized examples
+    - Gap in the UniProt/ChEBI reaction database for this organism's lifestyle
+    These are hypotheses, not confirmed orphans — verify with genome mining.
+
+  REGULATED/SUPPRESSED SUBSTRATES (annotated enzyme present, low/negative BPR):
+    The taxon has the genetic capacity to catabolize this compound but the exometabolome
+    shows low or no consumption. Possible interpretations:
+    - Catabolite repression (CCR): a preferred substrate suppresses expression of these enzymes
+    - Genome streamlining: genes retained but rarely expressed (e.g., SAR11-type ecology)
+    - Conditional utilization: only expressed under specific environmental conditions
+    n_enzymes shows how many distinct EC numbers are annotated for that compound.
+
+  PARAMETERS:
+  - taxon (required): Taxon name to analyze
+  - level (optional, default='genus'): Taxonomic level
+    Valid values: 'kingdom', 'phylum', 'class', 'order', 'family', 'genus'
+  - top_k (optional, default=10): Max results per section (orphans and regulated each)
+  - bpr_z_threshold (optional, default=1.0): Z-score cutoff for high/low BPR preference
+    1.0 = top/bottom ~16% of compounds for this taxon; increase to be more selective
+  - interaction_type (optional, default='consumed'): 'consumed' or 'secreted'
+  - model_type (optional, default='bpr'): Model family
+
+  RESPONSE FORMAT:
+  - results (dict) with two sections:
+    - orphan_candidates: list of {compound, bpr_z_score, bpr_raw_score}
+      sorted by bpr_z_score descending (most preferred first)
+    - regulated_suppressed: list of {compound, bpr_z_score, bpr_raw_score, n_enzymes}
+      sorted by bpr_z_score ascending (most suppressed first)
+  - metadata: matched_taxon, n_proteomes, n_metabolites_in_model,
+    n_compounds_with_enzyme_support, bpr_z_threshold, total counts per section
+
+  EXAMPLE USAGE:
+  - analyze_substrate_gaps(taxon='Novosphingobium')
+  - analyze_substrate_gaps(taxon='SAR11', level='family', bpr_z_threshold=1.5)
+    """,
+)
+def analyze_substrate_gaps(
+    taxon: str,
+    level: str = "genus",
+    top_k: int = 10,
+    bpr_z_threshold: float = 1.0,
+    interaction_type: str = "consumed",
+    model_type: str = "bpr",
+) -> str:
+    """Find metabolite-enzyme gaps for a taxon."""
+    try:
+        engine, query_config = _get_wom_engine(
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
+
+        query_obj = SubstrateGapQuery(
+            level=level,
+            taxon=taxon,
+            top_k=top_k,
+            bpr_z_threshold=bpr_z_threshold,
+            config=query_config,
+        )
+
+        response = engine.query_substrate_gaps(query_obj)
+        return _serialize_wom_response(
+            response,
+            tool_name="analyze_substrate_gaps",
+            model_type=model_type,
+            interaction_type=interaction_type,
+        )
+
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": f"Failed to analyze substrate gaps: {str(e)}"
+        }, indent=2)
 
 
 if __name__ == "__main__":

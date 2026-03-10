@@ -14,3 +14,4 @@ chat/
 wom/exometabolite_data/
 wom/chebi_source
 wom/data
+wom/processed_data/function_reactions.parquet

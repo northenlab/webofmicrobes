@@ -334,6 +334,53 @@ class GetEnvironmentCompoundsQuery:
     config: QueryConfig = field(default_factory=QueryConfig)
 
 
+@dataclass
+class ListFunctionEnrichmentTaxaQuery:
+    """Query: List taxa that have function enrichment coverage."""
+    level: Literal["kingdom", "phylum", "class", "order", "family", "genus"] = "genus"
+    min_proteomes: int = 1
+    include_counts: bool = True
+
+    config: QueryConfig = field(default_factory=QueryConfig)
+
+
+@dataclass
+class EnrichedFunctionsForTaxonQuery:
+    """Query: Get taxon-specialization ranked EC functions using TF-IDF.
+
+    TF-IDF measures how characteristic an enzyme is of this taxon relative to all taxa
+    in the database — high score = the EC is a genomic hallmark of this group.
+    Reliability decreases with few sequenced isolates; interpret with caution when
+    n_proteomes_taxon is small (< ~5).
+    """
+    level: Literal["kingdom", "phylum", "class", "order", "family", "genus"]
+    taxon: str
+    top_k: int = 25
+    min_tfidf: Optional[float] = None
+    min_frequency: Optional[float] = None
+    include_compounds: bool = True
+    max_compounds_per_function: int = 5
+    include_bpr_scores: bool = False  # Project enzymes into BPR latent space for alignment scoring
+
+    config: QueryConfig = field(default_factory=QueryConfig)
+
+
+@dataclass
+class SubstrateGapQuery:
+    """Query: Cross-reference BPR metabolite preference with annotated enzyme presence.
+
+    Surfaces two biologically meaningful gap patterns:
+    - Orphan enzyme candidates: high BPR preference + no annotated enzyme
+    - Regulated/suppressed substrates: annotated enzyme present + low BPR preference
+    """
+    level: Literal["kingdom", "phylum", "class", "order", "family", "genus"]
+    taxon: str
+    top_k: int = 10
+    bpr_z_threshold: float = 1.0  # σ cutoff; 1.0 ≈ top/bottom 16% of compounds
+
+    config: QueryConfig = field(default_factory=QueryConfig)
+
+
 # =============================================================================
 # Query Response Types
 # =============================================================================

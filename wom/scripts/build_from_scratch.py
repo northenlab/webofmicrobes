@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from loaders.compound_mapper import build_chebi_database
 from loaders.loaders import build_exometabolite_dataframe, build_environment_dataframe, prepare_training_data
+from loaders.function_enrichment import build_function_enrichment_tables
 from loaders.config import CHEBI_SOURCE_DIR, PROCESSED_DATA_DIR, EXOMETABOLITE_DATA_DIR
 from core.types import AssertionType
 
@@ -117,6 +118,31 @@ def main():
     except Exception as e:
         logger.error(f"❌ Failed to build environment data: {e}", exc_info=True)
         return 1
+
+    # Step 2.75: Build UniProt-derived function enrichment tables
+    logger.info("")
+    logger.info("=" * 70)
+    logger.info("STEP 2.75: Building function enrichment tables")
+    logger.info("=" * 70)
+    logger.info("Parsing UniProt catalytic activity + EC annotations and computing taxon tf-idf enrichments")
+    logger.info("")
+
+    try:
+        function_tables = build_function_enrichment_tables(force=True)
+        logger.info("")
+        logger.info("✅ Function enrichment data built successfully:")
+        logger.info(f"   - {len(function_tables['proteins']):,} proteins in WoM taxonomy scope")
+        logger.info(f"   - {len(function_tables['protein_ec']):,} protein-EC annotations")
+        logger.info(f"   - {len(function_tables['protein_reactions']):,} protein-reaction links")
+        logger.info(f"   - {len(function_tables['reaction_catalog']):,} unique reaction-compound entries")
+        logger.info(f"   - {len(function_tables['taxon_function_enrichment']):,} taxon-function enrichment rows")
+        logger.info(f"   - {len(function_tables['taxon_function_compound_support']):,} taxon/EC/compound support rows")
+    except FileNotFoundError as e:
+        logger.warning(f"⚠️ Skipping function enrichment build: {e}")
+        logger.warning("   Ensure UniProt URL is reachable; builder downloads to configured path automatically")
+    except Exception as e:
+        logger.error(f"❌ Failed to build function enrichment data: {e}", exc_info=True)
+        return 1
     
     # Step 3: Prepare training data
     logger.info("")
@@ -166,6 +192,12 @@ def main():
     logger.info(f"  {PROCESSED_DATA_DIR}/exometabolite.parquet (processed)")
     logger.info(f"  {PROCESSED_DATA_DIR}/environments.parquet (processed)")
     logger.info(f"  {PROCESSED_DATA_DIR}/environment_stats.csv (stats)")
+    logger.info(f"  {PROCESSED_DATA_DIR}/function_proteins.parquet (optional, UniProt scope proteins)")
+    logger.info(f"  {PROCESSED_DATA_DIR}/function_protein_ec.parquet (optional, protein-EC annotations)")
+    logger.info(f"  {PROCESSED_DATA_DIR}/function_protein_reactions.parquet (optional, protein-reaction links)")
+    logger.info(f"  {PROCESSED_DATA_DIR}/function_reaction_catalog.parquet (optional, reaction-compound catalog)")
+    logger.info(f"  {PROCESSED_DATA_DIR}/taxon_function_enrichment.parquet (optional, tf-idf enrichments)")
+    logger.info(f"  {PROCESSED_DATA_DIR}/taxon_function_compound_support.parquet (optional, EC-compound support)")
     logger.info("")
     logger.info("Ready for model training!")
     

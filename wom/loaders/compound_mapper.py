@@ -391,8 +391,14 @@ def map_compound_name(
     # Try exact match
     matches = chebi[chebi['name_for_matching'] == normalized]
     if len(matches) > 0:
-        # Take first match sorted by compound_id for consistency
-        best = matches.sort_values('compound_id').drop_duplicates('best_name').iloc[0]
+        matches = matches.copy()
+        matches['_is_self_rep'] = (matches['best_name'] == matches['name']).astype(int)
+        best = (
+            matches
+            .sort_values(['_is_self_rep', 'compound_id'], ascending=[False, True])
+            .drop_duplicates('best_name')
+            .iloc[0]
+        )
         return CompoundMapping(
             query_name=name,
             representative_name=best['best_name'],
@@ -412,8 +418,14 @@ def map_compound_name(
     
     if result:
         match_name, score, _ = result
-        matches = chebi[chebi['name_for_matching'] == match_name]
-        best = matches.sort_values('compound_id').drop_duplicates('best_name').iloc[0]
+        matches = chebi[chebi['name_for_matching'] == match_name].copy()
+        matches['_is_self_rep'] = (matches['best_name'] == matches['name']).astype(int)
+        best = (
+            matches
+            .sort_values(['_is_self_rep', 'compound_id'], ascending=[False, True])
+            .drop_duplicates('best_name')
+            .iloc[0]
+        )
         
         return CompoundMapping(
             query_name=name,

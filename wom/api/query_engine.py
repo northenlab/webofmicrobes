@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 
 from core.types import ModelArtifacts, PredictionResult
 from core.io import load_model_artifacts
@@ -18,6 +19,10 @@ from core.training import compute_taxonomy_embeddings
 from core.validation import InputMatchResult, InputValidationSummary
 from loaders.compound_mapper import load_chebi, map_compound_name
 from loaders.loaders import load_environments
+from loaders.function_enrichment import (
+    load_taxon_function_enrichment,
+    load_taxon_function_compound_support,
+)
 from .query_types import (
     QueryConfig,
     QueryResponse,
@@ -34,6 +39,9 @@ from .query_types import (
     ListEnvironmentsQuery,
     SearchEnvironmentQuery,
     GetEnvironmentCompoundsQuery,
+    ListFunctionEnrichmentTaxaQuery,
+    EnrichedFunctionsForTaxonQuery,
+    SubstrateGapQuery,
 )
 
 logger = logging.getLogger(__name__)
@@ -101,6 +109,8 @@ class QueryEngine:
         self._artifacts: Optional[ModelArtifacts] = None
         self._chebi_data: Optional[dict] = None
         self._environment_data = None
+        self._taxon_function_enrichment_data: Optional[pd.DataFrame] = None
+        self._taxon_function_compound_support_data: Optional[pd.DataFrame] = None
 
     def _base_metadata(self) -> dict:
         """Common metadata included in all query responses."""
@@ -141,6 +151,20 @@ class QueryEngine:
         if self._environment_data is None:
             self._environment_data = load_environments()
         return self._environment_data
+
+    @property
+    def taxon_function_enrichment_data(self) -> pd.DataFrame:
+        """Lazy-load taxon-function enrichment table."""
+        if self._taxon_function_enrichment_data is None:
+            self._taxon_function_enrichment_data = load_taxon_function_enrichment()
+        return self._taxon_function_enrichment_data
+
+    @property
+    def taxon_function_compound_support_data(self) -> pd.DataFrame:
+        """Lazy-load taxon/EC/compound support table."""
+        if self._taxon_function_compound_support_data is None:
+            self._taxon_function_compound_support_data = load_taxon_function_compound_support()
+        return self._taxon_function_compound_support_data
     
     # =========================================================================
     # Input Validation Helpers
@@ -1567,4 +1591,393 @@ class QueryEngine:
                 results=[],
                 metadata=self._base_metadata(),
                 error=str(e)
+            )
+
+    # =========================================================================
+    # Function Enrichment Query Methods
+    # =========================================================================
+
+    def _compute_bpr_enzyme_scores(
+        self,
+        level: str,
+        matched_taxon: str,
+        ec_numbers: list[str],
+        support_df: pd.DataFrame,
+    ) -> dict[str, float | None]:
+        """Project EC functions into BPR latent space and score by taxon alignment.
+
+        For each EC, computes β_enzyme = mean of BPR item embeddings for its
+        linked WoM compounds, then scores as θ_taxon · β_enzyme.  ECs whose
+        compounds don't appear in the BPR model receive None.
+
+        Returns a dict mapping ec_number -> score (float) or None.
+        """
+        try:
+            theta = self.artifacts.get_embedding(level, matched_taxon)
+        except (ValueError, KeyError):
+            return {ec: None for ec in ec_numbers}
+
+        metabolite_to_idx = self.artifacts.training_data.metabolite_to_idx
+        metabolite_embeddings = self.artifacts.model.metabolite_embeddings  # (n_metabolites, dim)
+
+        raw_scores: dict[str, float | None] = {}
+        for ec in ec_numbers:
+            ec_support = support_df[support_df["ec_number"] == ec]
+            compound_names = ec_support["representative_compound"].dropna().unique().tolist()
+            indices = [
+                metabolite_to_idx[c] for c in compound_names if c in metabolite_to_idx
+            ]
+            if not indices:
+                raw_scores[ec] = None
+                continue
+            beta_enzyme = metabolite_embeddings[indices].mean(axis=0)
+            raw_scores[ec] = float(np.dot(theta, beta_enzyme))
+
+        # Normalise across ECs that have scores so values are interpretable
+        # relative to the queried set (subtract mean, keep units as dot-product).
+        valid = [s for s in raw_scores.values() if s is not None]
+        if valid:
+            mu = float(np.mean(valid))
+            raw_scores = {
+                ec: (s - mu if s is not None else None)
+                for ec, s in raw_scores.items()
+            }
+
+        return raw_scores
+
+    def query_list_function_enrichment_taxa(
+        self,
+        query: ListFunctionEnrichmentTaxaQuery,
+    ) -> QueryResponse:
+        """List taxa with available function enrichment support."""
+        try:
+            df = self.taxon_function_enrichment_data
+            level = query.level.lower()
+
+            level_df = df[df["level"] == level].copy()
+            if level_df.empty:
+                return QueryResponse(
+                    success=True,
+                    query_type="list_function_enrichment_taxa",
+                    results=[],
+                    metadata={
+                        **self._base_metadata(),
+                        "level": level,
+                        "n_taxa": 0,
+                        "min_proteomes": query.min_proteomes,
+                    },
+                )
+
+            taxon_summary = (
+                level_df
+                .groupby("taxon")
+                .agg(
+                    n_proteomes=("n_proteomes_taxon", "max"),
+                    n_enriched_functions=("ec_number", "nunique"),
+                    top_tfidf=("tfidf_score", "max"),
+                )
+                .reset_index()
+            )
+
+            taxon_summary = taxon_summary[taxon_summary["n_proteomes"] >= query.min_proteomes]
+            taxon_summary = taxon_summary.sort_values(
+                ["n_proteomes", "n_enriched_functions", "top_tfidf"],
+                ascending=[False, False, False],
+            )
+
+            results = []
+            for _, row in taxon_summary.iterrows():
+                item = {"taxon": row["taxon"]}
+                if query.include_counts:
+                    item.update({
+                        "n_proteomes": int(row["n_proteomes"]),
+                        "n_enriched_functions": int(row["n_enriched_functions"]),
+                        "top_tfidf": float(row["top_tfidf"]),
+                    })
+                results.append(item)
+
+            return QueryResponse(
+                success=True,
+                query_type="list_function_enrichment_taxa",
+                results=results,
+                metadata={
+                    **self._base_metadata(),
+                    "level": level,
+                    "n_taxa": len(results),
+                    "min_proteomes": query.min_proteomes,
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"Error in list_function_enrichment_taxa query: {e}", exc_info=True)
+            return QueryResponse(
+                success=False,
+                query_type="list_function_enrichment_taxa",
+                results=[],
+                metadata=self._base_metadata(),
+                error=str(e),
+            )
+
+    def query_enriched_functions_for_taxon(
+        self,
+        query: EnrichedFunctionsForTaxonQuery,
+    ) -> QueryResponse:
+        """Return taxon-specialization ranked EC functions using TF-IDF scoring."""
+        try:
+            enrichment_df = self.taxon_function_enrichment_data
+            level = query.level.lower()
+            requested_taxon = query.taxon
+
+            level_df = enrichment_df[enrichment_df["level"] == level].copy()
+            if level_df.empty:
+                return QueryResponse(
+                    success=False,
+                    query_type="enriched_functions_for_taxon",
+                    results=[],
+                    metadata={**self._base_metadata(), "level": level},
+                    error=f"No enrichment data available for level '{level}'",
+                )
+
+            taxon_df = level_df[level_df["taxon"] == requested_taxon].copy()
+            matched_taxon = requested_taxon
+
+            if taxon_df.empty:
+                from rapidfuzz import process, fuzz
+                candidates = level_df["taxon"].dropna().astype(str).unique().tolist()
+                best = process.extractOne(requested_taxon, candidates, scorer=fuzz.WRatio)
+                if best and best[1] >= 80:
+                    matched_taxon = best[0]
+                    taxon_df = level_df[level_df["taxon"] == matched_taxon].copy()
+                else:
+                    return QueryResponse(
+                        success=False,
+                        query_type="enriched_functions_for_taxon",
+                        results=[],
+                        metadata={**self._base_metadata(), "level": level},
+                        error=f"Taxon not found at level '{level}': {requested_taxon}",
+                    )
+
+            if query.min_tfidf is not None:
+                taxon_df = taxon_df[taxon_df["tfidf_score"] >= query.min_tfidf]
+            if query.min_frequency is not None:
+                taxon_df = taxon_df[taxon_df["tf_frequency"] >= query.min_frequency]
+
+            taxon_df = taxon_df.sort_values("tfidf_score", ascending=False).head(query.top_k)
+
+            # Load compound support data if needed for compounds or BPR scoring
+            support_df = None
+            if query.include_compounds or query.include_bpr_scores:
+                support_df = self.taxon_function_compound_support_data
+                support_df = support_df[
+                    (support_df["level"] == level) &
+                    (support_df["taxon"] == matched_taxon)
+                ].copy()
+
+            # Compute BPR alignment scores for all ECs in the result set
+            bpr_scores: dict[str, float | None] = {}
+            if query.include_bpr_scores and support_df is not None:
+                ec_list = taxon_df["ec_number"].dropna().unique().tolist()
+                bpr_scores = self._compute_bpr_enzyme_scores(
+                    level=level,
+                    matched_taxon=matched_taxon,
+                    ec_numbers=ec_list,
+                    support_df=support_df,
+                )
+
+            results = []
+            for _, row in taxon_df.iterrows():
+                result_item = {
+                    "ec_number": row["ec_number"],
+                    "tfidf_score": float(row["tfidf_score"]),
+                    "tf_frequency": float(row["tf_frequency"]),
+                    "idf": float(row["idf"]),
+                    "n_proteomes_with_ec": int(row["n_proteomes_with_ec"]),
+                    "n_proteomes_taxon": int(row["n_proteomes_taxon"]),
+                    "n_taxa_with_ec": int(row["n_taxa_with_ec"]),
+                    "n_taxa_level": int(row["n_taxa_level"]),
+                }
+
+                if query.include_bpr_scores:
+                    score = bpr_scores.get(row["ec_number"])
+                    result_item["bpr_alignment_score"] = score
+
+                if query.include_compounds and support_df is not None and not support_df.empty:
+                    ec_support = support_df[support_df["ec_number"] == row["ec_number"]]
+                    ec_support = ec_support.sort_values(
+                        ["n_reaction_rows", "n_proteins_support"],
+                        ascending=[False, False],
+                    ).head(query.max_compounds_per_function)
+                    result_item["associated_compounds"] = [
+                        {
+                            "representative_compound": srow["representative_compound"],
+                            "n_reaction_rows": int(srow["n_reaction_rows"]),
+                            "n_proteins_support": int(srow["n_proteins_support"]),
+                        }
+                        for _, srow in ec_support.iterrows()
+                    ]
+
+                results.append(result_item)
+
+            n_proteomes = int(taxon_df["n_proteomes_taxon"].iloc[0]) if len(taxon_df) > 0 else None
+
+            return QueryResponse(
+                success=True,
+                query_type="enriched_functions_for_taxon",
+                results=results,
+                metadata={
+                    **self._base_metadata(),
+                    "level": level,
+                    "requested_taxon": requested_taxon,
+                    "matched_taxon": matched_taxon,
+                    "n_proteomes": n_proteomes,
+                    "n_functions_returned": len(results),
+                    "top_k": query.top_k,
+                    "min_tfidf": query.min_tfidf,
+                    "min_frequency": query.min_frequency,
+                    "bpr_alignment_scores_included": query.include_bpr_scores,
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"Error in enriched_functions_for_taxon query: {e}", exc_info=True)
+            return QueryResponse(
+                success=False,
+                query_type="enriched_functions_for_taxon",
+                results=[],
+                metadata=self._base_metadata(),
+                error=str(e),
+            )
+
+    def query_substrate_gaps(self, query: SubstrateGapQuery) -> QueryResponse:
+        """Cross-reference BPR metabolite preference with annotated enzyme presence.
+
+        Returns orphan enzyme candidates (high BPR, no annotated enzyme) and
+        regulated/suppressed substrates (annotated enzyme present, low BPR).
+        """
+        try:
+            level = query.level.lower()
+
+            # Resolve taxon name against enrichment table (consistent with other queries)
+            enrichment_df = self.taxon_function_enrichment_data
+            level_df = enrichment_df[enrichment_df["level"] == level]
+            if level_df.empty:
+                return QueryResponse(
+                    success=False,
+                    query_type="substrate_gaps",
+                    results=[],
+                    metadata={**self._base_metadata(), "level": level},
+                    error=f"No enrichment data available for level '{level}'",
+                )
+
+            requested_taxon = query.taxon
+            matched_taxon = requested_taxon
+            if requested_taxon not in level_df["taxon"].values:
+                from rapidfuzz import process, fuzz
+                candidates = level_df["taxon"].dropna().astype(str).unique().tolist()
+                best = process.extractOne(requested_taxon, candidates, scorer=fuzz.WRatio)
+                if best and best[1] >= 80:
+                    matched_taxon = best[0]
+                else:
+                    return QueryResponse(
+                        success=False,
+                        query_type="substrate_gaps",
+                        results=[],
+                        metadata={**self._base_metadata(), "level": level},
+                        error=f"Taxon not found at level '{level}': {requested_taxon}",
+                    )
+
+            # Get n_proteomes for this taxon from enrichment table
+            taxon_enrich = level_df[level_df["taxon"] == matched_taxon]
+            n_proteomes = int(taxon_enrich["n_proteomes_taxon"].iloc[0]) if len(taxon_enrich) > 0 else None
+
+            # Compute BPR scores for ALL metabolites
+            try:
+                prediction = self.artifacts.predict_with_stats(level=level, name=matched_taxon)
+            except (ValueError, KeyError) as e:
+                return QueryResponse(
+                    success=False,
+                    query_type="substrate_gaps",
+                    results=[],
+                    metadata={**self._base_metadata(), "level": level, "matched_taxon": matched_taxon},
+                    error=f"BPR prediction not available for '{matched_taxon}': {e}",
+                )
+
+            raw_scores = prediction.raw_scores
+            std = prediction.std_score
+            metabolite_names = prediction.metabolite_names
+
+            # Compute z-scores (raw_scores are not mean-centered by predict_with_stats)
+            mean = prediction.mean_score
+            if std > 0:
+                z_scores = (raw_scores - mean) / std
+            else:
+                z_scores = np.zeros_like(raw_scores)
+
+            # Load enzyme compound support for this taxon
+            support_df = self.taxon_function_compound_support_data
+            taxon_support = support_df[
+                (support_df["level"] == level) & (support_df["taxon"] == matched_taxon)
+            ]
+            enzyme_compounds = set(taxon_support["representative_compound"].dropna())
+
+            # Count distinct ECs per compound for the regulated section
+            ec_counts = (
+                taxon_support.groupby("representative_compound")["ec_number"]
+                .nunique()
+                .to_dict()
+            )
+
+            # Classify each metabolite
+            orphans = []
+            regulated = []
+            threshold = query.bpr_z_threshold
+
+            for name, z, raw in zip(metabolite_names, z_scores, raw_scores):
+                has_enzyme = name in enzyme_compounds
+                if z > threshold and not has_enzyme:
+                    orphans.append({
+                        "compound": name,
+                        "bpr_z_score": round(float(z), 3),
+                        "bpr_raw_score": round(float(raw), 3),
+                    })
+                elif z < -threshold and has_enzyme:
+                    regulated.append({
+                        "compound": name,
+                        "bpr_z_score": round(float(z), 3),
+                        "bpr_raw_score": round(float(raw), 3),
+                        "n_enzymes": ec_counts.get(name, 0),
+                    })
+
+            orphans.sort(key=lambda x: x["bpr_z_score"], reverse=True)
+            regulated.sort(key=lambda x: x["bpr_z_score"])
+
+            return QueryResponse(
+                success=True,
+                query_type="substrate_gaps",
+                results={
+                    "orphan_candidates": orphans[: query.top_k],
+                    "regulated_suppressed": regulated[: query.top_k],
+                },
+                metadata={
+                    **self._base_metadata(),
+                    "level": level,
+                    "requested_taxon": requested_taxon,
+                    "matched_taxon": matched_taxon,
+                    "n_proteomes": n_proteomes,
+                    "n_metabolites_in_model": len(metabolite_names),
+                    "n_compounds_with_enzyme_support": len(enzyme_compounds),
+                    "bpr_z_threshold": threshold,
+                    "n_orphan_candidates": len(orphans),
+                    "n_regulated_suppressed": len(regulated),
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"Error in substrate_gaps query: {e}", exc_info=True)
+            return QueryResponse(
+                success=False,
+                query_type="substrate_gaps",
+                results=[],
+                metadata=self._base_metadata(),
+                error=str(e),
             )
