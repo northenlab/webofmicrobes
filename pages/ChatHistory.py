@@ -31,27 +31,10 @@ if not chat_id:
 # Display chat history
 chat_history = json.loads(open(f"/app/chat/{chat_id}.json").read())
 
-try:
-    # Display chat messages from history on app rerun
-    for message in chat_history:
-        with st.chat_message(message["role"]):
-            if message["role"] == "user":
-                st.markdown(message["content"])
-            else:
-                for i, part in enumerate(message["content"]):
-                    if part.get("tool_calls", False):
-                        display_assistant_message(part["content"], tool_calls=True)
-                    else:
-                        display_assistant_message(part["content"], tool_calls=False)
-except:
-    # Display chat messages from history on app rerun
-    for message in chat_history:
-       with st.chat_message(message["display_role"]):
-           if message["display_role"] == "user":
-               st.markdown(message["content"])
-           else:
-               for part in message["content"]:
-                    if part.get("tool_calls", False):
-                        display_assistant_message(part["content"], tool_calls=True)
-                    else:
-                        display_assistant_message(part["content"], tool_calls=False)
+# Display conversation history
+for msg in chat_history:
+    if msg["role"] == "assistant":
+        with st.chat_message("assistant"):
+            display_assistant_message(msg["content"])
+    else:
+        st.chat_message("user").write(msg["content"])

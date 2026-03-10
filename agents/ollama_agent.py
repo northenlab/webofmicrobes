@@ -31,6 +31,7 @@ class TestAgent:
             self.model,
             system_prompt=open(system_prompt_filename, "r").read(),
             mcp_servers=[self.mcp_server],
+            model_settings={'temperature': 0.1}
         )
     # async def run(self, query: str, previous_result=None):
     #     async with self.agent:
