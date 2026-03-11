@@ -1,3 +1,6 @@
+import nest_asyncio
+nest_asyncio.apply()
+
 import streamlit as st
 from agents.ollama_agent import TestAgent
 from pydantic import BaseModel
