@@ -1,41 +1,68 @@
-import nest_asyncio
-nest_asyncio.apply()
-
-import streamlit as st
-from agents.ollama_agent import TestAgent
-from pydantic import BaseModel
-from pydantic_ai.messages import ModelResponse, ToolCallPart, TextPart
 import asyncio
-import uuid
-import json
+import threading
+import streamlit as st
+from streamlit.components.v1 import html
+from agents.ollama_agent import TestAgent
+from pydantic_ai.messages import ModelResponse, ToolCallPart, TextPart
 import os
+import uuid
+
 from display_chat import display_assistant_message, save_chat_history
 
 
+class AgentRunner:
+    def __init__(self):
+        self._loop = asyncio.new_event_loop()
+        self._run_lock = None
+        self._model_name = "gemini-3-flash-preview"
+        self._provider = "google"
+        self._thread = threading.Thread(target=self._run_loop, daemon=True)
+        self._thread.start()
+        future = asyncio.run_coroutine_threadsafe(self._init_loop_state(), self._loop)
+        future.result()
+
+    def _run_loop(self):
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_forever()
+
+    async def _init_loop_state(self):
+        self._run_lock = asyncio.Lock()
+
+    async def _run(self, prompt: str, previous_messages=None):
+        async with self._run_lock:
+            agent_instance = TestAgent(
+                model_name=self._model_name,
+                provider=self._provider,
+            )
+
+            async for _kind, _message in agent_instance.iter_formatted_events(
+                prompt,
+                previous_result=previous_messages,
+            ):
+                # Consume stream events to completion; final result is stored on the agent.
+                pass
+            return agent_instance.latest_response
+
+    def run(self, prompt: str, previous_messages=None):
+        future = asyncio.run_coroutine_threadsafe(
+            self._run(prompt, previous_messages=previous_messages),
+            self._loop,
+        )
+        return future.result()
+
+
+@st.cache_resource
+def get_runner():
+    return AgentRunner()
+
+# Add a tracking token
+html('<script async defer data-website-id="0b8faebf-f345-4b89-a5d2-7cbe1fd7d88d" src="https://analytics.gnps2.org/umami.js"></script>', width=0, height=0)
+html('<script async defer data-website-id="74bc9983-13c4-4da0-89ae-b78209c13aaf" src="https://analytics.gnps2.org/umami.js"></script>', width=0, height=0)
 
 st.set_page_config(
     page_title="Web of Microbes Agent",
     page_icon="🕸️", # spider web icon
     layout="wide",
-)
-
-
-if True:
-    # Password gate
-    st.write("Please enter the password to access the Web of Microbes Agent:")
-    password = st.text_input("Password", type="default")  # we're not going to trigger password saver in the browser
-    if password != "webofmicrobes":
-        st.error("Incorrect password. Please try again.")
-        st.stop()  # Stop execution if the password is incorrect
-
-        
-
-
-# Initialize the Ollama agent
-agent = TestAgent(
-    model_name="gpt-oss:120b",
-    #model_name="gpt-oss:20b",
-    base_url="http://10.10.10.238:11434/v1",
 )
 
 # Initialize session state for conversation history
@@ -50,7 +77,7 @@ st.sidebar.info(
 )
 if st.sidebar.button("🔄 New Chat", use_container_width=True):
     st.session_state["messages"] = []
-    st.session_state.pop("previous_agent_result", None)
+    st.session_state.pop("previous_agent_messages", None)
     st.session_state["chat_id"] = str(uuid.uuid4())
     st.rerun()
 chat_id = st.session_state["chat_id"]
@@ -90,6 +117,14 @@ else:
     st.image("images/wom_light_transparent.png", width=300)
 st.caption("Explore microbial substrate preferences and growth rates using AI-assisted search. The WoM agent is a collaboration between northenlab.org and cs.ucr.edu/~mingxunw")
 
+# Display conversation history
+for msg in st.session_state["messages"]:
+    if msg["role"] == "assistant":
+        with st.chat_message("assistant"):
+            display_assistant_message(msg["content"])
+    else:
+        st.chat_message("user").write(msg["content"])
+
 # Example queries
 EXAMPLE_QUERIES = [
     "What does Pseudomonas like to eat?",
@@ -127,18 +162,10 @@ if len(st.session_state["messages"]) == 0:
             if col.button(item["title"], use_container_width=True):
                 example_query = item["prompt"]
 
-
-# Display conversation history
-for msg in st.session_state["messages"]:
-    if msg["role"] == "assistant":
-        with st.chat_message("assistant"):
-            display_assistant_message(msg["content"])
-    else:
-        st.chat_message("user").write(msg["content"])
-
 # Input box for user query at the bottom
-chat_input = st.chat_input("Ask me about microbial substrate preferences, growth rates, or microbiome design...")
-if user_query := (example_query or chat_input):
+user_input = st.chat_input("Ask me about microbial substrate preferences, growth rates, or microbiome design...")
+user_query = example_query or user_input
+if user_query:
     example_container.empty()
     # Add user message to session state
     st.session_state["messages"].append({"role": "user", "content": user_query})
@@ -147,10 +174,15 @@ if user_query := (example_query or chat_input):
     # Agent response
     with st.spinner("Agent is thinking..."):
         try:
-            previous_agent_result = st.session_state.get("previous_agent_result", None)
+            runner = get_runner()
+            previous_agent_messages = st.session_state.get("previous_agent_messages", None)
 
-            result = agent.run_sync(user_query, previous_result=previous_agent_result)
-            st.session_state["previous_agent_result"] = result  # Store the previous result for potential future use
+            result = runner.run(
+                user_query,
+                previous_messages=previous_agent_messages,
+            )
+            
+            st.session_state["previous_agent_messages"] = result.all_messages()
 
             # Extract the 'content' field from the JSON response
             final_text = result.output  # Assuming result.output is the content field
