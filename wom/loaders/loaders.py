@@ -451,10 +451,34 @@ def prepare_training_data(
             m_idx = microbe_to_idx[row["organism_id"]]
             c_idx = metabolite_to_idx[row["representative_compound"]]
             positives[m_idx].add(c_idx)
-    
+
     logger.info(f"  {len(positives)} organisms with positive interactions")
     total_interactions = sum(len(s) for s in positives.values())
     logger.info(f"  {total_interactions:,} total positive interactions")
+
+    # Build known-negative set: tested compounds that are NOT in any positive class.
+    # These are rows with a real measured assertion_value (not NaN) whose assertion
+    # label is "neutral" — meaning the compound was present in the experiment but
+    # showed no significant change.  We exclude NaN values because those represent
+    # missing measurements, not genuine no-effect observations.
+    known_negatives = defaultdict(set)
+    neutral_df = df[
+        (df["assertion"] == "neutral") & df["assertion_value"].notna()
+    ]
+    for _, row in neutral_df.iterrows():
+        org_id = row["organism_id"]
+        compound = row["representative_compound"]
+        if org_id in microbe_to_idx and compound in metabolite_to_idx:
+            m_idx = microbe_to_idx[org_id]
+            c_idx = metabolite_to_idx[compound]
+            # Only register as known_negative if NOT already a positive for this microbe
+            if c_idx not in positives.get(m_idx, set()):
+                known_negatives[m_idx].add(c_idx)
+
+    n_with_kn = sum(1 for s in known_negatives.values() if s)
+    total_kn = sum(len(s) for s in known_negatives.values())
+    logger.info(f"  {n_with_kn} organisms with known negatives")
+    logger.info(f"  {total_kn:,} total known-negative interactions")
     
     # Build taxonomy lookup
     microbe_taxonomy = {}
@@ -476,6 +500,7 @@ def prepare_training_data(
         microbe_to_idx=microbe_to_idx,
         metabolite_to_idx=metabolite_to_idx,
         positives=dict(positives),
+        known_negatives=dict(known_negatives),
         microbe_taxonomy=microbe_taxonomy,
         preference_type=preference_type,
     )

@@ -18,7 +18,7 @@ from core.io import load_model_artifacts
 from core.training import compute_taxonomy_embeddings
 from core.validation import InputMatchResult, InputValidationSummary
 from loaders.compound_mapper import load_chebi, map_compound_name
-from loaders.loaders import load_environments
+from loaders.loaders import load_environments, load_exometabolite
 from loaders.function_enrichment import (
     load_taxon_function_enrichment,
     load_taxon_function_compound_support,
@@ -111,6 +111,7 @@ class QueryEngine:
         self._environment_data = None
         self._taxon_function_enrichment_data: Optional[pd.DataFrame] = None
         self._taxon_function_compound_support_data: Optional[pd.DataFrame] = None
+        self._exometabolite_data: Optional[pd.DataFrame] = None
 
     def _base_metadata(self) -> dict:
         """Common metadata included in all query responses."""
@@ -165,7 +166,228 @@ class QueryEngine:
         if self._taxon_function_compound_support_data is None:
             self._taxon_function_compound_support_data = load_taxon_function_compound_support()
         return self._taxon_function_compound_support_data
-    
+
+    @property
+    def exometabolite_data(self) -> pd.DataFrame:
+        """Lazy-load raw exometabolite observation data."""
+        if self._exometabolite_data is None:
+            self._exometabolite_data = load_exometabolite()
+        return self._exometabolite_data
+
+    # =========================================================================
+    # Observation Helpers
+    # =========================================================================
+
+    _OBS_LEVEL_COL = {
+        "isolate": "organism_id",
+        "genus": "genus",
+        "family": "family",
+        "order": "order",
+        "class": "class",
+        "kingdom": "kingdom",
+    }
+
+    def _fetch_observations(
+        self,
+        taxa: list[tuple[str, str]] | None = None,
+        rep_compounds: list[str] | None = None,
+    ) -> pd.DataFrame:
+        """Fetch raw observation rows from exometabolite data.
+
+        Args:
+            taxa: List of (level, name) tuples to filter by.  None = no taxon filter.
+            rep_compounds: Representative compound names to filter by.  None = no compound filter.
+
+        Returns:
+            Tidy DataFrame with columns:
+                organism_id, compound_name (raw, ungrouped), representative_compound,
+                assertion_value, assertion, genus, family, order
+        """
+        df = self.exometabolite_data
+
+        if taxa:
+            mask = pd.Series(False, index=df.index)
+            for level, name in taxa:
+                col = self._OBS_LEVEL_COL.get(level)
+                if col and col in df.columns:
+                    mask |= (df[col] == name)
+            df = df[mask]
+
+        if rep_compounds:
+            rep_set = set(rep_compounds)
+            df = df[df["representative_compound"].isin(rep_set)]
+
+        keep_cols = [
+            c for c in [
+                "organism_id", "compound_name", "representative_compound",
+                "assertion_value", "assertion", "genus", "family", "order",
+            ]
+            if c in df.columns
+        ]
+        return df[keep_cols].reset_index(drop=True)
+
+    @staticmethod
+    def _safe_float(v) -> float | None:
+        """Convert to float, returning None for NaN/None."""
+        if v is None:
+            return None
+        try:
+            f = float(v)
+            return None if pd.isna(f) else f
+        except (TypeError, ValueError):
+            return None
+
+    def _evidence_strength(
+        self,
+        n_consumed: int,
+        n_neutral: int,
+        n_secreted: int,
+        n_tested: int,
+        interaction_type: str | None,
+    ) -> str:
+        """Classify evidence strength relative to the predicted interaction direction."""
+        if n_tested == 0:
+            return "unvalidated"
+        target_count = n_consumed if interaction_type == "consumed" else n_secreted if interaction_type == "secreted" else (n_consumed + n_secreted)
+        non_target = n_tested - target_count
+        if target_count == 0:
+            return "contradicts_prediction"
+        if non_target == 0:
+            return "strong_positive" if target_count >= 3 else "positive"
+        return "mixed"
+
+    def _build_observation_metadata(
+        self,
+        taxa: list[tuple[str, str]],
+        top_predicted_compounds: list[str],
+        interaction_type: str | None = None,
+    ) -> dict:
+        """Build the 'observations' metadata block attached to every predictive response.
+
+        Keys are ordered so the most narrative-ready summaries appear first:
+          - evidence_narrative_data: bucketed taxon lists by evidence strength (lead with this)
+          - taxa_evidence_summary: per-taxon counts, assertion values, isolate IDs
+          - compounds_with_raw_name_variants: rep compounds that appear under multiple raw names
+          - prediction_conflicts: observation rows that contradict predicted direction
+          - untested_top_predictions: top predictions with zero empirical data
+          - n_isolates_with_data / n_compounds_observed: quick coverage counts
+          - isolate_records: full raw rows (for deep inspection; read last)
+
+        Args:
+            taxa: (level, name) pairs that were queried.
+            top_predicted_compounds: Rep compound names from top-K predictions, in rank order.
+            interaction_type: 'consumed' or 'secreted' — sets conflict and strength logic.
+        """
+        obs_df = self._fetch_observations(taxa=taxa, rep_compounds=top_predicted_compounds)
+
+        observed_compounds = set(obs_df["representative_compound"].unique()) if not obs_df.empty else set()
+        untested = [c for c in top_predicted_compounds if c not in observed_compounds]
+
+        # ── per-taxon evidence summary ──────────────────────────────────────────
+        taxa_evidence_summary: dict = {}
+        for level, name in taxa:
+            col = self._OBS_LEVEL_COL.get(level)
+            if not col or col not in obs_df.columns or obs_df.empty:
+                taxa_evidence_summary[name] = {"n_tested": 0, "evidence_strength": "unvalidated"}
+                continue
+
+            taxon_obs = obs_df[obs_df[col] == name]
+            if taxon_obs.empty:
+                taxa_evidence_summary[name] = {"n_tested": 0, "evidence_strength": "unvalidated"}
+                continue
+
+            n_consumed = int((taxon_obs["assertion"] == "consumed").sum())
+            n_neutral  = int((taxon_obs["assertion"] == "neutral").sum())
+            n_secreted = int((taxon_obs["assertion"] == "secreted").sum())
+            n_tested   = len(taxon_obs)
+            avs = [self._safe_float(v) for v in taxon_obs["assertion_value"].tolist()]
+            avs = [v for v in avs if v is not None]
+
+            taxa_evidence_summary[name] = {
+                "n_tested":   n_tested,
+                "n_consumed": n_consumed,
+                "n_neutral":  n_neutral,
+                "n_secreted": n_secreted,
+                "evidence_strength": self._evidence_strength(
+                    n_consumed, n_neutral, n_secreted, n_tested, interaction_type
+                ),
+                "assertion_values":  avs,
+                "tested_isolates":   taxon_obs["organism_id"].unique().tolist(),
+                "tested_compounds":  taxon_obs["representative_compound"].unique().tolist(),
+            }
+
+        # ── narrative buckets (Idea 3: surface first) ───────────────────────────
+        def _bucket(strength: str) -> list[str]:
+            return [k for k, v in taxa_evidence_summary.items() if v["evidence_strength"] == strength]
+
+        evidence_narrative_data = {
+            "taxa_strong_positive_evidence": _bucket("strong_positive"),
+            "taxa_positive_evidence":        _bucket("positive"),
+            "taxa_mixed_evidence":           _bucket("mixed"),
+            "taxa_contradicting_prediction": _bucket("contradicts_prediction"),
+            "taxa_unvalidated":              _bucket("unvalidated"),
+            "note": (
+                "Use this bucket list as the PRIMARY scaffold for your response narrative. "
+                "State observed evidence first for any taxon that has data, then use model "
+                "predictions only for taxa in taxa_unvalidated."
+            ),
+        }
+
+        # ── compound name variants (Idea 4: stereoisomer transparency) ──────────
+        compounds_with_raw_name_variants: dict = {}
+        if not obs_df.empty and "compound_name" in obs_df.columns:
+            for rep in observed_compounds:
+                raw_names = obs_df.loc[
+                    obs_df["representative_compound"] == rep, "compound_name"
+                ].unique().tolist()
+                if len(raw_names) > 1:
+                    compounds_with_raw_name_variants[rep] = {
+                        "n_distinct_raw_names": len(raw_names),
+                        "raw_names": sorted(raw_names),
+                        "note": (
+                            "Multiple distinct raw compound names are grouped under this "
+                            "representative. Stereoisomers, diastereomers, or naming variants "
+                            "may be present — mention this if stereochemistry is relevant."
+                        ),
+                    }
+
+        # ── prediction conflicts ─────────────────────────────────────────────────
+        conflicts = []
+        if interaction_type and not obs_df.empty:
+            for _, row in obs_df.iterrows():
+                assertion = row.get("assertion", "")
+                compound  = row.get("representative_compound", "")
+                is_conflict = (
+                    (interaction_type == "consumed" and assertion in {"secreted", "neutral"})
+                    or (interaction_type == "secreted" and assertion in {"consumed", "neutral"})
+                )
+                if is_conflict:
+                    try:
+                        predicted_rank = top_predicted_compounds.index(compound) + 1
+                    except ValueError:
+                        predicted_rank = None
+                    conflicts.append({
+                        "compound":           compound,
+                        "compound_name_raw":  row.get("compound_name"),
+                        "predicted_rank":     predicted_rank,
+                        "observed_assertion": assertion,
+                        "assertion_value":    self._safe_float(row.get("assertion_value")),
+                        "organism_id":        row.get("organism_id"),
+                        "genus":              row.get("genus"),
+                    })
+
+        # ── return with summary fields first (Idea 3) ───────────────────────────
+        return {
+            "evidence_narrative_data":       evidence_narrative_data,
+            "taxa_evidence_summary":         taxa_evidence_summary,
+            "compounds_with_raw_name_variants": compounds_with_raw_name_variants,
+            "prediction_conflicts":          conflicts,
+            "untested_top_predictions":      untested,
+            "n_isolates_with_data":          int(obs_df["organism_id"].nunique()) if not obs_df.empty else 0,
+            "n_compounds_observed":          len(observed_compounds),
+            "isolate_records":               obs_df.to_dict(orient="records"),
+        }
+
     # =========================================================================
     # Input Validation Helpers
     # =========================================================================
@@ -351,6 +573,8 @@ class QueryEngine:
                             "distinctive_score": float(top_result.distinctive_scores[i]) if top_result.distinctive_scores is not None else None,
                             "rank": int(top_result.ranks[i]) if top_result.ranks is not None else None,
                             "percentile": float(top_result.percentiles[i]) if top_result.percentiles is not None else None,
+                            "score_sd": float(top_result.score_sd[i]) if top_result.score_sd is not None else None,
+                            "score_se": float(top_result.score_se[i]) if top_result.score_se is not None else None,
                         }
                         for i in range(len(top_result.metabolite_names))
                         if query.min_score is None or top_result.raw_scores[i] >= query.min_score
@@ -365,9 +589,20 @@ class QueryEngine:
                 
                 if query.explain:
                     microbe_result["explanation"] = explanation
-                
+
                 results.append(microbe_result)
-            
+
+            # Collect matched taxa and top compound names for observation lookup
+            matched_taxa = []
+            top_compounds = []
+            for r in results:
+                lvl = r["microbe"]["level"]
+                nm = r["microbe"]["name"]
+                matched_taxa.append((lvl, nm))
+                for c in r["compounds"]:
+                    if c["name"] not in top_compounds:
+                        top_compounds.append(c["name"])
+
             return QueryResponse(
                 success=True,
                 query_type="compounds_for_microbes",
@@ -376,6 +611,11 @@ class QueryEngine:
                     **self._base_metadata(),
                     "n_microbes_queried": len(query.microbes),
                     "top_k": query.top_k,
+                    "observations": self._build_observation_metadata(
+                        taxa=matched_taxa,
+                        top_predicted_compounds=top_compounds,
+                        interaction_type=self.config.interaction_type,
+                    ),
                 }
             )
         
@@ -414,7 +654,7 @@ class QueryEngine:
             
             # Get all taxa at requested level
             taxa = self.artifacts.get_taxa_at_level(query.level)
-            
+
             # Build compound indices list from matched items
             compound_indices = []
             mapped_names = []
@@ -423,22 +663,31 @@ class QueryEngine:
                 if idx is not None:
                     compound_indices.append(idx)
                     mapped_names.append(match_result.matched)
-            
+
+            # Precompute isolate counts per taxon (used in result and for score_sd)
+            taxon_isolate_counts: dict[str, int] = {}
+            for org_id, tax in self.artifacts.training_data.microbe_taxonomy.items():
+                if org_id not in self.artifacts.training_data.microbe_to_idx:
+                    continue
+                t = tax.get_level(query.level)
+                if t:
+                    taxon_isolate_counts[t] = taxon_isolate_counts.get(t, 0) + 1
+
             # Score each taxon
             taxon_scores = []
             for taxon_name in taxa:
                 try:
                     explanation = {} if query.explain else None
-                    
+
                     if query.explain:
                         explanation["taxon"] = taxon_name
                         explanation["level"] = query.level
                         explanation["n_compounds_scored"] = len(compound_indices)
                         explanation["agg_method"] = query.agg_method
-                    
+
                     scores = self.artifacts.predict_for_taxon(query.level, taxon_name)
                     compound_scores = scores[compound_indices]
-                    
+
                     # Aggregate scores
                     if query.agg_method == "mean":
                         agg_score = float(np.mean(compound_scores))
@@ -448,15 +697,27 @@ class QueryEngine:
                         agg_score = float(np.max(compound_scores))
                     else:
                         agg_score = float(np.mean(compound_scores))
-                    
+
+                    # Per-compound SD from isolate embedding variance
+                    score_sd_arr, _ = self.artifacts._taxon_score_sd(query.level, taxon_name)
+                    if score_sd_arr is not None:
+                        compound_score_sd = {
+                            mapped_names[i]: round(float(score_sd_arr[compound_indices[i]]), 4)
+                            for i in range(len(mapped_names))
+                        }
+                    else:
+                        compound_score_sd = None
+
                     result = {
                         "taxon": taxon_name,
                         "level": query.level,
                         "aggregate_score": agg_score,
+                        "n_isolates_in_model": taxon_isolate_counts.get(taxon_name, 0),
                         "compound_scores": {
                             mapped_names[i]: float(compound_scores[i])
                             for i in range(len(mapped_names))
-                        }
+                        },
+                        "compound_score_sd": compound_score_sd,
                     }
                     
                     if query.explain:
@@ -479,6 +740,9 @@ class QueryEngine:
             
             results = taxon_scores[:query.top_k]
             
+            # Collect returned taxa for observation lookup
+            returned_taxa = [(r["level"], r["taxon"]) for r in results]
+
             # Build metadata with validation info
             metadata = {
                 **self._base_metadata(),
@@ -488,11 +752,17 @@ class QueryEngine:
                 "agg_method": query.agg_method,
                 "n_taxa_scored": len(taxon_scores),
                 "input_validation": validation.to_dict(),
+                # Observations fetched by compound (no taxon filter) to show all empirical data
+                "observations": self._build_observation_metadata(
+                    taxa=returned_taxa,
+                    top_predicted_compounds=mapped_names,
+                    interaction_type=self.config.interaction_type,
+                ),
             }
-            
+
             if validation.should_warn:
                 metadata["warnings"] = validation.warnings
-            
+
             return QueryResponse(
                 success=True,
                 query_type="microbes_for_compounds",
@@ -628,17 +898,29 @@ class QueryEngine:
             metabolite_results.sort(key=lambda x: x["selectivity"], reverse=True)
             results = metabolite_results[:query.top_k]
             
+            # Collect all taxa (target + competitors) and top compound names for obs lookup
+            all_taxa = [(target_level, target_name)]
+            for match_result in competitor_matches:
+                cl, cn = match_result.matched.split(":", 1)
+                all_taxa.append((cl, cn))
+            top_metabolites = [r["metabolite"] for r in results]
+
             # Build metadata with validation info
             metadata = {
                 "target": {"level": target_level, "name": target_name},
                 "n_competitors": len(competitor_matches),
                 "method": query.method,
                 "input_validation": validation.to_dict(),
+                "observations": self._build_observation_metadata(
+                    taxa=all_taxa,
+                    top_predicted_compounds=top_metabolites,
+                    interaction_type=self.config.interaction_type,
+                ),
             }
-            
+
             if validation.should_warn:
                 metadata["warnings"] = validation.warnings
-            
+
             return QueryResponse(
                 success=True,
                 query_type="selective_metabolites",
@@ -900,6 +1182,8 @@ class QueryEngine:
                     "raw_score": float(top.raw_scores[i]),
                     "rank": int(top.ranks[i]),
                     "percentile": float(top.percentiles[i]),
+                    "score_sd": float(top.score_sd[i]) if top.score_sd is not None else None,
+                    "score_se": float(top.score_se[i]) if top.score_se is not None else None,
                 }
                 
                 if query.explain:
@@ -912,17 +1196,24 @@ class QueryEngine:
                 
                 results.append(result)
             
+            top_metabolites = [r["metabolite"] for r in results]
+
             metadata = {
                 "microbe": {"level": level, "name": name},
                 "background_level": background_level,
                 "background_mean": prediction.background_mean,
                 "n_isolates_in_background": prediction.n_isolates_aggregated,
                 "input_validation": validation.to_dict(),
+                "observations": self._build_observation_metadata(
+                    taxa=[(level, name)],
+                    top_predicted_compounds=top_metabolites,
+                    interaction_type=self.config.interaction_type,
+                ),
             }
-            
+
             if validation.should_warn:
                 metadata["warnings"] = validation.warnings
-            
+
             return QueryResponse(
                 success=True,
                 query_type="niche_metabolites",
@@ -1163,6 +1454,10 @@ class QueryEngine:
             # Overall winner
             overall_winner = max(wins, key=wins.get) if wins else None
             
+            # Collect matched taxa and compound names for observation lookup
+            comp_taxa = [(lvl, nm) for lvl, nm in microbe_predictions]
+            comp_compounds = [m.matched for m in metabolite_validation.matched_items]
+
             # Build metadata with validation info
             metadata = {
                 "n_microbes": len(microbe_validation.matched_items),
@@ -1172,18 +1467,23 @@ class QueryEngine:
                 "overall_winner": overall_winner,
                 "microbe_validation": microbe_validation.to_dict(),
                 "metabolite_validation": metabolite_validation.to_dict(),
+                "observations": self._build_observation_metadata(
+                    taxa=comp_taxa,
+                    top_predicted_compounds=comp_compounds,
+                    interaction_type=self.config.interaction_type,
+                ),
             }
-            
+
             # Collect all warnings
             warnings = []
             if microbe_validation.should_warn:
                 warnings.extend(microbe_validation.warnings)
             if metabolite_validation.should_warn:
                 warnings.extend(metabolite_validation.warnings)
-            
+
             if warnings:
                 metadata["warnings"] = warnings
-            
+
             return QueryResponse(
                 success=True,
                 query_type="competition_analysis",
@@ -1268,7 +1568,9 @@ class QueryEngine:
                         sub_result = {
                             "substrate": sub_match.requested,
                             "matched": matched_name,
-                            "score": round(score, 4)
+                            "score": round(score, 4),
+                            "score_sd": round(float(prediction.score_sd[met_position]), 4) if prediction.score_sd is not None else None,
+                            "score_se": round(float(prediction.score_se[met_position]), 4) if prediction.score_se is not None else None,
                         }
                         
                         if query.explain:
@@ -1304,24 +1606,36 @@ class QueryEngine:
                 
                 microbe_results.append(result)
             
+            # Collect matched taxa and substrate names for observation lookup
+            rs_taxa = []
+            for m in microbe_validation.matched_items:
+                lvl, nm = m.matched.split(":", 1)
+                rs_taxa.append((lvl, nm))
+            rs_substrates = [m.matched for m in substrate_validation.matched_items]
+
             # Build metadata with validation info
             metadata = {
                 "n_microbes": len(microbe_validation.matched_items),
                 "n_substrates": len(substrate_validation.matched_items),
                 "microbe_validation": microbe_validation.to_dict(),
                 "substrate_validation": substrate_validation.to_dict(),
+                "observations": self._build_observation_metadata(
+                    taxa=rs_taxa,
+                    top_predicted_compounds=rs_substrates,
+                    interaction_type=self.config.interaction_type,
+                ),
             }
-            
+
             # Collect all warnings
             warnings = []
             if microbe_validation.should_warn:
                 warnings.extend(microbe_validation.warnings)
             if substrate_validation.should_warn:
                 warnings.extend(substrate_validation.warnings)
-            
+
             if warnings:
                 metadata["warnings"] = warnings
-            
+
             return QueryResponse(
                 success=True,
                 query_type="rank_substrates",

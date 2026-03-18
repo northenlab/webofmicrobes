@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 """Train all model types with optimal hyperparameters.
 
-Trains 10 models total:
-- BPR, Implicit BPR, LMF, WR-MF, SVD on consumed metabolites (decreased)
-- BPR, Implicit BPR, LMF, WR-MF, SVD on secreted metabolites (increased)
+Trains 12 models total:
+- Ordinal BPR, BPR, Implicit BPR, LMF, WR-MF, SVD on consumed metabolites (decreased)
+- Ordinal BPR, BPR, Implicit BPR, LMF, WR-MF, SVD on secreted metabolites (increased)
 
 Uses optimal dimensions and hyperparameters for each model type:
+- Ordinal BPR: 32 dimensions, 1000 epochs, 256 batch_size, 0.01 lr, hard_neg_ratio=0.5, lambda_ord=0.1
 - SVD: 8 dimensions
 - WR-MF: 128 dimensions, 50 iterations, 0.1 regularization
 - BPR: 32 dimensions, 1000 epochs, 256 batch_size, 0.01 learning_rate
@@ -33,6 +34,7 @@ def train_all_models():
     
     # Model configurations: (model_type, embedding_dim, kwargs)
     model_configs = [
+        ("ordinal_bpr", 32, {"n_epochs": 1000, "batch_size": 256, "learning_rate": 0.01, "hard_neg_ratio": 0.5, "lambda_ord": 0.1}),
         ("svd", 8, {}),
         ("bpr", 32, {"n_epochs": 1000, "batch_size": 256, "learning_rate": 0.01}),
         ("implicit_bpr", 32, {"iterations": 500, "learning_rate": 0.01, "regularization": 0.0}),
@@ -140,7 +142,7 @@ def train_all_models():
     logger.info("  python scripts/wom.py --model-dir trained_models/svd_secreted compounds --microbes genus:Bosea")
     
     logger.info("\nSet default model for wom.py:")
-    logger.info("  ln -sf bpr_consumed trained_models/latest")
+    logger.info("  ln -sf ordinal_bpr_consumed trained_models/latest")
     
     # Count successes
     successes = sum(1 for r in results if r["success"])

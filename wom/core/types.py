@@ -102,6 +102,7 @@ class TrainingData:
     
     # Interaction data
     positives: dict[int, set[int]] = field(default_factory=dict)  # microbe_idx -> metabolite_idx set
+    known_negatives: dict[int, set[int]] = field(default_factory=dict)  # microbe_idx -> metabolite_idx set (tested, not consumed)
     
     # Metadata
     microbe_taxonomy: dict[str, Taxonomy] = field(default_factory=dict)  # organism_id -> Taxonomy
@@ -184,6 +185,41 @@ class ModelArtifacts:
             raise ValueError(f"Unknown metabolite: {metabolite_name}")
         return self.model.metabolite_embeddings[idx]
     
+    def _taxon_score_sd(self, level: str, name: str) -> tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+        """Compute per-compound SD and SE of BPR scores arising from isolate embedding variance.
+
+        For a genus (or any aggregated taxon) with K isolate embeddings E (K×d):
+          - Sample covariance: C = Cov(E)  [d×d, ddof=1]
+          - For all compounds V (n_mets×d) simultaneously:
+              var_isolate[c] = v_c^T C v_c = diag(V C V^T)[c]
+              score_sd[c]   = sqrt(var_isolate[c])   — SD across isolates
+              score_se[c]   = score_sd[c] / sqrt(K)  — SE of the genus mean
+
+        Returns (score_sd, score_se) arrays of shape (n_metabolites,), or (None, None)
+        for isolate-level queries or taxa with only one member.
+        """
+        if level == "isolate":
+            return None, None
+
+        isolate_ids = [
+            org_id for org_id, tax in self.training_data.microbe_taxonomy.items()
+            if tax.get_level(level) == name and org_id in self.training_data.microbe_to_idx
+        ]
+        K = len(isolate_ids)
+        if K < 2:
+            return None, None
+
+        indices = [self.training_data.microbe_to_idx[oid] for oid in isolate_ids]
+        E = self.model.microbe_embeddings[indices]          # (K, d)
+        V = self.model.metabolite_embeddings                # (n_mets, d)
+
+        C = np.cov(E.T)                                    # (d, d), ddof=1
+        VC = V @ C                                         # (n_mets, d)
+        var_isolate = np.maximum((VC * V).sum(axis=1), 0) # (n_mets,) — clamp numerical noise
+        score_sd = np.sqrt(var_isolate)
+        score_se = score_sd / np.sqrt(K)
+        return score_sd, score_se
+
     def predict_for_taxon(self, level: str, name: str) -> np.ndarray:
         """Get prediction scores at any taxonomic level including isolate.
         
@@ -303,6 +339,9 @@ class ModelArtifacts:
                 background_mean = float(global_mean)
                 background_std = float(std_score)
         
+        # Per-compound uncertainty from isolate embedding variance
+        score_sd, score_se = self._taxon_score_sd(level, name)
+
         return PredictionResult(
             level=level,
             name=name,
@@ -321,6 +360,8 @@ class ModelArtifacts:
             n_isolates_aggregated=n_isolates_aggregated,
             background_mean=background_mean,
             background_std=background_std,
+            score_sd=score_sd,
+            score_se=score_se,
         )
     
     def get_taxa_at_level(self, level: str) -> list[str]:
@@ -364,6 +405,9 @@ class PredictionResult:
     n_isolates_aggregated: int = 1  # For taxon-level predictions
     background_mean: Optional[float] = None
     background_std: Optional[float] = None
+    # Per-compound uncertainty from isolate embedding variance (None for isolate-level queries)
+    score_sd: Optional[np.ndarray] = None  # SD of individual isolate scores for each compound
+    score_se: Optional[np.ndarray] = None  # SE of the genus-mean score (score_sd / sqrt(K))
     
     def top_k(self, k: int = 20, by: str = "raw") -> "PredictionResult":
         """Return top K metabolites by specified score type.
@@ -399,6 +443,8 @@ class PredictionResult:
             n_isolates_aggregated=self.n_isolates_aggregated,
             background_mean=self.background_mean,
             background_std=self.background_std,
+            score_sd=self.score_sd[top_indices] if self.score_sd is not None else None,
+            score_se=self.score_se[top_indices] if self.score_se is not None else None,
         )
     
     def to_dict(self) -> dict:
@@ -413,6 +459,8 @@ class PredictionResult:
                     "distinctive_score": float(self.distinctive_scores[i]) if self.distinctive_scores is not None else None,
                     "rank": int(self.ranks[i]) if self.ranks is not None else None,
                     "percentile": float(self.percentiles[i]) if self.percentiles is not None else None,
+                    "score_sd": float(self.score_sd[i]) if self.score_sd is not None else None,
+                    "score_se": float(self.score_se[i]) if self.score_se is not None else None,
                 }
                 for i, name in enumerate(self.metabolite_names)
             ],

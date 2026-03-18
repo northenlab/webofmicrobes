@@ -61,7 +61,9 @@ EXOMETABOLITE_SOURCES = [
     EXOMETABOLITE_DATA_DIR / "wom_9.csv",
     EXOMETABOLITE_DATA_DIR / "wom_10.csv",
     EXOMETABOLITE_DATA_DIR / "wom_11.csv",
-    EXOMETABOLITE_DATA_DIR / "nature_2021_wom_format.tsv"
+    EXOMETABOLITE_DATA_DIR / "nature_2021_wom_format.tsv",
+    # EXOMETABOLITE_DATA_DIR / "wom_12_released.csv",
+    # EXOMETABOLITE_DATA_DIR / "wom_13_released.csv",
 ]
 
 # Phylogeny mapping

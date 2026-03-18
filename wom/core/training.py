@@ -6,14 +6,14 @@ from typing import Optional
 import numpy as np
 
 from core.types import TrainingData, ModelArtifacts, Taxonomy
-from core.models import BaseEmbeddingModel, BPRModel, ImplicitBPRModel, LMFModel, WRMFModel, SVDModel
+from core.models import BaseEmbeddingModel, BPRModel, OrdinalBPRModel, ImplicitBPRModel, LMFModel, WRMFModel, SVDModel
 
 logger = logging.getLogger(__name__)
 
 
 def train_model(
     training_data: TrainingData,
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
     embedding_dim: int = 32,
     verbose: bool = True,
     **model_kwargs,
@@ -22,7 +22,7 @@ def train_model(
     
     Args:
         training_data: TrainingData object with microbes, metabolites, and interactions
-        model_type: One of "bpr", "implicit_bpr", "lmf", "wrmf", "svd"
+        model_type: One of "ordinal_bpr", "bpr", "implicit_bpr", "lmf", "wrmf", "svd"
         embedding_dim: Embedding dimensionality
         verbose: Whether to show training progress
         **model_kwargs: Model-specific training parameters
@@ -42,7 +42,11 @@ def train_model(
     
     # Create model
     model_type = model_type.lower()
-    if model_type == "bpr":
+    if model_type == "ordinal_bpr":
+        model = OrdinalBPRModel(embedding_dim=embedding_dim)
+        # Inject known_negatives from training data unless overridden by caller
+        model_kwargs.setdefault("known_negatives", training_data.known_negatives)
+    elif model_type == "bpr":
         model = BPRModel(embedding_dim=embedding_dim)
     elif model_type == "implicit_bpr":
         model = ImplicitBPRModel(embedding_dim=embedding_dim)

@@ -15,7 +15,7 @@ from typing import Optional, Literal
 @dataclass
 class QueryConfig:
     """Global configuration for query system."""
-    model_type: str = "bpr"  # "bpr", "wrmf", "svd"
+    model_type: str = "ordinal_bpr"  # "ordinal_bpr", "bpr", "wrmf", "svd"
     model_dir: str = "trained_models/latest"
     interaction_type: Literal["auto", "consumed", "secreted"] = "auto"
     output_format: Literal["json", "table", "dataframe"] = "json"

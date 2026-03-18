@@ -1,9 +1,13 @@
 """
-MCP server for the Web of Microbes growth-rate service.
+MCP server for the Web of Microbes (WoM) platform.
 
-Purpose: expose lightweight tools that help agents discover taxonomy levels
-and interact with the growth-rate API used to look up predicted microbial
-doubling times.
+Data sources — use these names precisely in responses:
+  - WoM BPR / WoM model  : substrate preference predictions (consumed/secreted)
+  - Phydon               : growth rate predictions (doubling times in hours)
+  - GenomeSPOT           : culture condition predictions (temperature, pH, salinity, oxygen)
+
+These are three independent sources. Never attribute growth rates to GenomeSPOT or
+culture conditions to Phydon.
 """
 
 from fastmcp import FastMCP
@@ -60,99 +64,190 @@ _TOOL_INTENTS = {
     "query_direction": "microbe_to_metabolite",
     "inverse_tool": "microbes_for_compounds",
     "use_when": "User asks what metabolites a microbe is predicted to consume or secrete",
+    "includes_observations": True,
   },
   "microbes_for_compounds": {
     "query_direction": "metabolite_to_microbe",
     "inverse_tool": "compounds_for_microbes",
     "use_when": "User asks which microbes are predicted to consume or secrete specific metabolites",
+    "includes_observations": True,
   },
   "selective_metabolites": {
     "query_direction": "target_vs_competitor_metabolite_selectivity",
     "inverse_tool": None,
     "use_when": "User asks which metabolites differentiate a target microbe from competitors",
+    "includes_observations": True,
   },
   "metabolite_environment_fitness": {
     "query_direction": "environment_to_microbe_ranking",
     "inverse_tool": None,
     "use_when": "User asks which microbes perform best in a metabolite environment",
+    "includes_observations": False,
   },
   "niche_metabolites": {
     "query_direction": "microbe_to_distinctive_metabolites",
     "inverse_tool": None,
     "use_when": "User asks for niche-specific metabolite preferences",
+    "includes_observations": True,
   },
   "competition_analysis": {
     "query_direction": "metabolite_winner_across_microbes",
     "inverse_tool": None,
     "use_when": "User asks who wins metabolite-by-metabolite competition",
+    "includes_observations": True,
   },
   "rank_substrates": {
     "query_direction": "microbe_to_ranked_subset_of_metabolites",
     "inverse_tool": None,
     "use_when": "User asks to rank a specific substrate subset for microbes",
+    "includes_observations": True,
   },
   "search_compound": {
     "query_direction": "name_to_model_compound_mapping",
     "inverse_tool": None,
     "use_when": "User input is uncertain, synonym-heavy, or requires fuzzy compound matching",
+    "includes_observations": False,
   },
   "list_taxa": {
     "query_direction": "taxonomy_discovery",
     "inverse_tool": None,
     "use_when": "User asks what taxa are available before running predictive queries",
+    "includes_observations": False,
   },
   "model_info": {
     "query_direction": "model_metadata_lookup",
     "inverse_tool": None,
     "use_when": "User asks what model/direction is loaded and dataset coverage stats",
+    "includes_observations": False,
   },
   "list_environments": {
     "query_direction": "environment_discovery",
     "inverse_tool": None,
     "use_when": "User asks what environments are available or wants to see all environment options",
+    "includes_observations": False,
   },
   "search_environment": {
     "query_direction": "environment_name_matching",
     "inverse_tool": None,
     "use_when": "User mentions an environment name but it might not be exact, needs fuzzy matching",
+    "includes_observations": False,
   },
   "get_environment_compounds": {
     "query_direction": "environment_to_compound_list",
     "inverse_tool": "microbes_for_compounds",
     "use_when": "User asks about microbes that grow on an environment; first get compounds, then query microbes",
+    "includes_observations": False,
   },
   "list_function_enrichment_taxa": {
     "query_direction": "taxonomy_to_available_function_profiles",
     "inverse_tool": None,
     "use_when": "User asks which taxa have annotated enzyme-enrichment profiles",
+    "includes_observations": False,
   },
   "enriched_functions_for_taxon": {
     "query_direction": "taxon_to_enriched_enzyme_functions",
     "inverse_tool": None,
     "use_when": "User asks which EC functions are distinctive/enriched for a specific taxon; use include_bpr_scores=True to add BPR metabolic alignment scores alongside TF-IDF",
+    "includes_observations": False,
   },
   "explain_compound_group": {
     "query_direction": "compound_name_to_group_members",
     "inverse_tool": None,
     "use_when": "User asks why a compound has an unexpected name, what compounds are grouped together, or which synonyms/stereoisomers share a representative name in WoM",
+    "includes_observations": False,
   },
   "analyze_substrate_gaps": {
     "query_direction": "taxon_to_metabolite_enzyme_gaps",
     "inverse_tool": "enriched_functions_for_taxon",
     "use_when": "User asks about orphan enzymes, unexplained substrate preferences, catabolite repression candidates, or metabolites consumed without known enzymatic machinery",
+    "includes_observations": False,
   },
 }
 
+# Instructions injected into every observation-enriched response so the LLM knows how to
+# structure its narrative around the experimental evidence.
+_OBSERVATION_GUIDANCE = """
+RESPONSE STRUCTURE — follow this order every time observations are present:
+
+═══════════════════════════════════════════════════════════════
+STEP 1 — LEAD WITH EXPERIMENTAL EVIDENCE (always write this first)
+═══════════════════════════════════════════════════════════════
+Read metadata.observations.evidence_narrative_data first. This is your primary narrative scaffold.
+
+Write a coherent paragraph (not a table) that summarises what was ACTUALLY OBSERVED in the lab,
+grouped by evidence tier:
+
+  taxa_strong_positive_evidence  → "Strong direct evidence: [genus] — [n_consumed] of [n_tested]
+    isolates ([tested_isolates]) consumed this compound (assertion values: [assertion_values])."
+  taxa_positive_evidence         → "Positive evidence: [genus] — observed consumption in
+    [n_consumed]/[n_tested] isolates."
+  taxa_mixed_evidence            → "Mixed evidence: [genus] — some isolates consumed, others neutral."
+  taxa_contradicting_prediction  → "⚠ Conflict: [genus] is predicted [interaction_type] but
+    [n_tested] tested isolate(s) showed [observed_assertion]. The model score should not be
+    trusted here without further validation. Isolates tested: [tested_isolates]."
+  taxa_unvalidated               → Do NOT mention these taxa yet — they belong in Step 2.
+
+For each genus with data, cite the specific isolate IDs and assertion values from
+taxa_evidence_summary[genus]. Negative assertion_values indicate consumption; positive indicate
+secretion. The scale runs from -5 (strong consumption) to +5 (strong secretion).
+
+═══════════════════════════════════════════════════════════════
+STEP 2 — MODEL PREDICTIONS FOR UNVALIDATED TAXA (fill the gaps)
+═══════════════════════════════════════════════════════════════
+For taxa in taxa_unvalidated, state the model prediction and always label it explicitly:
+  "Not experimentally tested — model predicts [score/rank]."
+
+If the top model predictions are in taxa_unvalidated, make clear that those rankings are
+inferred from patterns across similar organisms, not from direct measurement.
+
+═══════════════════════════════════════════════════════════════
+STEP 3 — STEREOISOMER NOTE (when applicable)
+═══════════════════════════════════════════════════════════════
+If compounds_with_raw_name_variants is non-empty, add a brief note:
+  "Note: [rep_compound] appears in the experimental data under [n_distinct_raw_names] distinct
+  names ([raw_names]). If stereochemistry matters for your application (e.g. L- vs D-forms,
+  alpha vs beta anomers), the grouping may mask biologically meaningful differences."
+
+═══════════════════════════════════════════════════════════════
+STEP 4 — SYNTHESIS TABLE (always include this)
+═══════════════════════════════════════════════════════════════
+Combine Steps 1–3 into a ranked table. Every row must include ALL of these columns:
+
+  | Genus | BPR score ± SD (N in model) | N tested | Evidence tier | Notes |
+
+  - BPR score ± SD: use aggregate_score and compound_score_sd[compound].
+    Format: "5.68 ± 1.20 (12 isolates)". If compound_score_sd is null, write "5.68 (n=1)".
+  - N tested: taxa_evidence_summary[genus]["n_tested"]. Write "0" if genus absent.
+  - Evidence tier: taxa_evidence_summary[genus]["evidence_strength"]. Write "unvalidated" if absent.
+  - Notes: brief annotation — "(observed)", "(predicted, not tested)", or "(⚠ conflicts with observation)"
+
+A reader should never have to wonder which claims are empirical vs. model-only.
+
+═══════════════════════════════════════════════════════════════
+THREE CAVEATS — raise proactively whenever relevant
+═══════════════════════════════════════════════════════════════
+1. IMPLICIT RANKINGS — model predictions fill in the blanks from sparse training data. They
+   are good for genera with no data but are unreliable when taxa_contradicting_prediction is
+   non-empty. Say so explicitly.
+2. TAXONOMIC AGGREGATION — genus-level predictions average over all isolates. If
+   n_isolates_with_data is low (0–2) for a large genus, the prediction may not represent the
+   specific strain the user cares about. Suggest level='isolate' queries if an organism_id is known.
+3. STEREOISOMER GROUPING — WoM maps compounds to their InChIKey first block (connectivity only),
+   collapsing stereoisomers. If raw names in isolate_records differ from representative_compound,
+   mention it when stereochemistry could matter.
+"""
+
+
 
 def _get_wom_engine(
-  model_type: str = "bpr",
+  model_type: str = "ordinal_bpr",
   interaction_type: str = "consumed",
 ) -> tuple[QueryEngine, QueryConfig]:
   """Get cached QueryEngine + QueryConfig for model type and interaction type."""
   model_type = model_type.lower()
   interaction_type = interaction_type.lower()
 
-  valid_model_types = {"bpr", "implicit_bpr", "lmf", "wrmf", "svd"}
+  valid_model_types = {"ordinal_bpr", "bpr", "implicit_bpr", "lmf", "wrmf", "svd"}
   valid_interactions = {"consumed", "secreted"}
 
   if model_type not in valid_model_types:
@@ -191,7 +286,7 @@ def _serialize_wom_response(
   metadata = payload.setdefault("metadata", {})
 
   tool_intent = _TOOL_INTENTS.get(tool_name, {})
-  metadata["orchestration"] = {
+  orchestration: dict = {
     "tool": tool_name,
     "query_direction": tool_intent.get("query_direction"),
     "inverse_tool": tool_intent.get("inverse_tool"),
@@ -204,6 +299,11 @@ def _serialize_wom_response(
       else "higher score suggests stronger predicted consumption propensity"
     ),
   }
+
+  if tool_intent.get("includes_observations"):
+    orchestration["observation_guidance"] = _OBSERVATION_GUIDANCE
+
+  metadata["orchestration"] = orchestration
   return json.dumps(payload, indent=2)
 
 
@@ -291,19 +391,31 @@ PARAMETERS:
   Valid values: 'consumed', 'secreted'
   Use 'secreted' to analyze production/secretion models
 
-- model_type (optional, default='bpr'): Model family to query
-  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+- model_type (optional, default='ordinal_bpr'): Model family to query
+  Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether the query succeeded
 - results (list): Array of compound predictions with:
-  - raw_score: Direct model prediction
+  - raw_score: Direct model prediction (dot product of embeddings)
   - distinctive_score: raw_score - background_mean (if compute_distinctive=True)
   - rank: Ranking among all metabolites
   - percentile: Percentile ranking (0-100%)
-  - statistics: mean_score, median_score, std_score if aggregating taxa
+  - score_sd: Standard deviation of individual isolate scores for this compound
+              (reflects how diverse the genus is in its preference for this compound;
+              None for isolate-level queries or single-isolate genera)
+  - score_se: Standard error of the genus-mean score = score_sd / sqrt(n_isolates)
+              (uncertainty in the genus-level prediction from aggregation)
+  - statistics: mean_score, median_score, std_score across all compounds
 - metadata (dict): Input validation, aggregation stats (n_isolates), computation method
+
+SCORE_SD / SCORE_SE DISPLAY GUIDANCE:
+When score_sd is present, report the preference score as "score ± score_sd" or note the
+uncertainty explicitly. A high score_sd relative to score means isolates in this genus
+disagree strongly about this compound — the genus-level prediction is an average over
+diverse phenotypes. A low score_sd means all isolates point the same direction.
+Example: "D-xylose: 6.91 ± 2.3 (n=3 isolates)" signals the genus mean is uncertain.
 - error (string): Error message if success=False
 
 EXAMPLE USAGE:
@@ -319,7 +431,7 @@ def compounds_for_microbes(
   background_level: str = None,
   min_score: float = None,
   interaction_type: str = "consumed",
-  model_type: str = "bpr",
+  model_type: str = "ordinal_bpr",
 ) -> str:
     """Query compounds associated with microbes (consumed or secreted).
     
@@ -389,8 +501,8 @@ PARAMETERS:
 - interaction_type (optional, default='consumed'): Which model direction to search against
   Valid values: 'consumed', 'secreted'
 
-- model_type (optional, default='bpr'): Model family to search against
-  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+- model_type (optional, default='ordinal_bpr'): Model family to search against
+  Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -409,7 +521,7 @@ def search_compound(
     fuzzy: bool = True,
     min_score: float = 0.7,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
 ) -> str:
     """Search for compound names by fuzzy or exact matching."""
     try:
@@ -453,8 +565,8 @@ PARAMETERS:
 - interaction_type (optional, default='consumed'): Which model direction provides taxa context
   Valid values: 'consumed', 'secreted'
 
-- model_type (optional, default='bpr'): Model family providing taxa context
-  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+- model_type (optional, default='ordinal_bpr'): Model family providing taxa context
+  Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -473,7 +585,7 @@ def list_taxa(
     level: str = "genus",
     include_counts: bool = True,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
 ) -> str:
     """List available taxa at a given taxonomic level."""
     try:
@@ -538,19 +650,40 @@ PARAMETERS:
 - interaction_type (optional, default='consumed'): Interaction direction to query
   Valid values: 'consumed', 'secreted'
 
-- model_type (optional, default='bpr'): Model family to query
-  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+- model_type (optional, default='ordinal_bpr'): Model family to query
+  Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether query succeeded
 - results (list): Array of ranked microbes with:
+  - taxon: Taxon name
+  - level: Taxonomic level
   - aggregate_score: Computed using agg_method across compounds
-  - compound_scores: Individual raw scores for each queried compound
+  - n_isolates_in_model: Number of isolates in BPR training data for this taxon
+  - compound_scores: Individual raw BPR scores for each queried compound
+  - compound_score_sd: Per-compound SD derived from isolate embedding variance
+    (only present when level != 'isolate' and ≥2 isolates exist in the model)
   - mean_score, std_score (if available)
-  - organism_count: Number of organisms in taxon (when aggregating)
-- metadata (dict): Input validation, aggregation method, statistics
+- metadata.observations: Experimental evidence (see observation_guidance)
 - error (string): Error message if success=False
+
+SCORE_SD EXPLANATION:
+compound_score_sd[cpd] = sqrt(v_cpd^T · Cov(E_isolates) · v_cpd)
+where v_cpd is the compound embedding and E_isolates is the matrix of all isolate
+embeddings for that genus. Larger SD means isolates in the genus disagree on this
+compound — the genus-level prediction should be treated with caution.
+
+TABLE FORMAT — always present results as a table with these columns:
+  | Genus | BPR score ± SD (N isolates in model) | N isolates tested | Evidence tier | Doubling time |
+
+  - BPR score: aggregate_score, formatted as "score ± compound_score_sd[cpd]" (e.g. "5.68 ± 1.20")
+  - N isolates in model: n_isolates_in_model (the denominator for the mean embedding)
+  - N isolates tested: from metadata.observations.taxa_evidence_summary[genus]["n_tested"]
+    (show 0 if genus not in taxa_evidence_summary)
+  - Evidence tier: from metadata.observations.taxa_evidence_summary[genus]["evidence_strength"]
+    (show "unvalidated" if genus not in taxa_evidence_summary)
+  - Doubling time: call taxonomy_levels_for_growth_rate separately if needed; format as "mean ± std h"
 
 EXAMPLE USAGE:
 - Top genera consuming acetate: compounds='acetate', level='genus', top=10
@@ -565,7 +698,7 @@ def microbes_for_compounds(
     agg_method: str = "mean",
   min_score: float = None,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
 ) -> str:
     """Find microbes that consume given compounds."""
     try:
@@ -643,8 +776,8 @@ PARAMETERS:
 - interaction_type (optional, default='consumed'): Interaction direction for score computation
   Valid values: 'consumed', 'secreted'
 
-- model_type (optional, default='bpr'): Model family to use
-  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+- model_type (optional, default='ordinal_bpr'): Model family to use
+  Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -670,7 +803,7 @@ def selective_metabolites(
     method: str = "difference",
   min_selectivity: float = None,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
 ) -> str:
     """Find metabolites selective for target over competitors."""
     try:
@@ -731,8 +864,8 @@ PARAMETERS:
 - interaction_type (optional, default='consumed'): Interaction direction for fitness scoring
   Valid values: 'consumed', 'secreted'
 
-- model_type (optional, default='bpr'): Model family to use
-  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+- model_type (optional, default='ordinal_bpr'): Model family to use
+  Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -753,7 +886,7 @@ def metabolite_environment_fitness(
     fitness_method: str = "sum",
   microbes: str = None,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
 ) -> str:
     """Rank microbes by fitness in a metabolite environment."""
     try:
@@ -827,8 +960,8 @@ PARAMETERS:
 - interaction_type (optional, default='consumed'): Interaction direction for score computation
   Valid values: 'consumed', 'secreted'
 
-- model_type (optional, default='bpr'): Model family to use
-  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+- model_type (optional, default='ordinal_bpr'): Model family to use
+  Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -856,7 +989,7 @@ def niche_metabolites(
     background_level: str = None,
   min_distinctive_score: float = None,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
 ) -> str:
     """Find distinctive (niche) metabolites for a microbe."""
     try:
@@ -925,8 +1058,8 @@ PARAMETERS:
 - interaction_type (optional, default='consumed'): Interaction direction for score computation
   Valid values: 'consumed', 'secreted'
 
-- model_type (optional, default='bpr'): Model family to use
-  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+- model_type (optional, default='ordinal_bpr'): Model family to use
+  Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -958,7 +1091,7 @@ def competition_analysis(
     metabolites: str,
   use_distinctive: bool = False,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
 ) -> str:
     """Analyze competition between microbes for metabolites."""
     try:
@@ -1030,8 +1163,8 @@ PARAMETERS:
 - interaction_type (optional, default='consumed'): Interaction direction for ranking
   Valid values: 'consumed', 'secreted'
 
-- model_type (optional, default='bpr'): Model family to use
-  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+- model_type (optional, default='ordinal_bpr'): Model family to use
+  Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -1064,7 +1197,7 @@ def rank_substrates(
     top: int = 10,
   use_distinctive: bool = False,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
 ) -> str:
     """Rank specific substrates for given microbes."""
     try:
@@ -1112,8 +1245,8 @@ PARAMETERS:
 - interaction_type (optional, default='consumed'): Which interaction model to inspect
   Valid values: 'consumed', 'secreted'
 
-- model_type (optional, default='bpr'): Model family to inspect
-  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+- model_type (optional, default='ordinal_bpr'): Model family to inspect
+  Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -1139,7 +1272,7 @@ EXAMPLE USAGE:
 def model_info(
   include_stats: bool = True,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
 ) -> str:
     """Get model information and statistics."""
     try:
@@ -1184,8 +1317,8 @@ PARAMETERS:
 - interaction_type (optional, default='consumed'): Which model to query
   Valid values: 'consumed', 'secreted'
 
-- model_type (optional, default='bpr'): Model family
-  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+- model_type (optional, default='ordinal_bpr'): Model family
+  Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -1211,7 +1344,7 @@ def list_environments(
     include_stats: bool = True,
     min_coverage: float = 0.0,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
 ) -> str:
     """List available metabolite environments."""
     try:
@@ -1258,8 +1391,8 @@ PARAMETERS:
 - interaction_type (optional, default='consumed'): Which model to query
   Valid values: 'consumed', 'secreted'
 
-- model_type (optional, default='bpr'): Model family
-  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+- model_type (optional, default='ordinal_bpr'): Model family
+  Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -1284,7 +1417,7 @@ def search_environment(
     max_results: int = 5,
     min_score: float = 0.6,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
 ) -> str:
     """Fuzzy search for environment names."""
     try:
@@ -1337,8 +1470,8 @@ PARAMETERS:
 - interaction_type (optional, default='consumed'): Which model to check against
   Valid values: 'consumed', 'secreted'
 
-- model_type (optional, default='bpr'): Model family
-  Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+- model_type (optional, default='ordinal_bpr'): Model family
+  Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -1367,7 +1500,7 @@ def get_environment_compounds(
     environment_name: str,
     only_in_model: bool = True,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
 ) -> str:
     """Get metabolites in a specific environment."""
     try:
@@ -1416,8 +1549,8 @@ def get_environment_compounds(
   - interaction_type (optional, default='consumed'): Model interaction context
     Valid values: 'consumed', 'secreted'
 
-  - model_type (optional, default='bpr'): Model family context
-    Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  - model_type (optional, default='ordinal_bpr'): Model family context
+    Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
   RESPONSE FORMAT:
   - success (bool)
@@ -1434,7 +1567,7 @@ def list_function_enrichment_taxa(
     min_proteomes: int = 1,
     include_counts: bool = True,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
  ) -> str:
     """List taxa with function enrichment coverage."""
     try:
@@ -1516,8 +1649,8 @@ def list_function_enrichment_taxa(
   - interaction_type (optional, default='consumed'): Model interaction context
     Valid values: 'consumed', 'secreted'
 
-  - model_type (optional, default='bpr'): Model family context
-    Valid values: 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  - model_type (optional, default='ordinal_bpr'): Model family context
+    Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
 
   RESPONSE FORMAT:
   - success (bool)
@@ -1543,7 +1676,7 @@ def enriched_functions_for_taxon(
     max_compounds_per_function: int = 5,
     include_bpr_scores: bool = False,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
  ) -> str:
     """Get enriched EC functions for a taxon."""
     try:
@@ -1720,38 +1853,67 @@ def explain_compound_group(compound: str) -> str:
 
 @mcp.tool(
     name="taxonomy_levels_for_growth_rate",
-    description="""Look up predicted microbial growth rates (doubling times) by taxonomy.
-    
+    description="""Look up predicted microbial doubling times from Phydon by taxonomy.
+
+SOURCE: Phydon — a phylogenetic model that predicts growth rates from genomic sequence.
+Do NOT call this "GenomeSPOT"; GenomeSPOT is a separate tool for culture conditions
+(temperature, pH, salinity, oxygen).
+
 PARAMETERS:
 - query (required): Organism name to search (fuzzy matching enabled)
-  Examples: 'Pseudomonas', 'Escherichia coli', 'genus:Burkholderia'
+  Examples: 'Pseudomonas', 'Escherichia coli', 'Burkholderia'
 
 - level (optional, default='genus'): Taxonomic level to query
   Valid values: 'domain', 'phylum', 'class', 'order', 'family', 'genus'
 
-- stat (optional, default='median'): Aggregation statistic
-  Valid values: 'mean', 'median', 'min', 'max', 'std'
+RESPONSE: All statistics returned in one call — median, mean, std, min, max, count
+(count = number of genomes in Phydon that informed the estimate).
 
-RESPONSE: Hours (doubling time in hours) or error message
+DISPLAY GUIDANCE — when showing growth rate data in any table or narrative:
+- Always report: mean ± std (n=count, range min–max h)
+- Format example: "2.63 ± 0.8 h (n=14, range 1.1–4.2 h)"
+- High std relative to mean signals ecophysiological diversity within the taxon
+- Low count (n<5) means the estimate may be unreliable — note it explicitly
+- Always attribute to "Phydon", not "GenomeSPOT"
 
 EXAMPLES:
-- Look up genus growth rate: query='Pseudomonas', stat='median'
-- Get range of growth rates: query='Burkholderia', stat='min' then stat='max'
-- Family-level lookup: query='Pseudomonadaceae', level='family'
+- taxonomy_levels_for_growth_rate(query='Pseudomonas')
+- taxonomy_levels_for_growth_rate(query='Pseudomonadaceae', level='family')
     """,
 )
-def taxonomy_levels_for_growth_rate(query: str, level: str = 'genus', stat: str = 'median') -> str:
-    """Query growth rate predictions from Phydon database.
-
-    Returns doubling time in hours with statistics.
-    """
+def taxonomy_levels_for_growth_rate(query: str, level: str = 'genus') -> str:
+    """Query growth rate predictions from Phydon. Returns all stats in one call."""
     try:
-        response = phydon.lookup(query=query, level=level, stat=stat)
-        if response is None or (isinstance(response, dict) and response.get("error")):
-            return json.dumps({"error": f"No growth rate data found for '{query}' at {level} level"})
-        return json.dumps(response, indent=2)
+        all_stats: dict = {}
+        matched_meta: dict = {}
+        for stat in ("median", "mean", "std", "min", "max", "count"):
+            r = phydon.lookup(query=query, level=level, stat=stat)
+            if r is None or (isinstance(r, dict) and r.get("error")):
+                return json.dumps({"error": f"No Phydon data found for '{query}' at {level} level"})
+            if not matched_meta:
+                matched_meta = {
+                    "query": r.get("query"),
+                    "matched_name": r.get("matched_name"),
+                    "matched_level": r.get("matched_level"),
+                    "match_score": r.get("match_score"),
+                }
+            results = r.get("results", [])
+            if results:
+                all_stats[stat] = results[0].get("value")
+
+        return json.dumps({
+            **matched_meta,
+            "source": "Phydon",
+            "unit": "hours (doubling time)",
+            "statistics": all_stats,
+            "display_hint": (
+                f"Report as: {all_stats.get('mean')} ± {all_stats.get('std')} h "
+                f"(n={int(all_stats.get('count', 0))}, "
+                f"range {all_stats.get('min')}–{all_stats.get('max')} h)"
+            ),
+        }, indent=2)
     except Exception as e:
-        return json.dumps({"error": f"Growth rate lookup failed: {str(e)}"})
+        return json.dumps({"error": f"Phydon growth rate lookup failed: {str(e)}"})
 
 
 @mcp.tool(
@@ -1894,7 +2056,7 @@ def lookup_culture_condition(
   - bpr_z_threshold (optional, default=1.0): Z-score cutoff for high/low BPR preference
     1.0 = top/bottom ~16% of compounds for this taxon; increase to be more selective
   - interaction_type (optional, default='consumed'): 'consumed' or 'secreted'
-  - model_type (optional, default='bpr'): Model family
+  - model_type (optional, default='ordinal_bpr'): Model family
 
   RESPONSE FORMAT:
   - results (dict) with two sections:
@@ -1916,7 +2078,7 @@ def analyze_substrate_gaps(
     top_k: int = 10,
     bpr_z_threshold: float = 1.0,
     interaction_type: str = "consumed",
-    model_type: str = "bpr",
+    model_type: str = "ordinal_bpr",
 ) -> str:
     """Find metabolite-enzyme gaps for a taxon."""
     try:

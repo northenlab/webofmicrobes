@@ -392,6 +392,175 @@ class ImplicitBPRModel(BaseEmbeddingModel):
 
 
 # =============================================================================
+# Ordinal BPR Model
+# =============================================================================
+
+class OrdinalBPRModel(BaseEmbeddingModel):
+    """BPR extended with an explicit known-negative tier.
+
+    Standard BPR treats every non-positive item (tested-neutral, unobserved)
+    as an equally valid negative sample.  This model distinguishes:
+
+      P  = consumed (positives)
+      N  = tested, not consumed (hard negatives / known_negatives)
+      U  = never tested (unobserved / soft negatives)
+
+    Two loss contributions per batch step:
+
+      1. Main pairwise:  score(P) > score(neg)
+         neg is drawn from N with probability hard_neg_ratio (when N is
+         non-empty), otherwise from U.  This ensures the model explicitly
+         sees tested-neutral items as negatives, not just incidentally.
+
+      2. Ordinal term (weight lambda_ord):  score(N) > score(u), u in U
+         Enforces that tested-neutral compounds score below unobserved ones.
+         Set lambda_ord=0 to disable.
+
+    Falls back to standard BPR behaviour when known_negatives is empty or None.
+
+    Reference: Rendle et al. (2009) "BPR: Bayesian Personalized Ranking from
+    Implicit Feedback"
+    """
+
+    def __init__(self, embedding_dim: int = 32):
+        super().__init__(embedding_dim)
+        self._torch_model = None
+
+    def fit(
+        self,
+        positives: dict[int, set[int]],
+        n_microbes: int,
+        n_metabolites: int,
+        known_negatives: dict[int, set[int]] | None = None,
+        n_epochs: int = 1000,
+        batch_size: int = 256,
+        learning_rate: float = 0.01,
+        hard_neg_ratio: float = 0.5,
+        lambda_ord: float = 0.1,
+        verbose: bool = False,
+    ) -> "OrdinalBPRModel":
+        """Fit Ordinal BPR model using stochastic gradient descent.
+
+        Args:
+            positives: Dict mapping microbe_idx -> set of consumed metabolite_idx
+            n_microbes: Total number of microbes
+            n_metabolites: Total number of metabolites
+            known_negatives: Dict mapping microbe_idx -> set of tested-but-not-consumed
+                            metabolite_idx.  Items here are preferentially sampled as
+                            negatives.  If None or empty, degenerates to standard BPR.
+            n_epochs: Number of training epochs
+            batch_size: Batch size for SGD
+            learning_rate: Learning rate
+            hard_neg_ratio: Fraction of negative samples drawn from known_negatives
+                           (when available).  0 = never use hard negatives (= standard BPR),
+                           1 = always use hard negatives when available.
+            lambda_ord: Weight for the ordinal loss term score(N) > score(U).
+                       0 disables the ordinal term entirely.
+            verbose: Whether to log progress every 100 epochs
+
+        Returns:
+            self
+        """
+        self.n_microbes = n_microbes
+        self.n_metabolites = n_metabolites
+
+        known_negatives = known_negatives or {}
+
+        model = _BPRTorchModel(n_microbes, n_metabolites, self.embedding_dim)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+        microbe_indices = [m for m in positives if len(positives[m]) > 0]
+
+        for epoch in range(n_epochs):
+            epoch_loss = 0.0
+            n_batches = 0
+
+            for _ in range(max(1, len(microbe_indices) // batch_size)):
+                m_batch, pos_batch, neg_batch = [], [], []
+                m_ord, hard_ord, soft_ord = [], [], []
+
+                for _ in range(batch_size):
+                    m_idx = np.random.choice(microbe_indices)
+                    pos_idx = np.random.choice(list(positives[m_idx]))
+
+                    kn = known_negatives.get(m_idx)
+                    has_hard = bool(kn)
+
+                    if has_hard and np.random.random() < hard_neg_ratio:
+                        # Hard negative: sample from tested-not-consumed
+                        neg_idx = np.random.choice(list(kn))
+
+                        # Ordinal pair: hard_neg should score above an unobserved item
+                        if lambda_ord > 0:
+                            excluded = positives.get(m_idx, set()) | kn
+                            soft_idx = np.random.randint(n_metabolites)
+                            while soft_idx in excluded:
+                                soft_idx = np.random.randint(n_metabolites)
+                            m_ord.append(m_idx)
+                            hard_ord.append(neg_idx)
+                            soft_ord.append(soft_idx)
+                    else:
+                        # Soft negative: sample from unobserved (exclude both P and N)
+                        excluded = positives.get(m_idx, set()) | (kn or set())
+                        neg_idx = np.random.randint(n_metabolites)
+                        while neg_idx in excluded:
+                            neg_idx = np.random.randint(n_metabolites)
+
+                    m_batch.append(m_idx)
+                    pos_batch.append(pos_idx)
+                    neg_batch.append(neg_idx)
+
+                # Main BPR loss: score(P) > score(neg)
+                m_t = torch.tensor(m_batch, dtype=torch.long)
+                pos_t = torch.tensor(pos_batch, dtype=torch.long)
+                neg_t = torch.tensor(neg_batch, dtype=torch.long)
+                pos_scores, neg_scores = model(m_t, pos_t, neg_t)
+                loss = -torch.log(torch.sigmoid(pos_scores - neg_scores)).mean()
+
+                # Ordinal loss: score(N) > score(U)
+                if m_ord:
+                    m_o = torch.tensor(m_ord, dtype=torch.long)
+                    h_t = torch.tensor(hard_ord, dtype=torch.long)
+                    s_t = torch.tensor(soft_ord, dtype=torch.long)
+                    hard_scores, unobs_scores = model(m_o, h_t, s_t)
+                    loss = loss + lambda_ord * (
+                        -torch.log(torch.sigmoid(hard_scores - unobs_scores)).mean()
+                    )
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                epoch_loss += loss.item()
+                n_batches += 1
+
+            if verbose and (epoch + 1) % 100 == 0:
+                avg_loss = epoch_loss / n_batches if n_batches > 0 else 0
+                logger.info(f"Epoch {epoch + 1}/{n_epochs}, Loss: {avg_loss:.4f}")
+
+        self._torch_model = model
+        self._microbe_embeddings = model.microbe_emb.weight.detach().numpy()
+        self._metabolite_embeddings = model.metabolite_emb.weight.detach().numpy()
+        self._fitted = True
+
+        return self
+
+    def get_torch_model(self) -> nn.Module:
+        """Return underlying PyTorch model."""
+        return self._torch_model
+
+    def load_from_torch(self, torch_model: nn.Module) -> "OrdinalBPRModel":
+        """Load embeddings from a PyTorch model."""
+        self._torch_model = torch_model
+        self._microbe_embeddings = torch_model.microbe_emb.weight.detach().numpy()
+        self._metabolite_embeddings = torch_model.metabolite_emb.weight.detach().numpy()
+        self.n_microbes = self._microbe_embeddings.shape[0]
+        self.n_metabolites = self._metabolite_embeddings.shape[0]
+        self._fitted = True
+        return self
+
+
+# =============================================================================
 # LMF Model (Logistic Matrix Factorization)
 # =============================================================================
 

@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 from core.types import ModelArtifacts, Taxonomy, TrainingData
-from core.models import BaseEmbeddingModel, BPRModel, ImplicitBPRModel, LMFModel, WRMFModel, SVDModel
+from core.models import BaseEmbeddingModel, BPRModel, OrdinalBPRModel, ImplicitBPRModel, LMFModel, WRMFModel, SVDModel
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def save_model_artifacts(
     model_type = type(model).__name__
     
     # Save model weights
-    if isinstance(model, BPRModel):
+    if isinstance(model, (BPRModel, OrdinalBPRModel)):
         torch_model = model.get_torch_model()
         torch.save(
             {
@@ -54,11 +54,16 @@ def save_model_artifacts(
         )
     
     # Save metadata
-    # Convert positives dict (int -> set) to JSON-serializable format
-    positives_json = {}
-    for m_idx, pos_set in artifacts.training_data.positives.items():
-        positives_json[str(m_idx)] = list(pos_set)
-    
+    # Convert positives / known_negatives (int -> set) to JSON-serializable format
+    positives_json = {
+        str(m_idx): list(pos_set)
+        for m_idx, pos_set in artifacts.training_data.positives.items()
+    }
+    known_negatives_json = {
+        str(m_idx): list(neg_set)
+        for m_idx, neg_set in artifacts.training_data.known_negatives.items()
+    }
+
     metadata = {
         "model_type": model_type,
         "embedding_dim": model.embedding_dim,
@@ -67,6 +72,7 @@ def save_model_artifacts(
         "microbe_to_idx": artifacts.training_data.microbe_to_idx,
         "metabolite_to_idx": artifacts.training_data.metabolite_to_idx,
         "positives": positives_json,
+        "known_negatives": known_negatives_json,
         "microbe_taxonomy": {
             mid: {
                 "kingdom": tax.kingdom,
@@ -122,17 +128,20 @@ def load_model_artifacts(
     }
     
     # Load model
-    if model_type == "BPRModel":
+    if model_type in ("BPRModel", "OrdinalBPRModel"):
         model_path = input_dir / "model.pt"
         checkpoint = torch.load(model_path, weights_only=True)
-        
+
         from core.models import _BPRTorchModel
         torch_model = _BPRTorchModel(n_microbes, n_metabolites, embedding_dim)
         torch_model.load_state_dict(checkpoint["state_dict"])
-        
-        model = BPRModel(embedding_dim=embedding_dim)
+
+        if model_type == "OrdinalBPRModel":
+            model = OrdinalBPRModel(embedding_dim=embedding_dim)
+        else:
+            model = BPRModel(embedding_dim=embedding_dim)
         model.load_from_torch(torch_model)
-        
+
     elif model_type == "WRMFModel":
         model_path = input_dir / "model.npz"
         data = np.load(model_path)
@@ -181,19 +190,21 @@ def load_model_artifacts(
     
     logger.info(f"Loaded {model_type} from {input_dir}")
     
-    # Reconstruct TrainingData with positives
-    positives_dict = {}
-    if "positives" in metadata:
-        # Convert back from JSON format (str keys -> int keys, lists -> sets)
-        for m_idx_str, pos_list in metadata["positives"].items():
-            positives_dict[int(m_idx_str)] = set(pos_list)
-    
+    # Reconstruct TrainingData with positives and known_negatives
+    positives_dict = {
+        int(k): set(v) for k, v in metadata.get("positives", {}).items()
+    }
+    known_negatives_dict = {
+        int(k): set(v) for k, v in metadata.get("known_negatives", {}).items()
+    }
+
     training_data = TrainingData(
         n_microbes=n_microbes,
         n_metabolites=n_metabolites,
         microbe_to_idx=metadata["microbe_to_idx"],
         metabolite_to_idx=metadata["metabolite_to_idx"],
         positives=positives_dict,
+        known_negatives=known_negatives_dict,
         microbe_taxonomy=microbe_taxonomy,
     )
     

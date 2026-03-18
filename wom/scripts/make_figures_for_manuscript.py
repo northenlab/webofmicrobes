@@ -208,8 +208,9 @@ def compute_loo_auc(
 def run_figure1_oos_benchmark(
     dimensions: list[int],
     n_repeats: int,
+    assertion_type: AssertionType = AssertionType.CONSUMED,
 ) -> pd.DataFrame:
-    """Run out-of-sample leave-one-out benchmark for all 5 consumed models."""
+    """Run out-of-sample leave-one-out benchmark for all 5 models."""
     model_map = {
         "BPR": "bpr",
         "WR-MF": "wrmf",
@@ -227,11 +228,11 @@ def run_figure1_oos_benchmark(
         "lmf": {"iterations": 30, "learning_rate": 1.0, "regularization": 0.1},
     }
 
-    logger.info("Loading consumed data for out-of-sample benchmark")
+    logger.info(f"Loading {assertion_type.name.lower()} data for out-of-sample benchmark")
     df = load_exometabolite()
     training_data = prepare_training_data(
         df,
-        preference_type=AssertionType.CONSUMED,
+        preference_type=assertion_type,
         include_secreted=False,
     )
 
@@ -494,6 +495,7 @@ def figure_1_model_comparison(
     figure1_dims: list[int] | None = None,
     figure1_repeats: int = 5,
     figure1_recompute: bool = False,
+    assertion_type: AssertionType = AssertionType.CONSUMED,
 ):
     """Figure 1: Original-style AUC benchmark with dense dimension sweep."""
     if figure1_dims is None:
@@ -508,18 +510,19 @@ def figure_1_model_comparison(
     }
     model_order = ["bpr", "wrmf", "svd", "implicit_bpr", "lmf"]
 
-    cache_csv = output_dir / "figure1_core_results_consumed_5models.csv"
+    atype_name = assertion_type.name.lower()
+    cache_csv = output_dir / f"figure1_core_results_{atype_name}_5models.csv"
     if cache_csv.exists() and not figure1_recompute:
         logger.info(f"Loading cached Figure 1 benchmark results from {cache_csv}")
         core_results = pd.read_csv(cache_csv)
     else:
         logger.info("Running out-of-sample Figure 1 benchmark (this may take several minutes)")
-        core_results = run_figure1_oos_benchmark(figure1_dims, figure1_repeats)
+        core_results = run_figure1_oos_benchmark(figure1_dims, figure1_repeats, assertion_type)
         core_results.to_csv(cache_csv, index=False)
         logger.info(f"Saved Figure 1 benchmark results to {cache_csv}")
 
     if core_results.empty:
-        logger.error("No consumed models were available for Figure 1")
+        logger.error(f"No {atype_name} models were available for Figure 1")
         return None
 
     metrics_df = core_results.groupby(["method", "dim"], as_index=False)["auc"].agg(["mean", "std"]).reset_index()
@@ -723,13 +726,14 @@ def figure_3_heatmap(
     min_isolates: int = 1,
     exclude_universal: bool = True,
     max_metabolites: int = 60,
+    assertion_type: AssertionType = AssertionType.CONSUMED,
 ):
     """Figure 3: Genus × metabolite heatmap of distinctive preferences.
 
     Genera ordered by taxonomy. Class color bar on top.
     Only shows the most distinctive metabolites.
     """
-    data = prepare_training_data(df, AssertionType.CONSUMED, include_secreted=False)
+    data = prepare_training_data(df, assertion_type, include_secreted=False)
     microbe_to_idx = data.microbe_to_idx
     tax_table = build_taxonomy_table(df, microbe_to_idx)
 
@@ -899,6 +903,7 @@ def figure_3_heatmap_seaborn(
     min_isolates: int = 1,
     exclude_universal: bool = True,
     max_metabolites: int = 60,
+    assertion_type: AssertionType = AssertionType.CONSUMED,
 ):
     """Figure 3 (seaborn): Genus × metabolite clustermap with taxonomy color bar."""
     import seaborn as sns
@@ -906,7 +911,7 @@ def figure_3_heatmap_seaborn(
     from scipy.spatial.distance import pdist
 
     # --- Data preparation (same as figure_3_heatmap) ---
-    data = prepare_training_data(df, AssertionType.CONSUMED, include_secreted=False)
+    data = prepare_training_data(df, assertion_type, include_secreted=False)
     microbe_to_idx = data.microbe_to_idx
     tax_table = build_taxonomy_table(df, microbe_to_idx)
 
@@ -1951,30 +1956,32 @@ def figure_8_experimental_validation_all_models(
     output_dir: Path,
     trained_model_dir: Path = None,
     embedding_dim: int = 32,
-    k: int = 30
+    k: int = 30,
+    assertion_type: AssertionType = AssertionType.CONSUMED,
 ):
     """Generate Figure 8 for all 5 models + precision/recall table.
-    
+
     Uses precision@k and recall@k evaluation.
-    
+
     Args:
         output_dir: Output directory for figures and tables
         trained_model_dir: Directory with trained models (if available)
         embedding_dim: Embedding dimension to use for training
         k: Number of top predictions to evaluate (precision@k)
+        assertion_type: Whether to use consumed or secreted data
     """
     # Load experimental data
     experimental_df = load_experimental_validation_data()
     if experimental_df is None:
         logger.warning("Cannot generate Figure 8: no experimental data available")
         return
-    
+
     # Load training data
-    logger.info("Loading training data for Figure 8")
+    logger.info(f"Loading {assertion_type.name.lower()} training data for Figure 8")
     df = load_exometabolite()
     training_data = prepare_training_data(
         df,
-        preference_type=AssertionType.CONSUMED,
+        preference_type=assertion_type,
         include_secreted=False,
     )
     
@@ -2204,10 +2211,19 @@ if __name__ == "__main__":
         description="Generate publication figures from trained models"
     )
     parser.add_argument(
+        "--assertion-type",
+        choices=["consumed", "secreted", "both"],
+        default="consumed",
+        help="Assertion type to generate figures for: 'consumed', 'secreted', or 'both' (default: consumed)",
+    )
+    parser.add_argument(
         "--model-dir",
         type=Path,
-        default=Path("trained_models/bpr_consumed"),
-        help="Path to trained model directory (for figures 2, 3, 6, 7)",
+        default=None,
+        help=(
+            "Path to BPR model directory for figures 2, 3, 6, 7, and TSV export. "
+            "Defaults to <models-dir>/bpr_<assertion-type>."
+        ),
     )
     parser.add_argument(
         "--data",
@@ -2219,7 +2235,7 @@ if __name__ == "__main__":
         "--models-dir",
         type=Path,
         default=Path("trained_models"),
-        help="Path to parent directory containing all trained models (for figure 1)",
+        help="Path to parent directory containing all trained models",
     )
     parser.add_argument(
         "--figure1-dims",
@@ -2271,107 +2287,134 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    
-    # Create output directory
+
+    # Determine which assertion types to process
+    if args.assertion_type == "both":
+        assertion_types = ["consumed", "secreted"]
+    else:
+        assertion_types = [args.assertion_type]
+
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Figure 1: Model comparison (compares all 5 models)
-    if 1 in args.figures:
-        try:
-            logger.info("Generating Figure 1: Model comparison")
-            figure_1_model_comparison(
-                args.output_dir,
-                figure1_dims=args.figure1_dims,
-                figure1_repeats=args.figure1_repeats,
-                figure1_recompute=args.figure1_recompute,
-            )
-        except Exception as e:
-            logger.error(f"Failed to generate Figure 1: {e}")
-    
-    # For figures 2/3/6/7 and TSV export, load the single model
-    if any(f in args.figures for f in [2, 3, 6, 7]) or args.export_tsv:
-        logger.info(f"Loading model from {args.model_dir}")
-        try:
-            artifacts = load_model_artifacts(args.model_dir)
-            model = artifacts.model
-            training_data = artifacts.training_data
-            logger.info(f"Loaded {type(model).__name__} with {training_data.n_microbes} microbes and {training_data.n_metabolites} metabolites")
-        except Exception as e:
-            logger.error(f"Failed to load model: {e}")
-            sys.exit(1)
 
-        # Export taxonomic score matrices as TSVs
-        if args.export_tsv:
+    for atype in assertion_types:
+        at_enum = AssertionType.CONSUMED if atype == "consumed" else AssertionType.SECRETED
+
+        # When generating both types, write into subdirectories to avoid collisions
+        if len(assertion_types) > 1:
+            type_output_dir = args.output_dir / atype
+        else:
+            type_output_dir = args.output_dir
+        type_output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Derive the BPR model directory: explicit override or auto-detect from models-dir
+        model_dir = args.model_dir or (args.models_dir / f"bpr_{atype}")
+
+        logger.info(f"=== Assertion type: {atype} | output: {type_output_dir} ===")
+
+        # Figure 1: Model comparison (benchmark across all 5 model types)
+        if 1 in args.figures:
             try:
-                logger.info("Exporting taxonomic score matrices to TSV")
-                export_taxonomic_score_matrices(artifacts, args.output_dir)
-            except Exception as e:
-                logger.error(f"Failed to export taxonomic score matrices: {e}")
-
-        # Figure 3: Genus x metabolite biclustering heatmap
-        if 3 in args.figures:
-            try:
-                logger.info("Generating Figure 3: Distinctive-score biclustering")
-                if not isinstance(model, BPRModel):
-                    logger.warning("Figure 3 expects a BPR model; using loaded embeddings anyway")
-
-                if args.data.exists():
-                    df = pd.read_parquet(args.data)
-                else:
-                    logger.info("Data file not found at --data, loading exometabolite cache via loader")
-                    df = load_exometabolite()
-
-                profiles = compute_genus_profiles_from_bpr(model, training_data)
-                categories = compute_metabolite_categories_from_profiles(profiles)
-                figure_3_heatmap_seaborn(
-                    df,
-                    profiles,
-                    categories,
-                    args.output_dir,
-                    min_isolates=1,
-                    exclude_universal=True,
-                    max_metabolites=60,
+                logger.info("Generating Figure 1: Model comparison")
+                figure_1_model_comparison(
+                    type_output_dir,
+                    figure1_dims=args.figure1_dims,
+                    figure1_repeats=args.figure1_repeats,
+                    figure1_recompute=args.figure1_recompute,
+                    assertion_type=at_enum,
                 )
             except Exception as e:
-                logger.error(f"Failed to generate Figure 3: {e}")
-    
-        # Figure 2: t-SNE of microbe embeddings
-        if 2 in args.figures:
+                logger.error(f"Failed to generate Figure 1: {e}")
+
+        # For figures 2/3/6/7 and TSV export, load the BPR model
+        if any(f in args.figures for f in [2, 3, 6, 7]) or args.export_tsv:
+            logger.info(f"Loading model from {model_dir}")
             try:
-                logger.info("Generating Figure 2: t-SNE embeddings")
-                figure_2_tsne(model, training_data, args.output_dir, embedding_dim=args.embedding_dim)
+                artifacts = load_model_artifacts(model_dir)
+                model = artifacts.model
+                training_data = artifacts.training_data
+                logger.info(
+                    f"Loaded {type(model).__name__} with "
+                    f"{training_data.n_microbes} microbes and "
+                    f"{training_data.n_metabolites} metabolites"
+                )
             except Exception as e:
-                logger.error(f"Failed to generate Figure 2: {e}")
-        
-        # Figure 6: Rank clustermap
-        if 6 in args.figures:
+                logger.error(f"Failed to load model: {e}")
+                continue
+
+            # Export taxonomic score matrices as TSVs
+            if args.export_tsv:
+                try:
+                    logger.info("Exporting taxonomic score matrices to TSV")
+                    export_taxonomic_score_matrices(artifacts, type_output_dir)
+                except Exception as e:
+                    logger.error(f"Failed to export taxonomic score matrices: {e}")
+
+            # Figure 3: Genus x metabolite biclustering heatmap
+            if 3 in args.figures:
+                try:
+                    logger.info("Generating Figure 3: Distinctive-score biclustering")
+                    if not isinstance(model, BPRModel):
+                        logger.warning("Figure 3 expects a BPR model; using loaded embeddings anyway")
+
+                    if args.data.exists():
+                        df = pd.read_parquet(args.data)
+                    else:
+                        logger.info("Data file not found at --data, loading exometabolite cache via loader")
+                        df = load_exometabolite()
+
+                    profiles = compute_genus_profiles_from_bpr(model, training_data)
+                    categories = compute_metabolite_categories_from_profiles(profiles)
+                    figure_3_heatmap_seaborn(
+                        df,
+                        profiles,
+                        categories,
+                        type_output_dir,
+                        min_isolates=1,
+                        exclude_universal=True,
+                        max_metabolites=60,
+                        assertion_type=at_enum,
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to generate Figure 3: {e}")
+
+            # Figure 2: t-SNE of microbe embeddings
+            if 2 in args.figures:
+                try:
+                    logger.info("Generating Figure 2: t-SNE embeddings")
+                    figure_2_tsne(model, training_data, type_output_dir, embedding_dim=args.embedding_dim)
+                except Exception as e:
+                    logger.error(f"Failed to generate Figure 2: {e}")
+
+            # Figure 6: Rank clustermap
+            if 6 in args.figures:
+                try:
+                    logger.info("Generating Figure 6: Rank clustermap")
+                    if "df" not in locals():
+                        df = load_exometabolite()
+                    figure_6_rank_clustermap(model, training_data, type_output_dir, df=df, embedding_dim=args.embedding_dim)
+                except Exception as e:
+                    logger.error(f"Failed to generate Figure 6: {e}")
+
+            # Figure 7: Embedding distance by taxonomy
+            if 7 in args.figures:
+                try:
+                    logger.info("Generating Figure 7: Embedding distance by taxonomy")
+                    figure_7_embedding_distance(model, training_data, type_output_dir)
+                except Exception as e:
+                    logger.error(f"Failed to generate Figure 7: {e}")
+
+        # Figure 8: Experimental validation (all 5 model types)
+        if 8 in args.figures:
             try:
-                logger.info("Generating Figure 6: Rank clustermap")
-                if 'df' not in locals():
-                    df = load_exometabolite()
-                figure_6_rank_clustermap(model, training_data, args.output_dir, df=df, embedding_dim=args.embedding_dim)
+                logger.info(f"Generating Figure 8: Experimental validation (5 models) using precision@{args.figure8_k}")
+                figure_8_experimental_validation_all_models(
+                    output_dir=type_output_dir,
+                    trained_model_dir=model_dir,
+                    embedding_dim=args.embedding_dim,
+                    k=args.figure8_k,
+                    assertion_type=at_enum,
+                )
             except Exception as e:
-                logger.error(f"Failed to generate Figure 6: {e}")
-        
-        # Figure 7: Embedding distance by taxonomy
-        if 7 in args.figures:
-            try:
-                logger.info("Generating Figure 7: Embedding distance by taxonomy")
-                figure_7_embedding_distance(model, training_data, args.output_dir)
-            except Exception as e:
-                logger.error(f"Failed to generate Figure 7: {e}")
-    
-    # Figure 8: Experimental validation (all 5 models)
-    if 8 in args.figures:
-        try:
-            logger.info(f"Generating Figure 8: Experimental validation (5 models) using precision@{args.figure8_k}")
-            figure_8_experimental_validation_all_models(
-                output_dir=args.output_dir,
-                trained_model_dir=args.model_dir,
-                embedding_dim=args.embedding_dim,
-                k=args.figure8_k,
-            )
-        except Exception as e:
-            logger.error(f"Failed to generate Figure 8: {e}")
-    
+                logger.error(f"Failed to generate Figure 8: {e}")
+
     logger.info("Figure generation complete")
