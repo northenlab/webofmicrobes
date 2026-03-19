@@ -217,7 +217,6 @@ Combine Steps 1–3 into a ranked table. Every row must include ALL of these col
 
   - BPR score ± SD: use aggregate_score and compound_score_sd[compound].
     Format: "5.68 ± 1.20 (12 isolates)". If compound_score_sd is null, write "5.68 (n=1)".
-  - N tested: taxa_evidence_summary[genus]["n_tested"]. Write "0" if genus absent.
   - Evidence tier: taxa_evidence_summary[genus]["evidence_strength"]. Write "unvalidated" if absent.
   - Notes: brief annotation — "(observed)", "(predicted, not tested)", or "(⚠ conflicts with observation)"
 
