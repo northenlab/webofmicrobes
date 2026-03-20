@@ -213,10 +213,13 @@ STEP 4 — SYNTHESIS TABLE (always include this)
 ═══════════════════════════════════════════════════════════════
 Combine Steps 1–3 into a ranked table. Every row must include ALL of these columns:
 
-  | Genus | BPR score ± SD (N in model) | N tested | Evidence tier | Notes |
+  | Genus | Substrate | BPR score ± SD | Isolates in model | Evidence tier | Notes |
 
-  - BPR score ± SD: use aggregate_score and compound_score_sd[compound].
-    Format: "5.68 ± 1.20 (12 isolates)". If compound_score_sd is null, write "5.68 (n=1)".
+  - BPR score ± SD: use aggregate_score ± compound_score_sd[compound].
+    Format: "5.68 ± 1.20". If compound_score_sd is null (single isolate), write "5.68".
+  - Isolates in model: n_isolates_in_model — the number of isolate genomes whose BPR embeddings
+    were averaged to produce this genus-level score. Can be large (10s–100s) for common genera.
+    This is a model quantity; whether the genus was experimentally tested is shown by Evidence tier.
   - Evidence tier: taxa_evidence_summary[genus]["evidence_strength"]. Write "unvalidated" if absent.
   - Notes: brief annotation — "(observed)", "(predicted, not tested)", or "(⚠ conflicts with observation)"
 
@@ -414,7 +417,8 @@ When score_sd is present, report the preference score as "score ± score_sd" or 
 uncertainty explicitly. A high score_sd relative to score means isolates in this genus
 disagree strongly about this compound — the genus-level prediction is an average over
 diverse phenotypes. A low score_sd means all isolates point the same direction.
-Example: "D-xylose: 6.91 ± 2.3 (n=3 isolates)" signals the genus mean is uncertain.
+Example: score "6.91 ± 2.3" with "Isolates in model = 3" signals the genus mean is uncertain.
+Do NOT embed the isolate count inside the score cell — put it in the dedicated "Isolates in model" column.
 - error (string): Error message if success=False
 
 EXAMPLE USAGE:
@@ -655,7 +659,11 @@ PARAMETERS:
 RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether query succeeded
-- results (list): Array of ranked microbes with:
+- results (list): Array of microbes, pre-sorted by aggregate_score DESCENDING (highest first).
+  For interaction_type='consumed', higher aggregate_score = stronger predicted consumption.
+  This holds regardless of sign: a score of -2 indicates stronger preference than -8.
+  DO NOT re-sort these results — present them in the order returned by the API.
+  Fields per entry:
   - taxon: Taxon name
   - level: Taxonomic level
   - aggregate_score: Computed using agg_method across compounds
@@ -674,14 +682,14 @@ embeddings for that genus. Larger SD means isolates in the genus disagree on thi
 compound — the genus-level prediction should be treated with caution.
 
 TABLE FORMAT — always present results as a table with these columns:
-  | Genus | BPR score ± SD (N isolates in model) | N isolates tested | Evidence tier | Doubling time |
+  | Taxon | BPR score ± SD | Isolates in model | Evidence tier | Doubling time |
 
-  - BPR score: aggregate_score, formatted as "score ± compound_score_sd[cpd]" (e.g. "5.68 ± 1.20")
-  - N isolates in model: n_isolates_in_model (the denominator for the mean embedding)
-  - N isolates tested: from metadata.observations.taxa_evidence_summary[genus]["n_tested"]
-    (show 0 if genus not in taxa_evidence_summary)
-  - Evidence tier: from metadata.observations.taxa_evidence_summary[genus]["evidence_strength"]
-    (show "unvalidated" if genus not in taxa_evidence_summary)
+  - BPR score ± SD: aggregate_score ± compound_score_sd[cpd] (e.g. "5.68 ± 1.20").
+    Do NOT embed the isolate count inside the score cell.
+  - Isolates in model: n_isolates_in_model — isolate genomes averaged for this taxon's BPR score.
+    Can be large (10s–100s) for common genera. Whether the taxon was lab-tested is shown by Evidence tier.
+  - Evidence tier: from metadata.observations.taxa_evidence_summary[taxon]["evidence_strength"]
+    (show "unvalidated" if taxon not in taxa_evidence_summary)
   - Doubling time: call taxonomy_levels_for_growth_rate separately if needed; format as "mean ± std h"
 
 EXAMPLE USAGE:

@@ -73,7 +73,7 @@ if "chat_id" not in st.session_state:
 
 # Sidebar
 st.sidebar.info(
-    """This is an early-stage release of a general purpose microbiome agent for predicting and interpreting exometabolite mediated dynamics in isolates and communities. Currently, the model is limited to 226 isolates across 68 Genera and 119 metabolites so use caution when interpreting and using the results."""
+    """This is a general purpose microbiome agent for predicting and interpreting exometabolite mediated dynamics in isolates and communities. Currently, the model is limited to 710 isolates across 114 genera and 347 metabolites, with 186,945 observations. This is an early-stage release so use caution when interpreting and using the results."""
 )
 if st.sidebar.button("🔄 New Chat", use_container_width=True):
     st.session_state["messages"] = []
@@ -106,7 +106,13 @@ Lawrence Berkeley National Laboratory.
 
 **References**
 We would like to acknowledge the following manuscripts for tools and data
-- Xu, Liang, Emily Zakem, and J. L. Weissman. "Improved maximum growth rate prediction from microbial genomes by integrating phylogenetic information." Nature Communications 16.1 (2025): 4256.
+- Xu, Liang, Emily Zakem, and J. L. Weissman. "Improved maximum growth rate prediction from microbial genomes by integrating phylogenetic information." *Nature Communications* 16.1 (2025): 4256.
+- Han, S., Van Treuren, W., Fischer, C.R. et al. A metabolomics pipeline for the mechanistic interrogation of the gut microbiome. *Nature* 595, 415–420 (2021). [doi:10.1038/s41586-021-03707-9](https://doi.org/10.1038/s41586-021-03707-9)
+- Kosina, S.M., Greiner, A.M., Lau, R.K. et al. Web of microbes (WoM): a curated microbial exometabolomics database for linking chemistry and microbes. *BMC Microbiol* 18, 115 (2018). [doi:10.1186/s12866-018-1256-y](https://doi.org/10.1186/s12866-018-1256-y)
+- Barnum, T.P., Crits-Christoph, A., Molla, M. et al. Predicting microbial growth conditions from amino acid composition. *bioRxiv* 2024.03.22.586313. [doi:10.1101/2024.03.22.586313](https://doi.org/10.1101/2024.03.22.586313)
+- The UniProt Consortium. UniProt: the Universal Protein Knowledgebase in 2025. *Nucleic Acids Research* 53, D609–D617 (2025). [doi:10.1093/nar/gkae1010](https://doi.org/10.1093/nar/gkae1010)
+- Malik, A. et al. ChEBI: re-engineered for a sustainable future. *Nucleic Acids Research* 54, D1768–D1778 (2026). [doi:10.1093/nar/gkaf1271](https://doi.org/10.1093/nar/gkaf1271)
+- Bansal, P. et al. Rhea, the reaction knowledgebase in 2022. *Nucleic Acids Research* 50, D693–D700 (2022). [doi:10.1093/nar/gkab1016](https://doi.org/10.1093/nar/gkab1016)
 """)
 
 # Streamlit UI
