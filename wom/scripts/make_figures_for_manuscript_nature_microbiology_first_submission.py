@@ -23,7 +23,6 @@ from matplotlib.colors import TwoSlopeNorm
 from matplotlib.patches import Patch
 from sklearn.manifold import TSNE
 from sklearn.metrics import pairwise_distances
-from scipy.stats import ttest_ind
 from sklearn.metrics import precision_score, recall_score
 
 from core.io import load_model_artifacts
@@ -42,7 +41,7 @@ plt.rcParams.update({
     "xtick.labelsize": 9,
     "ytick.labelsize": 9,
     "legend.fontsize": 8,
-    "figure.dpi": 150,
+    "figure.dpi": 300,
 })
 
 
@@ -569,7 +568,7 @@ def figure_1_model_comparison(
     plt.tight_layout()
 
     for ext in ["png", "pdf"]:
-        fig.savefig(output_dir / f"figure1_benchmark.{ext}", dpi=300, bbox_inches="tight")
+        fig.savefig(output_dir / f"figure1_benchmark.{ext}", dpi=600, bbox_inches="tight")
     plt.close()
 
     logger.info("Saved figure1_benchmark")
@@ -706,7 +705,7 @@ def figure_2_tsne(
     for ext in ["png", "pdf"]:
         fig.savefig(
             output_dir / f"figure2_tsne.{ext}",
-            dpi=300, bbox_inches="tight",
+            dpi=600, bbox_inches="tight",
         )
     plt.close()
     logger.info("Saved figure2_tsne")
@@ -887,7 +886,7 @@ def figure_3_heatmap(
     for ext in ["png", "pdf"]:
         fig.savefig(
             output_dir / f"figure3_heatmap.{ext}",
-            dpi=300, bbox_inches="tight",
+            dpi=600, bbox_inches="tight",
         )
     plt.close()
     logger.info("Saved figure3_heatmap")
@@ -1130,14 +1129,54 @@ def figure_3_heatmap_seaborn(
         Patch(facecolor="#aaaaaa", edgecolor="gray", label="Unknown"),
     ]
 
-    all_handles = class_handles + [Patch(alpha=0, label=" ")] + collection_handles + [Patch(alpha=0, label=" ")] + oxygen_handles
+    # Three legend boxes in figure coordinates (bbox_transform=g.fig.transFigure).
+    # Collection and Oxygen: 1 column × 3 rows, anchored at the right.
+    # Taxonomy class: ceil(n/3) columns so it is also exactly 3 rows tall, on the left.
+    # add_artist() preserves each legend after the next legend() call replaces ax._legend.
+    n_class_cols = int(np.ceil(len(unique_classes) / 3))
+
+    class_leg = g.ax_col_dendrogram.legend(
+        handles=class_handles,
+        title="Taxonomy class",
+        title_fontsize=22,
+        loc="upper left",
+        bbox_to_anchor=(0.20, 1.15),
+        bbox_transform=g.fig.transFigure,
+        ncol=n_class_cols,
+        fontsize=20,
+        frameon=True,
+        framealpha=0.9,
+        edgecolor="lightgray",
+    )
+    g.ax_col_dendrogram.add_artist(class_leg)
+
+    coll_leg = g.ax_col_dendrogram.legend(
+        handles=collection_handles,
+        title="Collection",
+        title_fontsize=22,
+        loc="upper right",
+        bbox_to_anchor=(0.88, 1.15),
+        bbox_transform=g.fig.transFigure,
+        ncol=1,
+        fontsize=20,
+        frameon=True,
+        framealpha=0.9,
+        edgecolor="lightgray",
+    )
+    g.ax_col_dendrogram.add_artist(coll_leg)
+
     g.ax_col_dendrogram.legend(
-        handles=all_handles,
-        loc="center",
-        bbox_to_anchor=(0.5, 1.2),
-        ncol=max(3, int(np.ceil((len(unique_classes) + 8) / 3))),
-        fontsize=24,
-        frameon=False,
+        handles=oxygen_handles,
+        title="Oxygen",
+        title_fontsize=22,
+        loc="upper right",
+        bbox_to_anchor=(1.03, 1.15),
+        bbox_transform=g.fig.transFigure,
+        ncol=1,
+        fontsize=20,
+        frameon=True,
+        framealpha=0.9,
+        edgecolor="lightgray",
     )
 
     for ax in [g.ax_row_dendrogram, g.ax_col_dendrogram]:
@@ -1145,7 +1184,7 @@ def figure_3_heatmap_seaborn(
             c.set_linewidth(1.5)
 
     for ext in ["png", "pdf"]:
-        g.savefig(output_dir / f"{figure_name}.{ext}", dpi=300, bbox_inches="tight")
+        g.savefig(output_dir / f"{figure_name}.{ext}", dpi=600, bbox_inches="tight")
     plt.close()
     logger.info(f"Saved {figure_name} (score_col={score_col})")
 
@@ -1482,7 +1521,7 @@ def figure_5_raw_score_heatmap(
             c.set_linewidth(1.5)
 
     for ext in ["png", "pdf"]:
-        g.savefig(output_dir / f"figure5_raw_heatmap.{ext}", dpi=300, bbox_inches="tight")
+        g.savefig(output_dir / f"figure5_raw_heatmap.{ext}", dpi=600, bbox_inches="tight")
     plt.close()
     logger.info("Saved figure5_raw_heatmap")
 
@@ -1559,7 +1598,7 @@ def figure_6_rank_clustermap(
     g.ax_heatmap.set_ylabel("Bacterial isolate", labelpad=-850, fontsize=24)
 
     for ext in ["png", "pdf"]:
-        g.savefig(output_dir / f"figure6_rank_clustermap.{ext}", dpi=300, bbox_inches="tight")
+        g.savefig(output_dir / f"figure6_rank_clustermap.{ext}", dpi=600, bbox_inches="tight")
     plt.close()
 
     logger.info("Saved figure6_rank_clustermap")
@@ -1642,11 +1681,7 @@ def figure_7_embedding_distance(
         diff = merged[merged[col1] != merged[col2]]
         median_same = same['embedding_distance'].median()
         median_diff = diff['embedding_distance'].median()
-        p_value = ttest_ind(
-            same['embedding_distance'],
-            diff['embedding_distance'],
-            equal_var=False,
-        ).pvalue
+        delta = median_diff - median_same
 
         ax.hist(
             same['embedding_distance'], bins=edges,
@@ -1660,7 +1695,7 @@ def figure_7_embedding_distance(
         ax.axvline(median_diff, color='orange', linestyle='dashed', linewidth=3)
         ax.legend(fontsize=16, frameon=False)
         ax.text(
-            0.8, 0.6, f'p = {p_value:.2e}',
+            0.8, 0.6, f'Δmedian = {delta:.3f}',
             transform=ax.transAxes, fontsize=16, ha='center',
         )
 
@@ -1686,7 +1721,7 @@ def figure_7_embedding_distance(
     for ext in ["png", "pdf"]:
         fig.savefig(
             output_dir / f"figure7_embedding_distance.{ext}",
-            dpi=300, bbox_inches="tight",
+            dpi=600, bbox_inches="tight",
         )
     plt.close()
     logger.info("Saved figure7_embedding_distance")
@@ -2050,25 +2085,26 @@ def figure_8_experimental_validation_single_model(
     for i in range(n_genera, len(axes)):
         axes[i].remove()
 
-    # Single-line figure-level legend above the subplots (no title to keep it compact)
+    # Single-line figure-level legend above the subplots
     if legend_handles:
         fig.legend(legend_handles, legend_labels,
                    loc='upper center', bbox_to_anchor=(0.5, 1.0),
                    ncol=len(legend_labels), frameon=False,
-                   fontsize=20)
+                   fontsize=20, title="experimental observation",
+                   title_fontsize=20)
 
     # Shared axis labels — positioned inside tight_layout rect
     fig.text(0.5, 0.01, f'Mean {model_name} Score (Genus-Level)', ha='center', fontsize=22)
     fig.text(0.01, 0.5, 'Number of Metabolites', va='center', rotation='vertical', fontsize=22)
 
     # Reserve left/bottom margins for shared labels; top margin for legend
-    plt.tight_layout(rect=[0.05, 0.05, 1.0, 0.93])
+    plt.tight_layout(rect=[0.05, 0.05, 1.0, 0.88])
     
     # Save figure
     safe_name = model_name.lower().replace('-', '_').replace(' ', '_')
     for ext in ['png', 'pdf']:
         fig.savefig(output_dir / f"figure8_experimental_validation_{safe_name}.{ext}",
-                   dpi=300, bbox_inches='tight')
+                   dpi=600, bbox_inches='tight')
     plt.close()
     
     logger.info(f"Saved figure8_experimental_validation_{safe_name}")
