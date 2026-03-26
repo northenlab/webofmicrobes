@@ -14,7 +14,7 @@ class AgentRunner:
     def __init__(self):
         self._loop = asyncio.new_event_loop()
         self._run_lock = None
-        self._model_name = "gemini-3-flash-preview"
+        self._model_name = "gemini-2.5-flash"
         self._provider = "google"
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
