@@ -1,1 +1,1 @@
-I want to selectively enrich Bacillus in soil without promoting the growth of Pedobacter. Suggest metabolites that should be selective in favor of Bacillus.
+I want to selectively enrich Streptomyces in soil without promoting Pseudomonas. Suggest metabolites that Streptomyces strongly prefers but Pseudomonas does not.

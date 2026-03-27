@@ -1,1 +1,2 @@
-For Pseudomonas, rank all 23 of these substrates from highest to lowest preference: phenylalanine, glycine, threonine, isoleucine, leucine, lysine, serine, alanine, proline, arginine, glutamate, adenosine, guanine, hypoxanthine, uridine, 4-guanidinobutanoic acid, glucose, fructose, mannose, arabinose, trehalose, maltose, mannitol.
+I've been growing acinetobacter in northen lab defined media (NLDM), which substrate could I use as the primary carbon source to lower the media costs?
+
