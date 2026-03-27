@@ -73,7 +73,7 @@ if "chat_id" not in st.session_state:
 
 # Sidebar
 st.sidebar.info(
-    """This is a general purpose microbiome agent for predicting and interpreting exometabolite mediated dynamics in isolates and communities. Currently, the model is limited to 710 isolates across 114 genera and 347 metabolites, with 186,945 observations. This is an early-stage release so use caution when interpreting and using the results."""
+    """This is a general purpose microbiome agent for predicting and interpreting exometabolite mediated dynamics in isolates and communities. Currently, the model is limited to 433 isolates across 117 genera and 311 metabolites, with 80,834 observations. This is an early-stage release so use caution when interpreting and using the results."""
 )
 if st.sidebar.button("🔄 New Chat", use_container_width=True):
     st.session_state["messages"] = []

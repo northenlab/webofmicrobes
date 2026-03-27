@@ -14,7 +14,10 @@ from fastmcp import FastMCP
 import requests
 import random
 import json
+import logging
 import sys
+
+logger = logging.getLogger(__name__)
 
 import sys
 
@@ -235,8 +238,9 @@ THREE CAVEATS — raise proactively whenever relevant
    n_isolates_with_data is low (0–2) for a large genus, the prediction may not represent the
    specific strain the user cares about. Suggest level='isolate' queries if an organism_id is known.
 3. STEREOISOMER GROUPING — WoM maps compounds to their InChIKey first block (connectivity only),
-   collapsing stereoisomers. If raw names in isolate_records differ from representative_compound,
-   mention it when stereochemistry could matter.
+   collapsing stereoisomers. If compounds_with_raw_name_variants is non-empty, mention it when
+   stereochemistry could matter. Raw-to-representative compound mappings are listed there.
+   For per-isolate assertion values, see isolate_observations (genus → isolate_id → {compound: assertion_value}).
 """
 
 
@@ -306,7 +310,15 @@ def _serialize_wom_response(
     orchestration["observation_guidance"] = _OBSERVATION_GUIDANCE
 
   metadata["orchestration"] = orchestration
-  return json.dumps(payload, indent=2)
+  serialized = json.dumps(payload, indent=2)
+  obs = payload.get("metadata", {}).get("observations", {})
+  n_records = len(obs.get("isolate_observations", obs.get("isolate_records", [])))
+  guidance_bytes = len((orchestration.get("observation_guidance") or "").encode())
+  logger.info(
+      "[size] tool=%s total_bytes=%d isolate_observation_entries=%d guidance_bytes=%d",
+      tool_name, len(serialized), n_records, guidance_bytes,
+  )
+  return serialized
 
 
 

@@ -256,6 +256,27 @@ class QueryEngine:
             return "strong_positive" if target_count >= 3 else "positive"
         return "mixed"
 
+    @staticmethod
+    def _build_compact_observations(obs_df) -> dict:
+        """Compact {genus: {organism_id: {rep_compound: assertion_value}}} dict.
+
+        Drops redundant family/order/assertion columns (already in taxa_evidence_summary).
+        Genus is the outer key for easy LLM navigation at genus query level.
+        assertion_value interpretation: ≤ -2 = consumed, ≥ 2 = secreted, else neutral.
+        """
+        import pandas as pd
+        if obs_df is None or obs_df.empty:
+            return {}
+        result: dict = {}
+        for row in obs_df.itertuples(index=False):
+            genus = row.genus
+            isolate = row.organism_id
+            compound = row.representative_compound
+            av = row.assertion_value
+            value = float(av) if not pd.isna(av) else None
+            result.setdefault(genus, {}).setdefault(isolate, {})[compound] = value
+        return result
+
     def _build_observation_metadata(
         self,
         taxa: list[tuple[str, str]],
@@ -271,7 +292,7 @@ class QueryEngine:
           - prediction_conflicts: observation rows that contradict predicted direction
           - untested_top_predictions: top predictions with zero empirical data
           - n_isolates_with_data / n_compounds_observed: quick coverage counts
-          - isolate_records: full raw rows (for deep inspection; read last)
+          - isolate_observations: compact {genus → isolate_id → {compound: assertion_value}} dict
 
         Args:
             taxa: (level, name) pairs that were queried.
@@ -385,7 +406,11 @@ class QueryEngine:
             "untested_top_predictions":      untested,
             "n_isolates_with_data":          int(obs_df["organism_id"].nunique()) if not obs_df.empty else 0,
             "n_compounds_observed":          len(observed_compounds),
-            "isolate_records":               obs_df.to_dict(orient="records"),
+            "isolate_observations":          self._build_compact_observations(obs_df),
+            "isolate_observations_note": (
+                "Structure: genus → isolate_id → {representative_compound: assertion_value}. "
+                "Interpret assertion_value: ≤ -2 = consumed, ≥ 2 = secreted, else neutral."
+            ),
         }
 
     # =========================================================================

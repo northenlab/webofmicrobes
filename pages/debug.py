@@ -105,7 +105,7 @@ def debug_log(label: str, content):
 
 # Sidebar disclaimer
 st.sidebar.info(
-    """This is a general purpose microbiome agent for predicting and interpreting exometabolite mediated dynamics in isolates and communities. Currently, the model is limited to 710 isolates across 114 genera and 347 metabolites, with 186,945 observations. This is an early-stage release so use caution when interpreting and using the results. We provide several illustrative examples and anticipate that the accuracy of the model will continue to increase with additional data."""
+    """This is a general purpose microbiome agent for predicting and interpreting exometabolite mediated dynamics in isolates and communities. Currently, the model is limited to 433 isolates across 117 genera and 311 metabolites, with 80,834 observations. This is an early-stage release so use caution when interpreting and using the results. We provide several illustrative examples and anticipate that the accuracy of the model will continue to increase with additional data."""
 )
 
 # Initialize chat_id for history link
