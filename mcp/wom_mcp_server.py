@@ -2129,5 +2129,37 @@ def analyze_substrate_gaps(
         }, indent=2)
 
 
+@mcp.tool(
+    name="calculator_mean",
+    description="Calculate the mean (average) of a list of numbers.",
+)
+def calculator_mean(numbers: list[float]) -> str:
+    if not numbers:
+        return json.dumps({"success": False, "error": "No numbers provided."})
+    result = sum(numbers) / len(numbers)
+    return json.dumps({"success": True, "mean": result, "input": numbers})
+
+
+@mcp.tool(
+    name="calculator_sum",
+    description="Calculate the sum of a list of numbers.",
+)
+def calculator_sum(numbers: list[float]) -> str:
+    if not numbers:
+        return json.dumps({"success": False, "error": "No numbers provided."})
+    result = sum(numbers)
+    return json.dumps({"success": True, "sum": result, "input": numbers})
+
+
+@mcp.tool(
+    name="calculator_divide",
+    description="Divide a numerator by a denominator.",
+)
+def calculator_divide(numerator: float, denominator: float) -> str:
+    if denominator == 0:
+        return json.dumps({"success": False, "error": "Cannot divide by zero."})
+    result = numerator / denominator
+    return json.dumps({"success": True, "result": result, "numerator": numerator, "denominator": denominator})
+
 if __name__ == "__main__":
     mcp.run(transport="http", host="0.0.0.0", port=8000)
