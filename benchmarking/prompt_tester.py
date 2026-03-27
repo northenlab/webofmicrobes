@@ -7,12 +7,12 @@ load_dotenv()
 
 PROMPTS_DIR = "prompts"
 OUTPUT_DIR = "output"
-NUM_RUNS = 10
+NUM_RUNS = 5
 API_KEY = os.getenv("GOOGLE_API_KEY")
 
 MODELS = [
-    "gemini-3-flash-preview",
     "gemini-3.1-pro-preview",
+    #"gemini-3-flash-preview",
 ]
 
 print(MODELS)
