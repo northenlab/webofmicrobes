@@ -11,7 +11,7 @@ NUM_RUNS = 5
 API_KEY = os.getenv("GOOGLE_API_KEY")
 
 MODELS = [
-    "gemini-3.1-pro-preview",
+    #"gemini-3.1-pro-preview",
     "gemini-3-flash-preview",
 ]
 
