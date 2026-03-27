@@ -96,6 +96,7 @@ If a tool fails or doesn't respond:
 - Suggest multi-tool approaches for complex questions
 - Reference specific scores and metrics
 - Explain why you chose particular query types
+- Use the calculator when you need to do math like averaging, adding, or dividing. Its going to be more accurate
 
 ### ❌ DON'T
 - Hallucinate tool outputs
