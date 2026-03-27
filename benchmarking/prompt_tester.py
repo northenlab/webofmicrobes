@@ -21,7 +21,10 @@ print(MODELS)
 client = genai.Client(api_key=API_KEY)
 
 #prompt_files = glob.glob(os.path.join(PROMPTS_DIR, "*.md"))
-prompt_files = glob.glob(os.path.join(PROMPTS_DIR, "test2.md"))
+#prompt_files = glob.glob(os.path.join(PROMPTS_DIR, "test2.md"))
+#prompt_files = glob.glob(os.path.join(PROMPTS_DIR, "test3.md"))
+#prompt_files = glob.glob(os.path.join(PROMPTS_DIR, "test4.md"))
+prompt_files = glob.glob(os.path.join(PROMPTS_DIR, "test5.md"))
 
 for prompt_path in prompt_files:
     prompt_name = os.path.splitext(os.path.basename(prompt_path))[0]

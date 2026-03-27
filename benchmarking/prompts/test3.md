@@ -1,0 +1,1 @@
+I want to selectively enrich Rhizobium in soil without promoting Pedobacter. Suggest metabolites that most discriminate between Rhizobium vs. Pedobacter.

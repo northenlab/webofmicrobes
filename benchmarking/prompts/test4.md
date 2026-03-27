@@ -1,0 +1,1 @@
+I want to selectively enrich Bacillus in soil without promoting the growth of Pedobacter. Suggest metabolites that should be selective in favor of Bacillus.
