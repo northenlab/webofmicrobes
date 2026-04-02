@@ -21,6 +21,7 @@ os.makedirs(SUMMARY_DIR, exist_ok=True)
 # Filename format: {prompt_name}_{model_tag}_run{NN}.md
 groups = defaultdict(lambda: defaultdict(list))
 for filepath in sorted(glob.glob(os.path.join(OUTPUT_DIR, "*.md"))):
+
     filename = os.path.basename(filepath)
     match = re.match(r'^(.+?)_(.+)_run(\d+)\.md$', filename)
     if not match:

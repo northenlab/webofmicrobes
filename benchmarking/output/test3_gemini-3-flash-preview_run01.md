@@ -1,63 +1,80 @@
 ### Step 1: Doubling Time Prediction and Filtering
-In this step, the doubling times for all listed genera are predicted based on standard laboratory conditions (optimal media and temperature). Genera with a doubling time greater than 5 hours are removed from the list.
+In this step, the doubling time for each genus is predicted based on optimal laboratory growth conditions (typically on rich media at 25–37°C). Genera with a predicted doubling time greater than 5 hours are filtered out of the list.
 
-1.  **Acidovorax:** ~2.0 hours (Kept)
-2.  **Acinetobacter:** ~0.75–1.0 hours (Kept)
-3.  **Afipia:** ~12–24+ hours (**Filtered out**)
-4.  **Arthrobacter:** ~3.0 hours (Kept)
-5.  **Bacillus:** ~0.5–1.0 hours (Kept)
-6.  **Bradyrhizobium:** ~7–12+ hours (**Filtered out**)
-7.  **Brevibacillus:** ~1.0 hour (Kept)
-8.  **Brevundimonas:** ~3.0–4.0 hours (Kept)
-9.  **Burkholderia:** ~1.5–2.5 hours (Kept)
-10. **Caulobacter:** ~2.0–3.0 hours (Kept)
-11. **Chitinophaga:** ~4.0–5.0 hours (Kept)
-12. **Chryseobacterium:** ~2.0–3.0 hours (Kept)
-13. **Cupriavidus:** ~1.5–2.5 hours (Kept)
-14. **Curvibacter:** ~4.0–5.0 hours (Kept)
-15. **Ensifer:** ~2.5–4.0 hours (Kept)
-16. **Flavobacterium:** ~2.0–4.0 hours (Kept)
-17. **Herbaspirillum:** ~2.0–3.0 hours (Kept)
-18. **Janthinobacterium:** ~3.5–5.0 hours (Kept)
-19. **Lysinibacillus:** ~1.0–1.5 hours (Kept)
-20. **Lysobacter:** ~3.5–5.0 hours (Kept)
-21. **Marmoricola:** ~10–15+ hours (**Filtered out**)
-22. **Massilia:** ~2.5–4.0 hours (Kept)
-23. **Mesorhizobium:** ~6–10+ hours (**Filtered out**)
-24. **Methylobacterium:** ~6–8+ hours (**Filtered out**)
-25. **Modestobacter:** ~24–48+ hours (**Filtered out**)
-26. **Mucilaginibacter:** ~4.0–5.0 hours (Kept)
-27. **Niastella:** ~4.0–5.0 hours (Kept)
-28. **Novosphingobium:** ~3.0–5.0 hours (Kept)
-29. **Paenibacillus:** ~1.5–2.5 hours (Kept)
+1.  **Acidovorax:** ~2.5 hours (Keep)
+2.  **Acinetobacter:** ~0.75 hours (Keep)
+3.  **Afipia:** ~12–24 hours (**Filtered out**)
+4.  **Arthrobacter:** ~3.0 hours (Keep)
+5.  **Bacillus:** ~0.5 hours (Keep)
+6.  **Bradyrhizobium:** ~7–14 hours (**Filtered out**)
+7.  **Brevibacillus:** ~1.5 hours (Keep)
+8.  **Brevundimonas:** ~4.0 hours (Keep)
+9.  **Burkholderia:** ~1.5 hours (Keep)
+10. **Caulobacter:** ~2.5 hours (Keep)
+11. **Chitinophaga:** ~4.5 hours (Keep)
+12. **Chryseobacterium:** ~2.0 hours (Keep)
+13. **Cupriavidus:** ~2.5 hours (Keep)
+14. **Curvibacter:** ~4.5 hours (Keep)
+15. **Ensifer:** ~3.0 hours (Keep)
+16. **Flavobacterium:** ~2.0 hours (Keep)
+17. **Herbaspirillum:** ~2.0 hours (Keep)
+18. **Janthinobacterium:** ~4.0 hours (Keep)
+19. **Lysinibacillus:** ~1.5 hours (Keep)
+20. **Lysobacter:** ~4.5 hours (Keep)
+21. **Marmoricola:** ~10–15 hours (**Filtered out**)
+22. **Massilia:** ~2.5 hours (Keep)
+23. **Mesorhizobium:** ~6–12 hours (**Filtered out**)
+24. **Methylobacterium:** ~6–10 hours (**Filtered out**)
+25. **Modestobacter:** >24 hours (**Filtered out**)
+26. **Mucilaginibacter:** ~6–8 hours (**Filtered out**)
+27. **Niastella:** ~8–12 hours (**Filtered out**)
+28. **Novosphingobium:** ~3.5 hours (Keep)
+29. **Paenibacillus:** ~2.0 hours (Keep)
+30. **Pedobacter:** ~4.0 hours (Keep)
+31. **Phenylobacterium:** ~6–10 hours (**Filtered out**)
+32. **Pseudomonas:** ~1.0 hour (Keep)
+33. **Rhizobium:** ~2.5 hours (Keep)
+34. **Rhodococcus:** ~4.0 hours (Keep)
+35. **Sphingomonas:** ~3.5 hours (Keep)
+36. **Stenotrophomonas:** ~1.5 hours (Keep)
+37. **Streptomyces:** ~4.0 hours (Keep)
+38. **Undibacterium:** ~4.0 hours (Keep)
+39. **Zoogloea:** ~4.0 hours (Keep)
 
 ---
 
-### Step 2: Xylose Preference Ranking
-The following table ranks the remaining 23 genera based on their competitive preference for xylose. Ranking is determined by the presence of specialized xylose metabolic pathways (e.g., *xylAB* isomerase or Weimberg oxidative pathways), the efficiency of xylose transport systems, and documented growth performance on xylose as a primary carbon source.
+### Step 2: Ranking by Xylose Preference
+The following table ranks the 30 remaining genera from highest to lowest preference for xylose. Preference is determined by the efficiency of xylose metabolic pathways (e.g., isomerase vs. oxidative pathways), the presence of high-affinity transport systems, and the relative lack of carbon catabolite repression (CCR) when xylose is provided alongside other sugars.
 
 | Rank | Genus | Predicted Doubling Time (hours) | Basis for Xylose Preference Ranking |
 | :--- | :--- | :--- | :--- |
-| 1 | **Paenibacillus** | 2.0 | Specialized hemicellulose degraders; high expression of xylose isomerase and ABC transporters. |
-| 2 | **Bacillus** | 0.75 | Highly efficient *xylAB* operon; rapid flux through the pentose phosphate pathway. |
-| 3 | **Burkholderia** | 2.0 | Exceptional metabolic versatility; high-affinity xylose uptake systems in competitive environments. |
-| 4 | **Brevibacillus** | 1.0 | Efficient utilization of plant-derived pentoses; similar metabolic machinery to *Bacillus*. |
-| 5 | **Lysinibacillus** | 1.2 | Rapid growth on various sugars; possesses robust xylose catabolic genes. |
-| 6 | **Cupriavidus** | 2.0 | Strong metabolic capacity for diverse sugars; efficient energy yield from pentose metabolism. |
-| 7 | **Arthrobacter** | 3.0 | High survival and metabolic activity on xylose in soil-based conditions. |
-| 8 | **Ensifer** | 3.0 | Possesses multiple high-efficiency carbohydrate transporters; competitive sugar consumer. |
-| 9 | **Chryseobacterium** | 2.5 | Capable of breaking down complex glycans and rapidly utilizing the resulting xylose monomers. |
-| 10 | **Flavobacterium** | 3.0 | Specialized in polysaccharide degradation; efficient secondary consumer of xylose. |
-| 11 | **Acidovorax** | 2.0 | Generalist sugar consumer; xylose supports steady growth but is not the primary preference. |
-| 12 | **Massilia** | 3.0 | Common early colonizer that utilizes root-exuded sugars including xylose. |
-| 13 | **Herbaspirillum** | 2.5 | Endophytic specialist; utilizes xylose effectively within the plant environment. |
-| 14 | **Janthinobacterium** | 4.0 | Capable of xylose utilization, though often prefers organic acids or glucose. |
-| 15 | **Novosphingobium** | 4.0 | Versatile degrader; xylose is utilized but often at a lower priority than aromatics. |
-| 16 | **Caulobacter** | 2.5 | Uses the oxidative Weimberg pathway; efficient but generally slower than the isomerase pathway. |
-| 17 | **Brevundimonas** | 3.5 | Similar to *Caulobacter*; utilizes xylose via oxidative pathways with moderate affinity. |
-| 18 | **Chitinophaga** | 4.5 | Primarily degrades complex polymers; xylose utilization is functional but slow. |
-| 19 | **Mucilaginibacter** | 4.5 | Specialized in extracellular polysaccharide production; utilizes xylose as a building block. |
-| 20 | **Niastella** | 4.5 | Slow-growing Bacteroidetes; xylose utilization is present but not highly competitive. |
-| 21 | **Lysobacter** | 4.0 | Predatory/exoenzymatic focus; xylose is a secondary carbon source. |
-| 22 | **Curvibacter** | 4.5 | Limited sugar preference; typically found in oligotrophic environments with low sugar flux. |
-| 23 | **Acinetobacter** | 0.8 | Fast grower, but strongly prefers organic acids/alkanes; many species lack xylose pathways. |
+| 1 | **Burkholderia** | 1.5 | High-affinity xylose isomerase (XylA) and kinase (XylB); minimal CCR. |
+| 2 | **Paenibacillus** | 2.0 | Specialized for hemicellulose degradation; possesses extensive xylanolytic gene clusters. |
+| 3 | **Caulobacter** | 2.5 | Utilizes the efficient oxidative Weimberg pathway; xylose is a primary preferred substrate. |
+| 4 | **Rhizobium** | 2.5 | Highly efficient ABC transporters for pentoses; xylose is a key substrate in the rhizosphere. |
+| 5 | **Ensifer** | 3.0 | Similar to Rhizobium; optimized for rapid uptake of pentose sugars from plant exudates. |
+| 6 | **Bacillus** | 0.5 | Rapid growth and well-characterized *xyl* operon, though glucose is typically preferred. |
+| 7 | **Arthrobacter** | 3.0 | High metabolic flexibility; efficient utilization of various pentoses in soil environments. |
+| 8 | **Sphingomonas** | 3.5 | Broad substrate range; effective at utilizing xylose even at low concentrations. |
+| 9 | **Novosphingobium** | 3.5 | Versatile carbohydrate metabolism; capable of utilizing a wide range of plant-derived sugars. |
+| 10 | **Flavobacterium** | 2.0 | Efficient utilization of various plant-derived polysaccharides and their monomers. |
+| 11 | **Chryseobacterium** | 2.0 | Robust sugar metabolism; common in environments where hemicellulose is degraded. |
+| 12 | **Streptomyces** | 4.0 | Primary degraders of xylan; possess efficient systems for monomeric xylose uptake. |
+| 13 | **Brevibacillus** | 1.5 | Fast growth on various sugars; metabolic profile similar to other Bacillaceae. |
+| 14 | **Lysinibacillus** | 1.5 | Efficient sugar metabolism; frequently isolated from xylose-rich soil environments. |
+| 15 | **Herbaspirillum** | 2.0 | Plant-associated; optimized for the uptake of sugars found in root exudates. |
+| 16 | **Massilia** | 2.5 | Rapidly colonizes sugar-rich environments; efficient generalist sugar metabolism. |
+| 17 | **Cupriavidus** | 2.5 | Versatile metabolism; can utilize xylose via oxidative pathways under various conditions. |
+| 18 | **Acidovorax** | 2.5 | Capable of utilizing various sugars; however, often prefers organic acids when available. |
+| 19 | **Pseudomonas** | 1.0 | Extremely competitive; however, many species lack the *xyl* operon or prefer organic acids. |
+| 20 | **Chitinophaga** | 4.5 | Specialized in complex carbohydrate degradation, including hemicellulose components. |
+| 21 | **Pedobacter** | 4.0 | Common sugar utilizer in soil; possesses pathways for various plant-derived monomers. |
+| 22 | **Janthinobacterium** | 4.0 | Generalist heterotroph; possesses moderate affinity for a wide range of sugars. |
+| 23 | **Undibacterium** | 4.0 | Generalist; capable of utilizing various carbon sources including pentose sugars. |
+| 24 | **Zoogloea** | 4.0 | Utilizes various sugars; common in environments with high organic matter turnover. |
+| 25 | **Curvibacter** | 4.5 | Aquatic generalist; capable of moderate growth on xylose and other simple sugars. |
+| 26 | **Lysobacter** | 4.5 | Primarily proteolytic or predatory; limited preference for sugar metabolism. |
+| 27 | **Rhodococcus** | 4.0 | Metabolic focus is often on lipids and hydrocarbons; lower preference for sugars. |
+| 28 | **Brevundimonas** | 4.0 | Oligotrophic specialist; less competitive in high-concentration sugar environments. |
+| 29 | **Acinetobacter** | 0.75 | Very fast growth, but many species are non-saccharolytic and cannot utilize xylose. |
+| 30 | **Stenotrophomonas** | 1.5 | Strong preference for amino acids and organic acids over pentose sugars. |
