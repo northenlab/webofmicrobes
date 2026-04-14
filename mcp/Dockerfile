@@ -19,7 +19,7 @@ COPY requirements.txt .
 RUN /bin/bash -c 'source activate python310 && uv pip install --python $(which python) --no-cache -r requirements.txt'
 
 # rapidfuzz
-RUN /bin/bash -c 'source activate python310 && uv pip install --python $(which python) --no-cache requests fastmcp rapidfuzz'
+RUN /bin/bash -c 'source activate python310 && uv pip install --python $(which python) --no-cache requests "fastmcp==2.14.6" rapidfuzz'
 
 COPY . /app
 WORKDIR /app
