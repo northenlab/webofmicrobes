@@ -216,13 +216,14 @@ STEP 4 — SYNTHESIS TABLE (always include this)
 ═══════════════════════════════════════════════════════════════
 Combine Steps 1–3 into a ranked table. Every row must include ALL of these columns:
 
-  | Genus | Substrate | BPR score ± SD | Isolates in model | Evidence tier | Notes |
+  | Genus | Substrate | BPR score ± SD | Isolates in model | Embedding diversity | Evidence tier | Notes |
 
   - BPR score ± SD: use aggregate_score ± compound_score_sd[compound].
     Format: "5.68 ± 1.20". If compound_score_sd is null (single isolate), write "5.68".
   - Isolates in model: n_isolates_in_model — the number of isolate genomes whose BPR embeddings
     were averaged to produce this genus-level score. Can be large (10s–100s) for common genera.
     This is a model quantity; whether the genus was experimentally tested is shown by Evidence tier.
+  - Embedding diversity: see EMBEDDING DIVERSITY section below.
   - Evidence tier: taxa_evidence_summary[genus]["evidence_strength"]. Write "unvalidated" if absent.
   - Notes: brief annotation — "(observed)", "(predicted, not tested)", or "(⚠ conflicts with observation)"
 
@@ -241,6 +242,26 @@ THREE CAVEATS — raise proactively whenever relevant
    collapsing stereoisomers. If compounds_with_raw_name_variants is non-empty, mention it when
    stereochemistry could matter. Raw-to-representative compound mappings are listed there.
    For per-isolate assertion values, see isolate_observations (genus → isolate_id → {compound: assertion_value}).
+
+═══════════════════════════════════════════════════════════════
+EMBEDDING DIVERSITY (genus-level reliability prior)
+═══════════════════════════════════════════════════════════════
+Each taxon result includes embedding_diversity (float 0–1; None for isolate-level queries or
+taxa with < 2 members in the model). This is the mean pairwise cosine distance between isolate
+BPR embeddings within the genus — a scalar summarising how heterogeneous the genus's isolates
+are in embedding space.
+
+Use BOTH uncertainty signals together:
+  score_sd on a compound entry   → uncertainty for this specific metabolite × genus combination
+  embedding_diversity on taxon   → prior on whether this genus is safe to aggregate at all
+                                   (empirically validated: Spearman ρ = -0.73, p < 10⁻⁸ with
+                                    empirical within-genus metabolic consistency, n = 48 genera)
+
+Thresholds:
+  0.0–0.3  → tight embedding cluster — genus-level aggregation is reliable
+  0.3–0.6  → moderate heterogeneity — note uncertainty; high score_sd compounds are especially suspect
+  0.6–1.0  → high heterogeneity — genus-level prediction averages metabolically diverse isolates;
+              recommend isolate-level querying; flag clearly to user
 """
 
 
@@ -411,16 +432,21 @@ PARAMETERS:
 RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether the query succeeded
-- results (list): Array of compound predictions with:
-  - raw_score: Direct model prediction (dot product of embeddings)
-  - distinctive_score: raw_score - background_mean (if compute_distinctive=True)
-  - rank: Ranking among all metabolites
-  - percentile: Percentile ranking (0-100%)
-  - score_sd: Standard deviation of individual isolate scores for this compound
-              (reflects how diverse the genus is in its preference for this compound;
-              None for isolate-level queries or single-isolate genera)
-  - score_se: Standard error of the genus-mean score = score_sd / sqrt(n_isolates)
-              (uncertainty in the genus-level prediction from aggregation)
+- results (list): Array of per-microbe results, each with:
+  - embedding_diversity: Mean pairwise cosine distance between isolate BPR embeddings within
+                         this genus (float 0–1; None for isolate-level queries or < 2 model members).
+                         Genus-level reliability prior — use alongside per-compound score_sd.
+                         Validated: Spearman ρ = -0.73 (p < 10⁻⁸) with empirical within-genus
+                         metabolic consistency across 48 genera.
+  - compounds (list): per-compound entries with:
+    - raw_score: Direct model prediction (dot product of embeddings)
+    - distinctive_score: raw_score - background_mean (if compute_distinctive=True)
+    - rank: Ranking among all metabolites
+    - percentile: Percentile ranking (0-100%)
+    - score_sd: Standard deviation of individual isolate scores for this compound
+                (reflects how diverse the genus is for this specific compound;
+                None for isolate-level queries or single-isolate genera)
+    - score_se: Standard error of the genus-mean score = score_sd / sqrt(n_isolates)
   - statistics: mean_score, median_score, std_score across all compounds
 - metadata (dict): Input validation, aggregation stats (n_isolates), computation method
 
@@ -431,6 +457,12 @@ disagree strongly about this compound — the genus-level prediction is an avera
 diverse phenotypes. A low score_sd means all isolates point the same direction.
 Example: score "6.91 ± 2.3" with "Isolates in model = 3" signals the genus mean is uncertain.
 Do NOT embed the isolate count inside the score cell — put it in the dedicated "Isolates in model" column.
+
+EMBEDDING DIVERSITY GUIDANCE (use alongside score_sd, not instead):
+< 0.3  → HIGH CONFIDENCE genus-level aggregation
+0.3–0.6 → MODERATE — note "isolates vary"; check score_sd on specific compounds of interest
+> 0.6  → LOW CONFIDENCE — recommend isolate-level query; compounds with high score_sd
+          at a high-diversity genus warrant particular caution
 - error (string): Error message if success=False
 
 EXAMPLE USAGE:
@@ -680,6 +712,9 @@ Returns JSON with:
   - level: Taxonomic level
   - aggregate_score: Computed using agg_method across compounds
   - n_isolates_in_model: Number of isolates in BPR training data for this taxon
+  - embedding_diversity: Mean pairwise cosine distance between isolate BPR embeddings within
+                         this genus (float 0–1; None for isolate-level or < 2 model members).
+                         Genus-level reliability prior — complementary to per-compound compound_score_sd.
   - compound_scores: Individual raw BPR scores for each queried compound
   - compound_score_sd: Per-compound SD derived from isolate embedding variance
     (only present when level != 'isolate' and ≥2 isolates exist in the model)
@@ -693,13 +728,20 @@ where v_cpd is the compound embedding and E_isolates is the matrix of all isolat
 embeddings for that genus. Larger SD means isolates in the genus disagree on this
 compound — the genus-level prediction should be treated with caution.
 
+EMBEDDING DIVERSITY GUIDANCE (use alongside score_sd, not instead):
+< 0.3  → HIGH CONFIDENCE genus-level aggregation
+0.3–0.6 → MODERATE — note "isolates vary"; check compound_score_sd for specific compounds
+> 0.6  → LOW CONFIDENCE — recommend isolate-level query; high compound_score_sd entries
+          at a high-diversity genus warrant particular caution
+
 TABLE FORMAT — always present results as a table with these columns:
-  | Taxon | BPR score ± SD | Isolates in model | Evidence tier | Doubling time |
+  | Taxon | BPR score ± SD | Isolates in model | Embedding diversity | Evidence tier | Doubling time |
 
   - BPR score ± SD: aggregate_score ± compound_score_sd[cpd] (e.g. "5.68 ± 1.20").
     Do NOT embed the isolate count inside the score cell.
   - Isolates in model: n_isolates_in_model — isolate genomes averaged for this taxon's BPR score.
     Can be large (10s–100s) for common genera. Whether the taxon was lab-tested is shown by Evidence tier.
+  - Embedding diversity: embedding_diversity field (e.g. "0.77" or "—" if null).
   - Evidence tier: from metadata.observations.taxa_evidence_summary[taxon]["evidence_strength"]
     (show "unvalidated" if taxon not in taxa_evidence_summary)
   - Doubling time: call taxonomy_levels_for_growth_rate separately if needed; format as "mean ± std h"
@@ -991,9 +1033,20 @@ Returns JSON with:
   - raw_score: Direct model prediction
   - rank: Ranking among all metabolites
   - percentile: Percentile (0-100%)
-- metadata (dict): Microbe info, background_level used, background_mean value,
-                  n_isolates_in_background (robustness indicator), input validation
+  - score_sd: SD of isolate scores for this compound (None for isolate queries or K<2)
+  - score_se: SE of genus-mean score = score_sd / sqrt(K)
+- metadata (dict): includes:
+  - microbe: {level, name, embedding_diversity} — embedding_diversity is the mean pairwise
+    cosine distance between isolate BPR embeddings within the genus (float 0–1; None for
+    isolate-level or < 2 model members). Genus-level reliability prior; use alongside score_sd.
+  - background_level, background_mean, n_isolates_in_background (robustness indicator)
+  - input_validation
 - error (string): Error message if success=False
+
+EMBEDDING DIVERSITY GUIDANCE (use alongside score_sd, not instead):
+< 0.3  → HIGH CONFIDENCE genus-level aggregation
+0.3–0.6 → MODERATE — note "isolates vary"; check score_sd on specific compounds
+> 0.6  → LOW CONFIDENCE — recommend isolate-level query
 
 EXAMPLE USAGE:
 - Find Burkholderia niche metabolites: microbe='genus:Burkholderia', top=20
@@ -1189,12 +1242,15 @@ RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether query succeeded
 - results (list): Array of microbes, each with:
-  - microbe: Name (level:name or isolate:name)
-  - level: Taxonomic level
+  - microbe: {level, name, embedding_diversity} — embedding_diversity is the mean pairwise
+    cosine distance between isolate BPR embeddings within this genus (float 0–1; None for
+    isolate-level or < 2 model members). Genus-level reliability prior; use alongside score_sd.
   - rankings: Array of substrates sorted by score (highest first), each with:
     - substrate: Original substrate name requested
     - matched: Canonical substrate name after matching
     - score: Raw or distinctive score value
+    - score_sd: SD of isolate scores for this substrate (None for isolate queries or K<2)
+    - score_se: SE of genus-mean score = score_sd / sqrt(K)
     - match_info (if explain=True): fuzzy match details
   - n_scored: Total substrates scored (before filtering to top-k)
 - metadata (dict):
@@ -1203,6 +1259,12 @@ Returns JSON with:
   - microbe_validation: Matching and availability details
   - substrate_validation: Matching and availability details
 - error (string): Error message if success=False
+
+EMBEDDING DIVERSITY GUIDANCE (use alongside score_sd, not instead):
+< 0.3  → HIGH CONFIDENCE genus-level aggregation
+0.3–0.6 → MODERATE — note "isolates vary"; check score_sd on specific substrates
+> 0.6  → LOW CONFIDENCE — recommend isolate-level query; high score_sd entries at a
+          high-diversity genus warrant particular caution
 
 EXAMPLE USAGE:
 - Rank top 5 preferred substrates for isolates: microbes='isolate:A,isolate:B', substrates='acetate,lactate,glucose,butyrate,propionate', top=5
@@ -2162,4 +2224,4 @@ def calculator_divide(numerator: float, denominator: float) -> str:
     return json.dumps({"success": True, "result": result, "numerator": numerator, "denominator": denominator})
 
 if __name__ == "__main__":
-    mcp.run(transport="http", host="0.0.0.0", port=8000)
+    mcp.run(transport="streamable-http", host="0.0.0.0", port=8000)

@@ -591,6 +591,7 @@ class QueryEngine:
                         "level": level,
                         "name": name,
                     },
+                    "embedding_diversity": self.artifacts._taxon_embedding_diversity(level, name),
                     "compounds": [
                         {
                             "name": top_result.metabolite_names[i],
@@ -738,6 +739,7 @@ class QueryEngine:
                         "level": query.level,
                         "aggregate_score": agg_score,
                         "n_isolates_in_model": taxon_isolate_counts.get(taxon_name, 0),
+                        "embedding_diversity": self.artifacts._taxon_embedding_diversity(query.level, taxon_name),
                         "compound_scores": {
                             mapped_names[i]: float(compound_scores[i])
                             for i in range(len(mapped_names))
@@ -1224,7 +1226,11 @@ class QueryEngine:
             top_metabolites = [r["metabolite"] for r in results]
 
             metadata = {
-                "microbe": {"level": level, "name": name},
+                "microbe": {
+                    "level": level,
+                    "name": name,
+                    "embedding_diversity": self.artifacts._taxon_embedding_diversity(level, name),
+                },
                 "background_level": background_level,
                 "background_mean": prediction.background_mean,
                 "n_isolates_in_background": prediction.n_isolates_aggregated,
@@ -1612,7 +1618,8 @@ class QueryEngine:
                 result = {
                     "microbe": {
                         "level": level,
-                        "name": name
+                        "name": name,
+                        "embedding_diversity": self.artifacts._taxon_embedding_diversity(level, name),
                     },
                     "rankings": substrate_scores[:query.top_k],
                     "n_scored": len(substrate_scores)
