@@ -351,17 +351,17 @@ def _annotate_spread(
         if text_ys[i] - text_ys[i + 1] < min_dy:
             text_ys[i + 1] = text_ys[i] - min_dy
 
-    for (data_x, data_y, label), text_y in zip(sorted_items, text_ys):
-        ax.annotate(
-            label,
-            (data_x, data_y),
-            xytext=(data_x + x_offset, text_y),
-            textcoords="data",
-            fontsize=fontsize,
-            style=style,
-            arrowprops=dict(arrowstyle="-", color="gray", lw=0.5),
-            color="black",
-        )
+    # for (data_x, data_y, label), text_y in zip(sorted_items, text_ys):
+    #     ax.annotate(
+    #         label,
+    #         (data_x, data_y),
+    #         xytext=(data_x + x_offset, text_y),
+    #         textcoords="data",
+    #         fontsize=fontsize,
+    #         style=style,
+    #         arrowprops=dict(arrowstyle="-", color="gray", lw=0.5),
+    #         color="black",
+    #     )
 
 
 def _draw_gcs_emb_diversity(

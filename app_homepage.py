@@ -305,25 +305,38 @@ def gemini_chat():
             col1_adv, col2_adv, col3_adv = st.columns(3)
 
             with col1_adv:
-                if st.button("🔬 Predict Pseudomonas [1]", use_container_width=True):
+                if st.button("🔬 Pseudomonas substrates [1]", use_container_width=True):
                     st.session_state.first_message = "For Pseudomonas, rank all 23 of these substrates from highest to lowest preference: phenylalanine, glycine, threonine, isoleucine, leucine, lysine, serine, alanine, proline, arginine, glutamate, adenosine, guanine, hypoxanthine, uridine, 4-guanidinobutanoic acid, glucose, fructose, mannose, arabinose, trehalose, maltose, mannitol"
                     st.session_state.button_clicked = True
                     st.rerun()
             with col2_adv:
-                if st.button("🏆 Soil amino acid spike-in [2]", use_container_width=True):
-                    st.session_state.first_message = "Make a table where you rank (highest to lowest) which of these bacteria you predict will be most competitive for a mixture of proteogenic amino acids based on having both a high substrate preferences and high growth rates. Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea?"
+                if st.button("🦠 Gut microbiome substrates", use_container_width=True):
+                    st.session_state.first_message = "What are the top 3 preferred substrates for these genera: Bacteroides, Blautia, Clostridium, Collinsella, Eggerthella, Eubacterium, Faecalibacterium, Prevotella? Then, make a non-redundant list of these metabolites and generate a table of genera vs the non-redundant metabolites showing BPR scores (no standard deviation)."
                     st.session_state.button_clicked = True
                     st.rerun()
             with col3_adv:
-                if st.button("🍬 Soil xylose spike-in [3]", use_container_width=True):
-                    st.session_state.first_message = "Make a table where you rank (highest to lowest) of which of these bacteria you predict will be most competitive for aldehydo-D-xylose based on having both a high substrate preferences and high growth rates. Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea"
+                if st.button("🏆 Amino acid competition [2]", use_container_width=True):
+                    st.session_state.first_message = "I am providing a list of bacterial genera. You must predict which will be most competitive for proteogenic amino acids (alanine, arginine, asparagine, aspartate, cysteine, glutamate, glutamine, glycine, histidine, isoleucine, leucine, lysine, methionine, phenylalanine, proline, serine, threonine, tryptophan, tyrosine, valine) by predicting the growth rate and calculating the average substrate preference for these amino acids. Perform exactly three sequential steps. Complete Step 1 fully before beginning Step 2 and Step 2 before Step 3. Step 1: Predict the doubling time for each genus. Remove any genus with a doubling time greater than 5 hours. Do not override this threshold for any reason, even if a filtered-out genus has a high proteogenic amino acids preference. Step 2: For the remaining genera only, use the calculator tool to calculate the average preference for proteogenic amino acids. Step 3: rank them from highest to lowest average substrate preference for proteogenic amino acids. Present your final answer as a numbered list with columns: rank, genus, predicted doubling time (hours), and basis for proteogenic amino acids preference ranking. List of genera: Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea."
+                    st.session_state.button_clicked = True
+                    st.rerun()
+
+            col4_adv, col5_adv = st.columns(2)
+
+            with col4_adv:
+                if st.button("🍬 Xylose competition [3]", use_container_width=True):
+                    st.session_state.first_message = "I am providing a list of bacterial genera. You must predict which will be most competitive for xylose, defined as the genus with the highest xylose preference among those capable of fast growth (doubling time ≤ 5 hours). Perform exactly two sequential steps. Complete Step 1 fully before beginning Step 2. Step 1: Predict the doubling time for each genus. Remove any genus with a doubling time greater than 5 hours. Do not override this threshold for any reason, even if a filtered-out genus has a high xylose preference. Step 2: For the remaining genera only, rank them from highest to lowest preference for xylose. Present your final answer as a numbered list with columns: rank, genus, predicted doubling time (hours), and basis for xylose preference ranking. List of genera: Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea."
+                    st.session_state.button_clicked = True
+                    st.rerun()
+            with col5_adv:
+                if st.button("🧪 Acinetobacter carbon sources", use_container_width=True):
+                    st.session_state.first_message = "We want to dive deeper into the substrate utilization of Acinetobacter. We want to grow an Acinetobacter isolate on a sole carbon source that is present in Northen Lab Defined Medium (NLDM). Which carbon sources would you recommend (high BPR score) for this isolate? Provide a carbon source present in NLDM with a neutral score less than 5 and preferred by most microbes. Lastly, provide a low score (select the lowest score) to serve as controls. Take into account the solubility (at 50 mM in water) and toxicity (at 10-15 mM) for all selected carbon sources and If the best hits (i.e., lowest scoring) might not be a good fit based on solubility or toxicity, please suggest an alternative carbon source."
                     st.session_state.button_clicked = True
                     st.rerun()
 
             # Adding in a section of citations
             st.markdown('[1] Jenkins, Stefan, et al. "Construction of viable soil defined media using quantitative metabolomics analysis of soil metabolites." Frontiers in Microbiology 8 (2017): 2618.')
-            st.markdown('[2] bioRxiv Manuscript (Experimental result = Pseudomonas, most enriched and Paenibacillus, also enriched) ')
-            st.markdown('[3] bioRxiv Manuscript (Experimental result= Novosphingobium)')
+            st.markdown('[2] bioRxiv Manuscript (Experimental result = Pseudomonas, most enriched and Paenibacillus, also enriched)')
+            st.markdown('[3] bioRxiv Manuscript (Experimental result = Novosphingobium)')
 
 
 

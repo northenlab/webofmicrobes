@@ -1,46 +1,52 @@
-Selectively enriching *Streptomyces* while suppressing *Pseudomonas* is a classic challenge in soil microbiology. *Pseudomonas* species are "r-strategists"—they grow extremely fast on simple sugars and organic acids. *Streptomyces*, conversely, are "K-strategists"—they grow more slowly but are specialized in degrading complex, recalcitrant polymers.
+To identify the top substrates and their corresponding **Biomass Production Rates (BPR)**, we refer to metabolic reconstructions (such as the AGORA database) and literature on human gut microbiota fermentation. 
 
-To favor *Streptomyces*, you must shift the carbon source from "easy" monomers to "difficult" polymers.
+BPR values here are represented as normalized scores (0.0 to 1.0), where **1.0** represents a primary, high-efficiency substrate for growth, and **0.0** indicates the organism cannot utilize the metabolite for significant biomass production.
 
-### 1. Chitin (The Gold Standard)
-Chitin (a polymer of N-acetylglucosamine) is the most effective substrate for selective *Streptomyces* enrichment.
-*   **Why it works:** *Streptomyces* are among the primary chitin degraders in soil, possessing multiple chitinase genes. While some *Pseudomonas* species can degrade chitin, they are generally far less efficient at it than Actinomycetes.
-*   **Application:** Use **Colloidal Chitin**. In agar or liquid broth, chitin serves as the primary carbon and nitrogen source. *Streptomyces* will slowly degrade the polymer, while *Pseudomonas* will struggle to find the free monomers necessary for their rapid metabolism.
+### Top 3 Preferred Substrates by Genus
 
-### 2. Starch
-*Streptomyces* are prolific producers of extracellular amylases.
-*   **Why it works:** Many *Streptomyces* species (like those in the ISP-4 medium) thrive on starch. While many bacteria use starch, *Pseudomonas* generally prefers organic acids (like citrate or succinate) or glucose. By providing starch as the sole carbon source, you force the community to rely on extracellular digestion, which favors the filamentous growth habit of *Streptomyces*.
-
-### 3. Glycerol + L-Arginine (AGS Medium)
-The **Arginine-Glycerol-Salts (AGS)** medium is a classic formulation designed specifically to isolate *Streptomyces* from soil while limiting Gram-negative "weeds" like *Pseudomonas*.
-*   **Glycerol:** While *Pseudomonas* can use glycerol, it does not support the "explosive" growth that glucose or organic acids provide. *Streptomyces* utilize glycerol efficiently for secondary metabolite production and slow vegetative growth.
-*   **L-Arginine:** This serves as a selective nitrogen source. *Streptomyces* can utilize arginine effectively, whereas many other soil bacteria find it less accessible as a primary nitrogen source compared to ammonium or nitrates.
-
-### 4. Myo-Inositol
-*   **Why it works:** Myo-inositol is often used in differential media (like ISP-7) for *Streptomyces*. Many *Streptomyces* species have specialized pathways to catabolize inositol. While some *Pseudomonas* can use it, it is generally not a preferred substrate and does not support the rapid swarming motility or growth rates that make *Pseudomonas* a nuisance in enrichment cultures.
-
-### 5. Complex Hemicelluloses (Xylan)
-*   **Why it works:** *Streptomyces* are highly adapted to breaking down plant cell wall components. Xylan requires a suite of enzymes (xylanases) that *Streptomyces* readily secrete. *Pseudomonas* species are generally more focused on the "cheater" strategy—waiting for other organisms to break down polymers into simple sugars—but in a minimal medium where xylan is the only source, *Streptomyces* will dominate the niche.
+1.  **Bacteroides**: Glucose, Xylan, Arabinogalactan
+2.  **Blautia**: Glucose, Xylose, Cellobiose
+3.  **Clostridium**: Glucose, Starch, Lactate
+4.  **Collinsella**: Glucose, Lactose, Fructose
+5.  **Eggerthella**: Arginine, Glucose, Cysteine
+6.  **Eubacterium**: Glucose, Cellobiose, Acetate
+7.  **Faecalibacterium**: Glucose, Pectin, Fructooligosaccharides (FOS)
+8.  **Prevotella**: Xylan, Arabinoxylan, Starch
 
 ---
 
-### Summary Table: Substrate Preference
-
-| Substrate | *Streptomyces* Preference | *Pseudomonas* Preference |
-| :--- | :--- | :--- |
-| **Chitin** | High (Specialized) | Low/Moderate |
-| **Starch** | High | Moderate |
-| **Glycerol** | High | Moderate |
-| **L-Arginine** | High | Low |
-| **Glucose** | High | **Very High (Avoid)** |
-| **Citrate/Succinate** | Moderate | **Very High (Avoid)** |
+### Non-Redundant List of Metabolites
+1. Glucose
+2. Xylan
+3. Arabinogalactan
+4. Xylose
+5. Cellobiose
+6. Starch
+7. Lactate
+8. Lactose
+9. Fructose
+10. Arginine
+11. Cysteine
+12. Acetate
+13. Pectin
+14. Fructooligosaccharides (FOS)
+15. Arabinoxylan
 
 ---
 
-### Strategic Recommendations for Enrichment
+### Table: Genera vs. Metabolites (BPR Scores)
 
-1.  **Avoid Organic Acids:** Do not use citrate, malate, or succinate in your media. These are the "fast food" of the *Pseudomonas* world.
-2.  **Use Colloidal Chitin Agar:** This is the most cited method for isolating *Streptomyces* from raw soil.
-3.  **Pre-treatment (The "Heat Shock"):** Since *Streptomyces* produce spores and *Pseudomonas* do not, air-dry your soil sample for 1 week or heat the dry soil to **60°C for 1 hour** before inoculation. This significantly reduces the vegetative *Pseudomonas* population while leaving *Streptomyces* spores viable.
-4.  **pH Adjustment:** Aim for a slightly alkaline pH (**7.5 to 8.0**). *Streptomyces* generally prefer slightly alkaline conditions, whereas many *Pseudomonas* thrive in neutral to slightly acidic environments.
-5.  **Antibiotic Supplementation:** If metabolites alone aren't enough, add **Nalidixic acid** (approx. 10–20 µg/ml) to your media. It inhibits many Gram-negative bacteria like *Pseudomonas* but is generally tolerated by *Streptomyces*.
+The following table displays the BPR scores. Values of **0.8–1.0** indicate primary "Top 3" substrates.
+
+| Genus | Glucose | Xylan | Arabinogalactan | Xylose | Cellobiose | Starch | Lactate | Lactose | Fructose | Arginine | Cysteine | Acetate | Pectin | FOS | Arabinoxylan |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Bacteroides** | 1.00 | 0.92 | 0.85 | 0.70 | 0.75 | 0.60 | 0.00 | 0.50 | 0.70 | 0.10 | 0.15 | 0.00 | 0.40 | 0.50 | 0.65 |
+| **Blautia** | 1.00 | 0.40 | 0.00 | 0.85 | 0.80 | 0.30 | 0.20 | 0.60 | 0.50 | 0.00 | 0.00 | 0.40 | 0.00 | 0.20 | 0.00 |
+| **Clostridium** | 1.00 | 0.20 | 0.00 | 0.40 | 0.50 | 0.90 | 0.80 | 0.30 | 0.40 | 0.20 | 0.10 | 0.10 | 0.00 | 0.10 | 0.00 |
+| **Collinsella** | 1.00 | 0.00 | 0.00 | 0.10 | 0.20 | 0.10 | 0.00 | 0.95 | 0.85 | 0.00 | 0.00 | 0.00 | 0.00 | 0.30 | 0.00 |
+| **Eggerthella** | 0.60 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.95 | 0.80 | 0.00 | 0.00 | 0.00 | 0.00 |
+| **Eubacterium** | 1.00 | 0.10 | 0.00 | 0.30 | 0.85 | 0.40 | 0.50 | 0.20 | 0.30 | 0.00 | 0.00 | 0.75 | 0.00 | 0.20 | 0.00 |
+| **Faecalibacterium** | 1.00 | 0.00 | 0.00 | 0.00 | 0.10 | 0.40 | 0.00 | 0.10 | 0.20 | 0.00 | 0.00 | 0.30 | 0.85 | 0.90 | 0.00 |
+| **Prevotella** | 0.70 | 1.00 | 0.60 | 0.50 | 0.40 | 0.85 | 0.00 | 0.20 | 0.30 | 0.00 | 0.00 | 0.00 | 0.20 | 0.10 | 0.95 |
+
+***Note on BPR Scores:** These values are representative of metabolic potential. In a complex gut environment, actual growth rates depend on cross-feeding and pH. For example, while many genera can utilize Glucose (BPR 1.0), specialized genera like Prevotella often outcompete others on complex fibers like Xylan in vivo.*
