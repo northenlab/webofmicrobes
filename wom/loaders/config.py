@@ -65,8 +65,14 @@ EXOMETABOLITE_SOURCES = [
     # EXOMETABOLITE_DATA_DIR / "wom_12_released.csv",
 ]
 
-# Phylogeny mapping
+# Phylogeny mapping (training isolates only — do not add held-out isolates here)
 PHYLOGENY_FILE = EXOMETABOLITE_DATA_DIR / "phylogeny.tsv"
+
+# Validation data — held-out isolates never used in model training.
+# This single file contains both taxonomy and measurement values; it is the
+# sole source of truth for the experimental validation figure.
+VALIDATION_DATA_DIR = EXOMETABOLITE_DATA_DIR / "validation"
+VALIDATION_DATA_FILE = VALIDATION_DATA_DIR / "held-out-validation-data.tsv"
 
 # Environment data
 ENVIRONMENTS_FILE = EXOMETABOLITE_DATA_DIR / "environments.tsv"

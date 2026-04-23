@@ -30,8 +30,18 @@ from core.training import train_model
 from core.types import ModelArtifacts, AssertionType, TrainingData
 from core.models import BPRModel, OrdinalBPRModel
 from loaders.loaders import prepare_training_data, load_exometabolite
+from loaders.config import VALIDATION_DATA_FILE
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Held-out validation isolates
+# VALIDATION_DATA_FILE is the single source of truth — it contains both the
+# taxonomy and the measurement values for every held-out isolate.  To add a
+# new isolate, add a row to that TSV; no code change is needed here.
+# Do NOT add held-out isolates to exometabolite_data/phylogeny.tsv or any
+# wom_*.tsv source file, as those feed model training.
+# ---------------------------------------------------------------------------
 
 # Consistent style
 plt.rcParams.update({
@@ -1706,111 +1716,117 @@ def figure_7_embedding_distance(
 
 
 def load_experimental_validation_data():
-    """Load experimental validation data from Excel files.
-    
-    Returns DataFrame with columns: isolate, genus, metabolite, value, media
-    Returns None if files are not available.
+    """Load experimental validation data from the single held-out TSV file.
+
+    VALIDATION_DATA_FILE is the sole source of truth: it contains taxonomy
+    (phylum, class, order, family, genus, closest relative) and measurement
+    values for every held-out isolate in wide format (one row per isolate,
+    one column per metabolite).  'ND' cells (not determined) are treated as
+    missing.
+
+    Returns DataFrame with columns:
+        isolate, genus, family, order, species_label, metabolite, value, media
+    Returns None if the file is not available.
     """
-    import os
-    
-    files_nldm = [
-        '~/Downloads/ExoW2_NLDM_WoM_style_data_Dunnet.xlsx',
-        '~/Downloads/ExoW3_NLDM_WoM_style_data_Dunnet.xlsx',
-        '~/Downloads/ExoW4_NLDM_WoM_style_data_Dunnet.xlsx',
-    ]
-    taxo_file = '~/Downloads/phylogeny - Isolates (3).tsv'
-    
-    # Check if files exist
-    expanded_files = [os.path.expanduser(f) for f in files_nldm + [taxo_file]]
-    if not all(os.path.exists(f) for f in expanded_files):
-        logger.warning("Experimental validation data files not found")
+    if not VALIDATION_DATA_FILE.exists():
+        logger.warning(f"Validation data file not found: {VALIDATION_DATA_FILE}")
         return None
-    
-    try:
-        import openpyxl  # Check if openpyxl is available
-    except ImportError:
-        logger.warning("openpyxl not installed, cannot read Excel files")
-        return None
-    
-    # Load taxonomy
-    tax = pd.read_csv(os.path.expanduser(taxo_file), sep='\t')
-    tax.index.name = 'numerical_index'
-    tax.reset_index(inplace=True, drop=False)
-    tax.columns = [c.lower() for c in tax.columns]
-    
-    # Load NLDM data
-    dfs = []
-    for file_path in files_nldm:
-        df = pd.read_excel(os.path.expanduser(file_path))
-        if 'Unnamed: 1' in df.columns:
-            df.drop(columns=['Unnamed: 1'], inplace=True)
-        if 'Time Point (h)' in df.columns:
-            df.drop(columns=['Time Point (h)'], inplace=True)
-        if 'Unnamed: 0' in df.columns:
-            df.rename(columns={'Unnamed: 0': 'isolate'}, inplace=True)
-        df = df.iloc[1:]  # Skip header row
-        df_melted = df.melt(id_vars=['isolate'], var_name='metabolite', value_name='value')
-        dfs.append(df_melted)
-    
-    combined = pd.concat(dfs, ignore_index=True)
-    combined = pd.merge(combined, tax[['numerical_index', 'isolate', 'genus']], 
-                       on='isolate', how='left')
-    combined['media'] = 'nldm'
-    
-    # Filter to held-out isolates (numerical_index >= 224)
-    combined = combined[combined['numerical_index'] >= 224]
-    
-    # Remove bad genera
-    bad_genera = ['Deinococcus', 'Serratia']
-    combined = combined[~combined['genus'].isin(bad_genera)]
-    
-    logger.info(f"Loaded experimental validation data: {len(combined)} measurements")
-    logger.info(f"Held-out isolates: {combined['isolate'].nunique()}")
-    logger.info(f"Genera: {sorted(combined['genus'].unique())}")
-    
-    return combined
+
+    raw = pd.read_csv(VALIDATION_DATA_FILE, sep='\t')
+
+    # Normalise column names and string values (TSV cells can have trailing spaces)
+    raw.rename(columns={raw.columns[0]: 'isolate'}, inplace=True)
+    raw.columns = [c.strip() for c in raw.columns]
+    raw = raw.apply(lambda col: col.str.strip() if pd.api.types.is_string_dtype(col) else col)
+
+
+    # Drop the time-point column — not needed for predictions
+    raw.drop(columns=[c for c in raw.columns if 'time point' in c.lower()], inplace=True)
+
+    # Taxonomy columns (present in the file)
+    tax_cols = ['phylum', 'class', 'order', 'family', 'genus',
+                'closest relative in ncbi 16s database']
+    # Normalise column names to lower-case for robust matching
+    raw.columns = [c.lower() for c in raw.columns]
+    tax_cols = [c for c in tax_cols if c in raw.columns]
+
+    # Derive a clean display label from the closest-relative field
+    def _species_label(cr, genus):
+        if pd.notna(cr) and str(cr).strip():
+            parts = str(cr).strip().split()
+            return ' '.join(parts[:2])
+        return f"{genus} Sp."
+
+    raw['species_label'] = raw.apply(
+        lambda r: _species_label(
+            r.get('closest relative in ncbi 16s database', None),
+            r.get('genus', '')
+        ), axis=1
+    )
+
+    # Metabolite columns = everything that is not a taxonomy or id column
+    id_cols = ['isolate', 'species_label'] + tax_cols
+    met_cols = [c for c in raw.columns if c not in id_cols]
+
+    melted = raw.melt(id_vars=id_cols, value_vars=met_cols,
+                      var_name='metabolite', value_name='value')
+
+    # 'ND' (not determined) → NaN; coerce to float
+    melted['value'] = pd.to_numeric(melted['value'].replace('ND', pd.NA), errors='coerce')
+    melted.dropna(subset=['value'], inplace=True)
+
+    melted['media'] = 'nldm'
+
+    logger.info(f"Loaded validation data: {len(melted)} measurements, "
+                f"{melted['isolate'].nunique()} isolates, "
+                f"{melted['genus'].nunique()} genera")
+
+    return melted
 
 
 def compute_genus_predictions_any_model(model, training_data):
-    """Compute genus-level predictions for any model.
-    
-    Returns DataFrame with columns: genus, metabolite, mean_score
+    """Compute genus-, family-, and order-level mean predictions for any model.
+
+    Returns a dict with keys 'genus', 'family', 'order', each mapping to a
+    DataFrame with columns: <level>, metabolite, mean_score, n_isolates.
+    n_isolates is the number of training isolates that contributed to the mean,
+    used downstream to detect when a genus/family has no training coverage and a
+    coarser taxonomic fallback is required.
     """
-    # Get all scores for all microbes
-    n_microbes = training_data.n_microbes
-    n_metabolites = training_data.n_metabolites
     idx_to_microbe = training_data.idx_to_microbe
     idx_to_metabolite = training_data.idx_to_metabolite
-    
+
     all_scores = []
-    for microbe_idx in range(n_microbes):
+    for microbe_idx in range(training_data.n_microbes):
         microbe_id = idx_to_microbe[microbe_idx]
         scores = model.predict_scores(microbe_idx)
-        
+        taxonomy = training_data.microbe_taxonomy.get(microbe_id)
+        genus  = taxonomy.genus  if taxonomy else None
+        family = taxonomy.family if taxonomy and hasattr(taxonomy, 'family') else None
+        order  = taxonomy.order  if taxonomy and hasattr(taxonomy, 'order')  else None
         for met_idx, score in enumerate(scores):
-            metabolite = idx_to_metabolite[met_idx]
             all_scores.append({
                 'microbe_id': microbe_id,
-                'metabolite': metabolite,
-                'score': float(score)
+                'metabolite': idx_to_metabolite[met_idx],
+                'score': float(score),
+                'genus': genus,
+                'family': family,
+                'order': order,
             })
-    
-    all_scores_df = pd.DataFrame(all_scores)
-    
-    # Add taxonomy
-    genus_map = {}
-    for microbe_id in training_data.microbe_to_idx:
-        taxonomy = training_data.microbe_taxonomy.get(microbe_id)
-        if taxonomy and taxonomy.genus:
-            genus_map[microbe_id] = taxonomy.genus
-    
-    all_scores_df['genus'] = all_scores_df['microbe_id'].map(genus_map)
-    
-    # Compute genus-level mean scores
-    genus_predictions = all_scores_df.groupby(['genus', 'metabolite'])['score'].mean().reset_index()
-    genus_predictions.rename(columns={'score': 'mean_score'}, inplace=True)
-    
-    return genus_predictions
+
+    df = pd.DataFrame(all_scores)
+
+    def _aggregate(df, level):
+        grp = df.dropna(subset=[level]).groupby([level, 'metabolite'])
+        agg = grp['score'].agg(mean_score='mean', n_isolates='count').reset_index()
+        agg.rename(columns={level: level}, inplace=True)
+        return agg
+
+    return {
+        'genus':  _aggregate(df, 'genus'),
+        'family': _aggregate(df, 'family'),
+        'order':  _aggregate(df, 'order'),
+    }
 
 
 def find_optimal_threshold(training_data, model, method='top_k'):
@@ -1955,49 +1971,89 @@ def figure_8_experimental_validation_single_model(
             logger.warning(f"Cannot generate Figure 8 for {model_name}: no experimental data")
             return None
     
-    # Compute genus-level predictions (averages all microbes in each genus)
-    logger.info(f"Computing genus-level predictions for {model_name}")
-    predictions_df = compute_genus_predictions_any_model(model, training_data)
-    logger.info(f"  Using genus-level mean scores across all isolates per genus")
-    
-    # Map metabolites and merge
+    # Compute predictions at genus, family, and order levels
+    logger.info(f"Computing multi-level predictions for {model_name}")
+    predictions = compute_genus_predictions_any_model(model, training_data)
+
+    # Map experimental metabolite names to canonical representative names
     from loaders.compound_mapper import map_compound_names_batch
-    
-    unique_metabolites = experimental_df['metabolite'].unique()
-    compound_mapping = map_compound_names_batch(unique_metabolites)
-    
+
     experimental_df = experimental_df.copy()
+    compound_mapping = map_compound_names_batch(experimental_df['metabolite'].unique())
     experimental_df['mapped_metabolite'] = experimental_df['metabolite'].apply(
         lambda x: compound_mapping[x].representative_name if x in compound_mapping else None
     )
-    
-    merged = pd.merge(
-        experimental_df,
-        predictions_df,
-        left_on=['genus', 'mapped_metabolite'],
-        right_on=['genus', 'metabolite'],
-        how='left'
+    experimental_df = experimental_df[experimental_df['media'] == 'nldm']
+
+    # species_label is already computed by load_experimental_validation_data()
+    isolate_display = (
+        experimental_df[['isolate', 'species_label']]
+        .drop_duplicates()
+        .set_index('isolate')['species_label']
+        .to_dict()
     )
-    # After merge, we have metabolite_x (from experimental) and metabolite_y (from predictions)
-    # Keep the standardized name from predictions
-    merged = merged.rename(columns={'metabolite_y': 'metabolite'})
-    merged = merged[pd.notna(merged['mean_score'])]
-    merged = merged[merged['media'] == 'nldm']
-    
-    if len(merged) == 0:
+
+    # Merge per isolate with taxonomic fallback: genus → family → order
+    merged_parts = []
+    isolate_meta = {}  # isolate -> {tax_level, n_training}
+
+    for isolate, iso_df in experimental_df.groupby('isolate'):
+        genus  = iso_df['genus'].iloc[0]
+        family = iso_df['family'].iloc[0]
+        order  = iso_df['order'].iloc[0]
+
+        merged_iso = None
+        for level, key in [('genus', genus), ('family', family), ('order', order)]:
+            if pd.isna(key):
+                continue
+            pred = predictions[level]
+            level_rows = pred[pred[level] == key]
+            if len(level_rows) == 0:
+                continue
+            n_training = int(level_rows['n_isolates'].iloc[0])
+            iso_merged = pd.merge(
+                iso_df,
+                level_rows[['metabolite', 'mean_score', 'n_isolates']],
+                left_on='mapped_metabolite',
+                right_on='metabolite',
+                how='left',
+                suffixes=('_exp', ''),
+            )
+            iso_merged['tax_level'] = level
+            iso_merged['n_training'] = n_training
+            iso_merged['isolate_label'] = isolate
+            merged_iso = iso_merged[pd.notna(iso_merged['mean_score'])]
+            isolate_meta[isolate] = {
+                'tax_level': level, 'n_training': n_training,
+                'genus': genus, 'display': isolate_display.get(isolate, genus),
+            }
+            logger.info(f"  {isolate}: using {level}-level predictions "
+                        f"(n_training={n_training})")
+            break
+
+        if merged_iso is None or len(merged_iso) == 0:
+            logger.warning(f"  {isolate}: no predictions found at any taxonomic level — skipped")
+            continue
+        merged_parts.append(merged_iso)
+
+    if not merged_parts:
         logger.warning(f"No matching data for {model_name}")
         return None
-    
-    # Create figure with subplots for each genus
-    genera = sorted(merged['genus'].unique())
-    n_genera = len(genera)
-    ncols = 4
-    nrows = (n_genera + ncols - 1) // ncols
-    
-    fig, axes = plt.subplots(figsize=(ncols * 4.5, nrows * 4.5), ncols=ncols, nrows=nrows, sharex=True)
-    axes = axes.flatten() if n_genera > 1 else [axes]
 
-    # Dynamic bin edges based on actual score range so all data appears in histogram
+    merged = pd.concat(merged_parts, ignore_index=True)
+
+    # One panel per isolate, sorted by genus then isolate id
+    isolates = sorted(merged['isolate_label'].unique(),
+                      key=lambda x: (isolate_meta.get(x, {}).get('genus', ''), x))
+    n_panels = len(isolates)
+    ncols = 4
+    nrows = (n_panels + ncols - 1) // ncols
+
+    fig, axes = plt.subplots(figsize=(ncols * 4.5, nrows * 4.5), ncols=ncols, nrows=nrows,
+                             sharex=True)
+    axes = axes.flatten() if n_panels > 1 else [axes]
+
+    # Dynamic bin edges across all isolates
     score_min = merged['mean_score'].min()
     score_max = merged['mean_score'].max()
     padding = max((score_max - score_min) * 0.05, 0.1)
@@ -2008,18 +2064,19 @@ def figure_8_experimental_validation_single_model(
     all_auc = []
     legend_handles = None
 
-    for i, genus in enumerate(genera):
+    for i, isolate in enumerate(isolates):
         ax = axes[i]
-        subset = merged[merged['genus'] == genus]
+        subset = merged[merged['isolate_label'] == isolate]
+        meta = isolate_meta.get(isolate, {})
+        n_training = meta.get('n_training', 0)
+        display_name = meta.get('display', isolate)
+        tax_level = meta.get('tax_level', 'genus')
 
-        # Split by experimental observation:
-        #   consumed: value <= -2, neutral: -2 < value < 2, secreted: value >= 2
         consumed_idx = subset['value'] <= -2
-        neutral_idx = (subset['value'] > -2) & (subset['value'] < 2)
+        neutral_idx  = (subset['value'] > -2) & (subset['value'] < 2)
         consumed_scores = subset[consumed_idx]['mean_score']
-        neutral_scores = subset[neutral_idx]['mean_score']
+        neutral_scores  = subset[neutral_idx]['mean_score']
 
-        # Plot histograms (secreted compounds excluded from both bars)
         ax.hist(consumed_scores, bins=edges, alpha=0.7,
                 label='Consumed (≤ −2)', density=False, color='#1f77b4')
         ax.hist(neutral_scores, bins=edges, alpha=0.7,
@@ -2027,11 +2084,10 @@ def figure_8_experimental_validation_single_model(
         if legend_handles is None:
             legend_handles, legend_labels = ax.get_legend_handles_labels()
 
-        # Compute ROC-AUC on consumed vs neutral only (exclude secreted)
         cn_subset = subset[consumed_idx | neutral_idx]
         true_consumed = (cn_subset['value'] <= -2).astype(int)
         n_consumed = consumed_idx.sum()
-        n_total = neutral_idx.sum() + n_consumed
+        n_total    = neutral_idx.sum() + n_consumed
 
         if n_consumed > 0 and n_consumed < n_total:
             try:
@@ -2042,10 +2098,15 @@ def figure_8_experimental_validation_single_model(
             auc = float('nan')
 
         all_auc.append(auc)
+        logger.info(f"  {isolate} ({display_name}): n_total={n_total}, "
+                    f"n_consumed={n_consumed}, AUC={auc:.3f}, level={tax_level}")
 
-        logger.info(f"  {genus}: {n_total} metabolites, {n_consumed} consumed, AUC={auc:.3f}")
-
-        ax.set_title(genus, fontsize=22, style='italic')
+        # Title: italicised species name + training-isolate count
+        title = f"{display_name} ({n_training})"
+        ax.set_title(title, fontsize=18, style='italic')
+        # Annotate fallback level if not genus
+        if tax_level != 'genus':
+            ax.set_title(title + f"\n[{tax_level}-level]", fontsize=16, style='italic')
         ax.tick_params(axis='both', labelsize=20)
         if not np.isnan(auc):
             ax.text(0.04, 0.97, f"AUC={auc:.2f}",
@@ -2055,7 +2116,7 @@ def figure_8_experimental_validation_single_model(
         ax.spines['right'].set_visible(False)
 
     # Remove extra axes
-    for i in range(n_genera, len(axes)):
+    for i in range(n_panels, len(axes)):
         axes[i].remove()
 
     # Single-line figure-level legend above the subplots
@@ -2082,13 +2143,14 @@ def figure_8_experimental_validation_single_model(
     
     logger.info(f"Saved figure8_experimental_validation_{safe_name}")
     valid_auc = [a for a in all_auc if not np.isnan(a)]
-    logger.info(f"  Mean AUC across genera: {np.mean(valid_auc):.3f}" if valid_auc else "  No valid AUC scores")
+    logger.info(f"  Mean AUC across isolates: {np.mean(valid_auc):.3f}" if valid_auc else "  No valid AUC scores")
 
     return {
         'model': model_name,
         'mean_auc': np.mean(valid_auc) if valid_auc else float('nan'),
-        'genera': genera,
-        'per_genus_auc': dict(zip(genera, all_auc)),
+        'isolates': isolates,
+        'per_isolate_auc': dict(zip(isolates, all_auc)),
+        'isolate_meta': isolate_meta,
     }
 
 
@@ -2170,13 +2232,20 @@ def figure_8_experimental_validation_all_models(
     
     # Create summary table
     if all_results:
-        # Per-genus AUC rows
+        # Per-isolate AUC rows
         rows = []
         for result in all_results:
-            for genus, auc in result['per_genus_auc'].items():
-                rows.append({'model': result['model'], 'genus': genus, 'auc': auc})
+            for isolate_id, auc in result['per_isolate_auc'].items():
+                meta = result.get('isolate_meta', {}).get(isolate_id, {})
+                rows.append({
+                    'model': result['model'],
+                    'isolate': isolate_id,
+                    'genus': meta.get('genus', ''),
+                    'tax_level': meta.get('tax_level', 'genus'),
+                    'auc': auc,
+                })
         summary = pd.DataFrame(rows)
-        summary.to_csv(output_dir / 'figure8_auc_per_genus.csv', index=False)
+        summary.to_csv(output_dir / 'figure8_auc_per_isolate.csv', index=False)
 
         for result in all_results:
             logger.info(f"  {result['model']}: mean AUC = {result['mean_auc']:.3f}")
