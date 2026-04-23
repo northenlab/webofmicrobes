@@ -43,7 +43,7 @@ plt.rcParams.update({
     "legend.fontsize": 8,
     "figure.dpi": 300,
 })
-
+from scripts.taxonomic_group_analysis import CLASS_COLORS
 
 def compute_model_metrics(model, training_data):
     """Compute evaluation metrics for a model on training data.
@@ -294,34 +294,7 @@ def run_figure1_oos_benchmark(
     return pd.DataFrame(results)
 
 
-# Taxonomy ordering: class → order → family → genus
-# We'll build this dynamically from the data, but define class-level colors
-CLASS_COLORS = {
-    # Original 9 classes (preserved)
-    "Actinomycetes": "#1f77b4",
-    "Bacilli": "#ff7f0e",
-    "Alphaproteobacteria": "#2ca02c",
-    "Betaproteobacteria": "#9467bd",
-    "Gammaproteobacteria": "#8c564b",
-    "Flavobacteriia": "#e377c2",
-    "Sphingobacteriia": "#7f7f7f",
-    "Cytophagia": "#bcbd22",
-    "Cyanophyceae": "#17becf",
-    # New classes (11 additional)
-    "Actinobacteria": "#3498db",        # bright blue
-    "Bacteroidia": "#e74c3c",           # red
-    "Chitinophagia": "#f39c12",         # orange
-    "Clostridia": "#16a085",            # teal
-    "Coriobacteriia": "#9b59b6",        # purple
-    "Deltaproteobacteria": "#34495e",   # dark slate
-    "Erysipelotrichia": "#e67e22",      # darker orange
-    "Fusobacteriia": "#1abc9c",         # turquoise
-    "Negativicutes": "#d35400",         # burnt orange
-    "Tissierellia": "#c0392b",          # dark red
-    "Verrucomicrobiae": "#27ae60",      # green
-}
 
-DEFAULT_CLASS_COLOR = "#aaaaaa"
 
 
 def get_class_color(class_name: str) -> str:
@@ -541,27 +514,27 @@ def figure_1_model_comparison(
             model_df["auc"],
             yerr=model_df["auc_std"],
             label=style["label"],
-            marker=style["marker"],
+            marker='o',#style["marker"],
             color=style["color"],
             linestyle="-",
-            capsize=4,
-            linewidth=2,
-            markersize=6,
+            capsize=8,
+            linewidth=4,
+            markersize=8,
         )
 
-    ax.set_xlabel("Embedding dimension", fontsize=12)
-    ax.set_ylabel("AUC", fontsize=12)
-    ax.legend(frameon=False, fancybox=False, edgecolor="gray", fontsize=12, loc="lower left")
+    ax.set_xlabel("Embedding dimension", fontsize=20)
+    ax.set_ylabel("AUC", fontsize=20)
+    ax.legend(frameon=False, fancybox=False, edgecolor="gray", fontsize=20, loc="lower left")
     ax.set_xscale("log", base=2)
     ax.grid(True, alpha=0.3)
-    ax.set_ylim(0.45, 1.0)
+    ax.set_ylim(0.5, 1.0)
 
     unique_dims = sorted(metrics_df["dim"].unique())
     if unique_dims:
         ax.set_xticks(unique_dims)
         ax.set_xticklabels([fr"$2^{{{int(np.log2(d))}}}$" if d > 0 and np.log2(d).is_integer() else str(d) for d in unique_dims])
 
-    ax.tick_params(axis="both", which="major", labelsize=12)
+    ax.tick_params(axis="both", which="major", labelsize=20)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
