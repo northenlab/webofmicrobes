@@ -1,89 +1,86 @@
+import asyncio
+import threading
 import streamlit as st
 from streamlit.components.v1 import html
+from agents.ollama_agent import TestAgent
+from pydantic_ai.messages import ModelResponse, ToolCallPart, TextPart
 import os
-import json
 import uuid
-import time
-import re
-import requests
-from dotenv import load_dotenv
-from google import genai
-from google.genai import types
 
-from tool_calls import execute_tool_call, parse_tool_calls
-from display_chat import display_assistant_message
+from display_chat import display_assistant_message, save_chat_history
 
-load_dotenv()
+
+class AgentRunner:
+    def __init__(self):
+        self._loop = asyncio.new_event_loop()
+        self._run_lock = None
+        #self._model_name = "gemini-2.5-flash"
+        self._model_name = "gemini-3-flash-preview"
+        self._provider = "google"
+        self._thread = threading.Thread(target=self._run_loop, daemon=True)
+        self._thread.start()
+        future = asyncio.run_coroutine_threadsafe(self._init_loop_state(), self._loop)
+        future.result()
+
+    def _run_loop(self):
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_forever()
+
+    async def _init_loop_state(self):
+        self._run_lock = asyncio.Lock()
+
+    async def _run(self, prompt: str, previous_messages=None):
+        async with self._run_lock:
+            agent_instance = TestAgent(
+                model_name=self._model_name,
+                provider=self._provider,
+            )
+
+            async for _kind, _message in agent_instance.iter_formatted_events(
+                prompt,
+                previous_result=previous_messages,
+            ):
+                # Consume stream events to completion; final result is stored on the agent.
+                pass
+            return agent_instance.latest_response
+
+    def run(self, prompt: str, previous_messages=None):
+        future = asyncio.run_coroutine_threadsafe(
+            self._run(prompt, previous_messages=previous_messages),
+            self._loop,
+        )
+        return future.result()
+
+
+@st.cache_resource
+def get_runner():
+    return AgentRunner()
 
 # Add a tracking token
 html('<script async defer data-website-id="0b8faebf-f345-4b89-a5d2-7cbe1fd7d88d" src="https://analytics.gnps2.org/umami.js"></script>', width=0, height=0)
 html('<script async defer data-website-id="74bc9983-13c4-4da0-89ae-b78209c13aaf" src="https://analytics.gnps2.org/umami.js"></script>', width=0, height=0)
 
-
-# Write the page label
 st.set_page_config(
-    page_title="Web of Microbes",
-    page_icon="🕸️",
-    layout="wide"
+    page_title="Web of Microbes Agent",
+    page_icon="🕸️", # spider web icon
+    layout="wide",
 )
 
-# Configure Gemini API
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-
-# Model name
-#MODEL_NAME = "gemini-2.0-flash"
-#MODEL_NAME = "gemini-2.5-flash"
-MODEL_NAME = "gemini-3-flash-preview"
-#MODEL_NAME = "gemini-3-pro-preview"
-
-@st.cache_resource
-def get_gemini_client():
-    """Create and cache the Gemini client."""
-    return genai.Client(api_key=GEMINI_KEY)
-
-@st.cache_data
-def get_preprompt():
-    """Read and cache the preprompt from disk."""
-    return open("./prompts/wom_prompt_v2.txt", "r").read()
-
-client = get_gemini_client()
-llm_config = types.GenerateContentConfig(
-    temperature=0.1,
-    seed=42,
-    top_k=1,
-    system_instruction=get_preprompt(),
-    thinking_config=types.ThinkingConfig(thinking_level="high")
-)
-
-
-# Debug mode toggle - set to False in production
-DEBUG_MODE = True
-DEBUG_LLM = False
-
-def debug_log(label: str, content):
-    """Write debug info to the sidebar instead of main area."""
-    if DEBUG_MODE:
-        with st.sidebar:
-            with st.expander(f"🔧 {label}", expanded=False):
-                if isinstance(content, (dict, list)):
-                    st.json(content)
-                else:
-                    st.code(str(content), language="text")
-
-# Sidebar disclaimer
-st.sidebar.info(
-    """This is a general purpose microbiome agent for predicting and interpreting exometabolite mediated dynamics in isolates and communities. Currently, the model is limited to 433 isolates across 117 genera and 311 metabolites, with 80,834 observations. This is an early-stage release so use caution when interpreting and using the results. We provide several illustrative examples and anticipate that the accuracy of the model will continue to increase with additional data."""
-)
-
-# Initialize chat_id for history link
+# Initialize session state for conversation history
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []
 if "chat_id" not in st.session_state:
     st.session_state["chat_id"] = str(uuid.uuid4())
+
+# Sidebar
+st.sidebar.info(
+    """This is a general purpose microbiome agent for predicting and interpreting exometabolite mediated dynamics in isolates and communities. Currently, the model is limited to 433 isolates across 117 genera and 311 metabolites, with 80,834 observations. This is an early-stage release so use caution when interpreting and using the results."""
+)
 if st.sidebar.button("🔄 New Chat", use_container_width=True):
-    st.session_state.messages = []
-    st.session_state.pop("gemini_chat", None)
+    st.session_state["messages"] = []
+    st.session_state.pop("previous_agent_messages", None)
     st.session_state["chat_id"] = str(uuid.uuid4())
     st.rerun()
-# Add Chat History link to sidebar
 chat_id = st.session_state["chat_id"]
 st.sidebar.markdown(
     f'<a href="/ChatHistory?chat_id={chat_id}" target="_self" style="text-decoration:none;">'
@@ -91,11 +88,10 @@ st.sidebar.markdown(
     f'</a>',
     unsafe_allow_html=True
 )
-# st.sidebar.link_button("📜 Chat History", use_container_width=True, url="/ChatHistory?chat_id={}".format(st.session_state["chat_id"]))
 with st.sidebar.expander("ℹ️ About & Help"):
     st.markdown("""
-**Web of Microbes** predicts which metabolites soil microbes 
-prefer to consume, based on exometabolomics data from 
+**Web of Microbes** predicts which metabolites soil microbes
+prefer to consume, based on exometabolomics data from
 Lawrence Berkeley National Laboratory.
 
 **Try asking:**
@@ -119,332 +115,130 @@ We would like to acknowledge the following manuscripts for tools and data
 - Malik, A. et al. ChEBI: re-engineered for a sustainable future. *Nucleic Acids Research* 54, D1768–D1778 (2026). [doi:10.1093/nar/gkaf1271](https://doi.org/10.1093/nar/gkaf1271)
 - Bansal, P. et al. Rhea, the reaction knowledgebase in 2022. *Nucleic Acids Research* 50, D693–D700 (2022). [doi:10.1093/nar/gkab1016](https://doi.org/10.1093/nar/gkab1016)
 """)
-    st.caption(f"Model: {MODEL_NAME}")
-# Sidebar header for debug logs
-if DEBUG_MODE:
-    st.sidebar.title("🔧 Debug Logs")
 
-# Header and description - use different image based on theme
+# Streamlit UI
 theme = st.get_option("theme.base")
 if theme == "dark":
     st.image("images/wom_dark_transparent.png", width=300)
 else:
     st.image("images/wom_light_transparent.png", width=300)
+st.caption("Explore microbial substrate preferences and growth rates using AI-assisted search. The WoM agent is a collaboration between northenlab.org and cs.ucr.edu/~mingxunw")
 
-# st.markdown("""
-# <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
-#             padding: 1.5rem; 
-#             border-radius: 12px; 
-#             border-left: 4px solid #4CAF50;
-#             margin-bottom: 1.5rem;">
-#     <p style="color: #e0e0e0; font-size: 1.05rem; line-height: 1.7; margin: 0;">
-#         <strong style="color: #4CAF50;">Web of Microbes</strong> predicts which metabolites soil and rhizosphere 
-#         microorganisms are likely to consume or secrete, using collaborative filtering models trained on 
-#         experimental exometabolomics data. Preference scores reflect the likelihood of metabolite consumption 
-#         based on observed patterns and do not account for growth rate or competitive fitness.
-#     </p>
-#     <p style="color: #b0b0b0; font-size: 0.95rem; line-height: 1.6; margin-top: 1rem; margin-bottom: 0;">
-#         Ask the chatbot which compounds a microbe prefers, which microbes consume a given compound, 
-#         or how metabolic preferences compare across taxa. You can also ask about predicted growth rates.
-#     </p>
-#     <p style="color: #888; font-size: 0.85rem; margin-top: 0.75rem; margin-bottom: 0;">
-#         <em>The model is trained on exometabolomics data from Lawrence Berkeley National Laboratory.
-#         Growth rate predictions are from Phydon.</em>
-#     </p>
-# </div>
-# """, unsafe_allow_html=True)
-st.caption("Explore microbial substrate preferences and growth rates using AI-assisted search.  The WoM agent is a collaboration between [northenlab.org](https://www.northenlab.org/) and [cs.ucr.edu/~mingxunw](https://www.cs.ucr.edu/~mingxunw/)")
-
-# ── Tool call patterns ──────────────────────────────────────────────
-
-import json
-DEVELOPER_TAG_PATTERN = re.compile(r"<developer>.*?</developer>", re.DOTALL | re.IGNORECASE)
-
-def strip_developer_tag(content: str) -> tuple[str, str, bool]:
-    if not content:
-        return content, "", False
-    # Extract developer tags
-    developer_tags = DEVELOPER_TAG_PATTERN.findall(content)
-    developer_text = "\n".join(developer_tags)
-    # Remove developer tags
-    cleaned, count = DEVELOPER_TAG_PATTERN.subn("", content)
-    return cleaned.strip(), developer_text, count > 0
-
-def save_developer_snapshot(chat_id: str, messages: list, developer_text: str) -> None:
-    developer_dir = os.path.join("/app/chat", "developer")
-    os.makedirs(developer_dir, exist_ok=True)
-    snapshot_path = os.path.join(developer_dir, f"{chat_id}.json")
-    with open(snapshot_path, "w") as file:
-        file.write(json.dumps({"messages": messages, "developer": developer_text}))
-
-
-
-
-def execute_all_tool_calls(tool_calls: list) -> tuple[str, bool]:
-    """
-    Execute a list of tool calls and combine their outputs.
-
-    Returns:
-        Tuple of (combined_output_text, any_errors)
-    """
-    all_outputs = []
-    any_errors = False
-
-    for i, tool_info in enumerate(tool_calls):
-        tool_name = tool_info.get("tool", "unknown")
-        label = tool_info.get("query") or tool_info.get("command") or str(i)
-        output, is_error = execute_tool_call(tool_info)
-
-        if is_error:
-            any_errors = True
-
-        all_outputs.append(f"[{tool_name}: {label}]\n{output}")
-
-        debug_log(f"Tool {i+1} ({tool_name})", {"input": tool_info, "output": output, "is_error": is_error})
-
-    combined = "\n\n".join(all_outputs)
-    return combined, any_errors
-
-
-
-
-def send_message_to_llm(gemini_chat, message: str, stream: bool = True):
-    """Send message to LLM and optionally stream the response.
-    
-    Args:
-        gemini_chat: The Gemini chat session
-        message: The message to send
-        stream: If True, returns a generator that yields chunks. If False, returns complete response.
-    
-    Returns:
-        Generator yielding text chunks if stream=True, otherwise returns response object
-    """
-    if DEBUG_LLM:
-        debug_log("Sending Message to LLM", message)
-        from types import SimpleNamespace
-        response_obj = SimpleNamespace()
-        response_obj.text = "This is a dummy response for debugging purposes. {}".format(str(uuid.uuid4()))
-        import time
-        time.sleep(3)  # Simulate response time
-        return response_obj
-    
-    if stream:
-        # Use streaming API
-        response_stream = gemini_chat.send_message_stream(message)
-        return response_stream
-    else:
-        # Use non-streaming API
-        response = gemini_chat.send_message(message)
-        return response
-
-def gemini_chat():
-
-    # Initialize chat history
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    # Initialize Gemini chat session
-    if "gemini_chat" not in st.session_state:
-        history = []
-        for msg in st.session_state.messages:
-            role = "user" if msg["role"] == "user" else "model"
-            history.append(types.Content(role=role, parts=[types.Part.from_text(text=msg["content"])]))
-        st.session_state.gemini_chat = client.chats.create(
-            model=MODEL_NAME,
-            config=llm_config,
-            history=history
-        )
-
-    # Display chat messages from history on app rerun
-    for message in st.session_state.messages:
-       with st.chat_message(message["role"]):
-           if message["role"] == "user":
-               st.markdown(message["content"])
-           else:
-               for part in message["content"]:
-                    if part.get("tool_calls", False):
-                        display_assistant_message(part["content"], tool_calls=True)
-                    else:
-                        display_assistant_message(part["content"], tool_calls=False)
-           
-    first_message = "Ask me about microbial substrate preferences, growth rates and microbiome design"
-
-    # Example questions - only show if no messages yet and no button clicked
-    example_container = st.empty()
-    if len(st.session_state.messages) == 0 and not st.session_state.get("first_message", ""):
-        with example_container.container():
-            st.markdown("**Simple queries:**")
-            col1, col2, col3, col4 = st.columns(4)
-
-            with col1:
-                if st.button("🦠 What does Pseudomonas like to eat?", use_container_width=True):
-                    st.session_state.first_message = "What does Pseudomonas like to eat?"
-                    st.session_state.button_clicked = True
-                    example_container.empty()
-                    st.rerun()
-            with col2:
-                if st.button("🧪 Which microbes consume glutamate?", use_container_width=True):
-                    st.session_state.first_message = "Which microbes consume glutamate?"
-                    st.session_state.button_clicked = True
-                    example_container.empty()
-                    st.rerun()
-            with col3:
-                if st.button("⚖️ Compare Burkholderia and Variovorax", use_container_width=True):
-                    st.session_state.first_message = "Compare Burkholderia and Variovorax"
-                    st.session_state.button_clicked = True
-                    example_container.empty()
-                    st.rerun()
-            with col4:
-                if st.button("Tell me about your tools", use_container_width=True):
-                    st.session_state.first_message = "Tell me about your tools"
-                    st.session_state.button_clicked = True
-                    example_container.empty()
-                    st.rerun()
-
-            st.markdown("**Exploratory new tools: Predicting microbial interactions and microbiome responses:**")
-            col1_adv, col2_adv, col3_adv = st.columns(3)
-
-            with col1_adv:
-                if st.button("🔬 Pseudomonas substrates [1]", use_container_width=True):
-                    st.session_state.first_message = "For Pseudomonas, rank all 23 of these substrates from highest to lowest preference: phenylalanine, glycine, threonine, isoleucine, leucine, lysine, serine, alanine, proline, arginine, glutamate, adenosine, guanine, hypoxanthine, uridine, 4-guanidinobutanoic acid, glucose, fructose, mannose, arabinose, trehalose, maltose, mannitol"
-                    st.session_state.button_clicked = True
-                    st.rerun()
-            with col2_adv:
-                if st.button("🦠 Gut microbiome substrates", use_container_width=True):
-                    st.session_state.first_message = "What are the top 3 preferred substrates for these genera: Bacteroides, Blautia, Clostridium, Collinsella, Eggerthella, Eubacterium, Faecalibacterium, Prevotella? Then, make a non-redundant list of these metabolites and generate a table of genera vs the non-redundant metabolites showing BPR scores (no standard deviation)."
-                    st.session_state.button_clicked = True
-                    st.rerun()
-            with col3_adv:
-                if st.button("🏆 Amino acid competition [2]", use_container_width=True):
-                    st.session_state.first_message = "I am providing a list of bacterial genera. You must predict which will be most competitive for proteogenic amino acids (alanine, arginine, asparagine, aspartate, cysteine, glutamate, glutamine, glycine, histidine, isoleucine, leucine, lysine, methionine, phenylalanine, proline, serine, threonine, tryptophan, tyrosine, valine) by predicting the growth rate and calculating the average substrate preference for these amino acids. Perform exactly three sequential steps. Complete Step 1 fully before beginning Step 2 and Step 2 before Step 3. Step 1: Predict the doubling time for each genus. Remove any genus with a doubling time greater than 5 hours. Do not override this threshold for any reason, even if a filtered-out genus has a high proteogenic amino acids preference. Step 2: For the remaining genera only, use the calculator tool to calculate the average preference for proteogenic amino acids. Step 3: rank them from highest to lowest average substrate preference for proteogenic amino acids. Present your final answer as a numbered list with columns: rank, genus, predicted doubling time (hours), and basis for proteogenic amino acids preference ranking. List of genera: Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea."
-                    st.session_state.button_clicked = True
-                    st.rerun()
-
-            col4_adv, col5_adv = st.columns(2)
-
-            with col4_adv:
-                if st.button("🍬 Xylose competition [3]", use_container_width=True):
-                    st.session_state.first_message = "I am providing a list of bacterial genera. You must predict which will be most competitive for xylose, defined as the genus with the highest xylose preference among those capable of fast growth (doubling time ≤ 5 hours). Perform exactly two sequential steps. Complete Step 1 fully before beginning Step 2. Step 1: Predict the doubling time for each genus. Remove any genus with a doubling time greater than 5 hours. Do not override this threshold for any reason, even if a filtered-out genus has a high xylose preference. Step 2: For the remaining genera only, rank them from highest to lowest preference for xylose. Present your final answer as a numbered list with columns: rank, genus, predicted doubling time (hours), and basis for xylose preference ranking. List of genera: Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea."
-                    st.session_state.button_clicked = True
-                    st.rerun()
-            with col5_adv:
-                if st.button("🧪 Acinetobacter carbon sources", use_container_width=True):
-                    st.session_state.first_message = "We want to dive deeper into the substrate utilization of Acinetobacter. We want to grow an Acinetobacter isolate on a sole carbon source present in Northern Lab Defined Medium (NLDM).\n\nStep 1 — List and rank ALL carbon sources in NLDM.\nFirst, identify and list every carbon source present in NLDM. Then, assign each one a BPR score based on published substrate utilization data for Acinetobacter. Do not skip, omit, or group any compound. Present this as a complete ranked table with the following columns: Carbon Source | BPR Score | Solubility at 50 mM in water (Yes/No) | Toxicity at 10–15 mM (Yes/No).\n\nStep 2 — Select candidates from the complete ranked list.\nUsing only the table generated in Step 1, select the following:\nHigh BPR score: The top recommended carbon source(s) for this Acinetobacter isolate.\nNeutral BPR score: One carbon source with a neutral score strictly less than 5 that is preferred by most microbes.\nLow BPR score (control): The single carbon source with the lowest BPR score in the table.\n\nStep 3 — Apply solubility and toxicity filters.\nFor each candidate selected in Step 2, evaluate solubility (at 50 mM in water) and toxicity (at 10–15 mM) using the values already recorded in the Step 1 table. If any candidate fails either filter, explicitly state why it is unsuitable and select the next best alternative from the Step 1 table, explaining your reasoning.\n\nStep 4 — Final recommendations.\nPresent a concise final summary listing your recommended high, neutral, and low BPR carbon sources, with any substitutions clearly flagged."
-                    st.session_state.button_clicked = True
-                    st.rerun()
-
-            # Adding in a section of citations
-            st.markdown('[1] Jenkins, Stefan, et al. "Construction of viable soil defined media using quantitative metabolomics analysis of soil metabolites." Frontiers in Microbiology 8 (2017): 2618.')
-            st.markdown('[2] bioRxiv Manuscript (Experimental result = Pseudomonas, most enriched and Paenibacillus, also enriched)')
-            st.markdown('[3] bioRxiv Manuscript (Experimental result = Novosphingobium)')
-
-
-
-    if "first_message" not in st.session_state:
-        st.session_state.first_message = ""
-
-    # Auto-submit if button was clicked
-    prompt = None
-    if st.session_state.get("button_clicked", False):
-        prompt = st.session_state.first_message
-        st.session_state.button_clicked = False
-    
-    # Always show chat input
-    if user_input := st.chat_input(first_message, key="chat_input"):
-        prompt = user_input
-
-    if prompt:
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-
-        # Display user message
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
+# Display conversation history
+for msg in st.session_state["messages"]:
+    if msg["role"] == "assistant":
         with st.chat_message("assistant"):
-            # Lets allow a loop of maximum 6 iterations of tool calls and LLM responses to prevent infinite loops in case of errors
-            MAX_ITERATIONS = 6
-            CURRENT_ITERATION = 0
-            all_responses = []
-            developer_tag_found = False
-            for _ in range(MAX_ITERATIONS):
-                CURRENT_ITERATION += 1
+            display_assistant_message(msg["content"])
+    else:
+        st.chat_message("user").write(msg["content"])
 
-                # Send user's message to LLM and get a streaming response
-                response_stream = send_message_to_llm(st.session_state.gemini_chat, prompt, stream=True)
-                
-                # Accumulate the streamed response
-                assistant_response = ""
-                message_placeholder = st.empty()
-                
-                for chunk in response_stream:
-                    if hasattr(chunk, 'text') and chunk.text:
-                        assistant_response += chunk.text
-                        # Update the display with accumulated text
-                        message_placeholder.markdown(assistant_response + "▌")
-                
-                assistant_response, developer_text, developer_hit = strip_developer_tag(assistant_response)
-                developer_tag_found = developer_tag_found or developer_hit
+# Example queries
+EXAMPLE_QUERIES = [
+    "What does Pseudomonas like to eat?",
+    "Which microbes consume glutamate?",
+    "Compare Burkholderia and Variovorax",
+    "Tell me about your tools",
+]
+ADVANCED_QUERIES = [
+    {
+        "title": "🔬 Pseudomonas substrates [1]",
+        "prompt": "For Pseudomonas, rank all 23 of these substrates from highest to lowest preference: phenylalanine, glycine, threonine, isoleucine, leucine, lysine, serine, alanine, proline, arginine, glutamate, adenosine, guanine, hypoxanthine, uridine, 4-guanidinobutanoic acid, glucose, fructose, mannose, arabinose, trehalose, maltose, mannitol",
+    },
+    {
+        "title": "🦠 Gut microbiome substrates",
+        "prompt": "What are the top 3 preferred substrates for these genera: Bacteroides, Blautia, Clostridium, Collinsella, Eggerthella, Eubacterium, Faecalibacterium, Prevotella? Then, make a non-redundant list of these metabolites and generate a table of genera vs the non-redundant metabolites showing BPR scores (no standard deviation).",
+    },
+    {
+        "title": "🏆 Amino acid competition [2]",
+        "prompt": "I am providing a list of bacterial genera. You must predict which will be most competitive for proteogenic amino acids (alanine, arginine, asparagine, aspartate, cysteine, glutamate, glutamine, glycine, histidine, isoleucine, leucine, lysine, methionine, phenylalanine, proline, serine, threonine, tryptophan, tyrosine, valine) by predicting the growth rate and calculating the average substrate preference for these amino acids. Perform exactly three sequential steps. Complete Step 1 fully before beginning Step 2 and Step 2 before Step 3. Step 1: Predict the doubling time for each genus. Remove any genus with a doubling time greater than 5 hours. Do not override this threshold for any reason, even if a filtered-out genus has a high proteogenic amino acids preference. Step 2: For the remaining genera only, use the calculator tool to calculate the average preference for proteogenic amino acids. Step 3: rank them from highest to lowest average substrate preference for proteogenic amino acids. Present your final answer as a numbered list with columns: rank, genus, predicted doubling time (hours), and basis for proteogenic amino acids preference ranking. List of genera: Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea.",
+    },
+    {
+        "title": "🍬 Xylose competition [3]",
+        "prompt": "I am providing a list of bacterial genera. You must predict which will be most competitive for xylose, defined as the genus with the highest xylose preference among those capable of fast growth (doubling time ≤ 5 hours). Perform exactly two sequential steps. Complete Step 1 fully before beginning Step 2. Step 1: Predict the doubling time for each genus. Remove any genus with a doubling time greater than 5 hours. Do not override this threshold for any reason, even if a filtered-out genus has a high xylose preference. Step 2: For the remaining genera only, rank them from highest to lowest preference for xylose. Present your final answer as a numbered list with columns: rank, genus, predicted doubling time (hours), and basis for xylose preference ranking. List of genera: Acidovorax, Acinetobacter, Afipia, Arthrobacter, Bacillus, Bradyrhizobium, Brevibacillus, Brevundimonas, Burkholderia, Caulobacter, Chitinophaga, Chryseobacterium, Cupriavidus, Curvibacter, Ensifer, Flavobacterium, Herbaspirillum, Janthinobacterium, Lysinibacillus, Lysobacter, Marmoricola, Massilia, Mesorhizobium, Methylobacterium, Modestobacter, Mucilaginibacter, Niastella, Novosphingobium, Paenibacillus, Pedobacter, Phenylobacterium, Pseudomonas, Rhizobium, Rhodococcus, Sphingomonas, Stenotrophomonas, Streptomyces, Undibacterium, Zoogloea.",
+    },
+    {
+        "title": "🧪 Acinetobacter carbon sources",
+        "prompt": "We want to dive deeper into the substrate utilization of Acinetobacter. We want to grow an Acinetobacter isolate on a sole carbon source present in Northern Lab Defined Medium (NLDM).\n\nStep 1 — List and rank ALL carbon sources in NLDM.\nFirst, identify and list every carbon source present in NLDM. Then, assign each one a BPR score based on published substrate utilization data for Acinetobacter. Do not skip, omit, or group any compound. Present this as a complete ranked table with the following columns: Carbon Source | BPR Score | Solubility at 50 mM in water (Yes/No) | Toxicity at 10–15 mM (Yes/No).\n\nStep 2 — Select candidates from the complete ranked list.\nUsing only the table generated in Step 1, select the following:\nHigh BPR score: The top recommended carbon source(s) for this Acinetobacter isolate.\nNeutral BPR score: One carbon source with a neutral score strictly less than 5 that is preferred by most microbes.\nLow BPR score (control): The single carbon source with the lowest BPR score in the table.\n\nStep 3 — Apply solubility and toxicity filters.\nFor each candidate selected in Step 2, evaluate solubility (at 50 mM in water) and toxicity (at 10–15 mM) using the values already recorded in the Step 1 table. If any candidate fails either filter, explicitly state why it is unsuitable and select the next best alternative from the Step 1 table, explaining your reasoning.\n\nStep 4 — Final recommendations.\nPresent a concise final summary listing your recommended high, neutral, and low BPR carbon sources, with any substitutions clearly flagged.",
+    },
+]
 
-                # Remove the cursor and show final text
-                message_placeholder.markdown(assistant_response)
+example_container = st.empty()
+example_query = None
+if len(st.session_state["messages"]) == 0:
+    with example_container.container():
+        st.write("**Try an example query:**")
+        cols = st.columns(4)
+        for col, query in zip(cols, EXAMPLE_QUERIES):
+            if col.button(query, use_container_width=True):
+                example_query = query
+        st.write("**Advanced queries:**")
+        adv_cols = st.columns(3)
+        for col, item in zip(adv_cols, ADVANCED_QUERIES[:3]):
+            if col.button(item["title"], use_container_width=True):
+                example_query = item["prompt"]
+        adv_cols2 = st.columns(2)
+        for col, item in zip(adv_cols2, ADVANCED_QUERIES[3:]):
+            if col.button(item["title"], use_container_width=True):
+                example_query = item["prompt"]
 
-                # now lets check for tool calls
-                tool_calls = parse_tool_calls(assistant_response)
+# Input box for user query at the bottom
+user_input = st.chat_input("Ask me about microbial substrate preferences, growth rates, or microbiome design...")
+user_query = example_query or user_input
+if user_query:
+    example_container.empty()
+    # Add user message to session state
+    st.session_state["messages"].append({"role": "user", "content": user_query})
+    st.chat_message("user").write(user_query)
 
-                all_responses.append({"content": assistant_response, "tool_calls": len(tool_calls) > 0})
+    # Agent response
+    with st.spinner("Agent is thinking..."):
+        try:
+            runner = get_runner()
+            previous_agent_messages = st.session_state.get("previous_agent_messages", None)
 
-                if tool_calls:
-                    # Clear the placeholder and show formatted version with tool calls
-                    message_placeholder.empty()
-                    display_assistant_message(assistant_response, tool_calls=True)
-                    notice_text = """---
-
-Executing tool calls...
-                                
----
-                                """
-                    display_assistant_message(notice_text)
-                    all_responses.append({"content": notice_text, "tool_calls": True})
-                else:
-                    # For non-tool-call responses, the streaming display is already shown
-                    all_responses.append({"content": assistant_response, "tool_calls": False})
-
-                if tool_calls:
-                    # Execute all tool calls
-                    combined_output, any_errors = execute_all_tool_calls(tool_calls)
-
-                    # there is a tool call, which means we should send the results back to the LLM for interpretation
-                    if not any_errors:
-                        # Send tool outputs back to LLM for interpretation
-                        tool_msg = f"Tool outputs:\n```json\n{combined_output}\n```\n\nPlease interpret all of these results together for the user. Just a note, you are allowed to do recursive tool calls, this is currently {CURRENT_ITERATION} of {MAX_ITERATIONS}."
-
-                        # TODO: If we're on the last one, we should give it a special prompt that says "This is the last iteration, you must not make any more tool calls after this, just give a final answer to the user based on all the information you have, including the tool outputs from this message"
-
-                        prompt = tool_msg
-                        
-                        continue
-                    else:
-                        error_msg = f"""One or more tool calls returned errors:
-                                ```json
-                                {combined_output}
-                                ```
-                                """
-                        prompt = error_msg
-                        continue
-                else:
-                    break  # No tool calls, exit the loop
-
-            st.session_state.messages.append({"role": "assistant", "content": all_responses})
-
-            if developer_tag_found:
-                save_developer_snapshot(st.session_state["chat_id"], st.session_state.messages, developer_text)
-
-            # Saving the chat history
-            chat_history_filename = os.path.join("/app/chat/{}.json".format(st.session_state["chat_id"]))
+            result = runner.run(
+                user_query,
+                previous_messages=previous_agent_messages,
+            )
             
-            with open(chat_history_filename, "w") as file:
-                file.write(json.dumps(st.session_state.messages))
+            st.session_state["previous_agent_messages"] = result.all_messages()
 
-## Make a password to block open access
-gemini_chat()
+            # Extract the 'content' field from the JSON response
+            final_text = result.output  # Assuming result.output is the content field
+            text_part = ""
+            tool_text = ""
+
+            # We could reformat this to find all the messages
+            model_response_list = []
+            for msg in result.new_messages():
+                if isinstance(msg, ModelResponse):
+                    for part in msg.parts:
+                        print("Part:", part)  # Debug print to check each part of the message
+                        if isinstance(part, ToolCallPart):
+                            tool_call_info = {
+                                "type": "tool_call",
+                                "tool_name": part.tool_name,
+                                "args": part.args
+                            }
+                            model_response_list.append(tool_call_info)
+                            tool_text  += f"\n\nTool Call: {part.tool_name}\nArgs: {part.args}\n"
+                        elif isinstance(part, TextPart):
+                            text_info = {
+                                "type": "text",
+                                "content": part.content
+                            }
+                            model_response_list.append(text_info)
+                            text_part += f"{part.content}\n"
+
+            # Add agent response to session state
+            st.session_state["messages"].append({"role": "assistant", "content": model_response_list})
+            save_chat_history(st.session_state["chat_id"], st.session_state["messages"])
+            with st.chat_message("assistant"):
+                display_assistant_message(model_response_list)
+
+        except Exception as e:
+            raise
+            error_message = f"An error occurred: {e}"
+            st.session_state["messages"].append({"role": "assistant", "content": error_message})
+            st.chat_message("assistant").write(error_message)
+            
