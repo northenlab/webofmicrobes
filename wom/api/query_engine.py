@@ -1753,7 +1753,7 @@ class QueryEngine:
             results = []
             for env_name, group in env_groups:
                 total = len(group)
-                in_model = group['in_model'].sum()
+                in_model = int(group['in_model'].sum())
                 in_model_frac = in_model / total if total > 0 else 0
                 
                 # Filter by min_coverage if specified
@@ -1766,7 +1766,7 @@ class QueryEngine:
                 }
                 
                 if query.include_stats:
-                    mapped = group['representative_compound'].notna().sum()
+                    mapped = int(group['representative_compound'].notna().sum())
                     env_info.update({
                         'n_mapped': mapped,
                         'n_in_model': in_model,
@@ -1835,7 +1835,7 @@ class QueryEngine:
                     'environment_name': orig_name,
                     'match_score': round(score / 100, 3),
                     'n_compounds': len(env_group),
-                    'n_in_model': env_group['in_model'].sum(),
+                    'n_in_model': int(env_group['in_model'].sum()),
                     'description': env_group['environment_description'].iloc[0],
                 })
             
