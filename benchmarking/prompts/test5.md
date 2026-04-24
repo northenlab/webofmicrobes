@@ -1,1 +1,16 @@
-We want to dive deeper into the substrate utilization of Acinetobacter. We want to grow an Acinetobacter isolate on a sole carbon source that is present in Northen Lab Defined Medium (NLDM). Which carbon sources would you recommend (high BPR score) for this isolate? Provide a carbon source present in NLDM with a neutral score less than 5 and preferred by most microbes. Lastly, provide a low score (select the lowest score) to serve as controls. Take into account the solubility (at 50 mM in water) and toxicity (at 10-15 mM) for all selected carbon sources and If the best hits (i.e., lowest scoring) might not be a good fit based on solubility or toxicity, please suggest an alternative carbon source.
+We want to dive deeper into the substrate utilization of Acinetobacter. We want to grow an Acinetobacter isolate on a sole carbon source present in Northern Lab Defined Medium (NLDM).
+
+Step 1 — List and rank ALL carbon sources in NLDM.
+First, identify and list every carbon source present in NLDM. Then, assign each one a BPR score based on published substrate utilization data for Acinetobacter. Do not skip, omit, or group any compound. Present this as a complete ranked table with the following columns: Carbon Source | BPR Score | Solubility at 50 mM in water (Yes/No) | Toxicity at 10–15 mM (Yes/No).
+
+Step 2 — Select candidates from the complete ranked list.
+Using only the table generated in Step 1, select the following:
+High BPR score: The top recommended carbon source(s) for this Acinetobacter isolate.
+Neutral BPR score: One carbon source with a neutral score strictly less than 5 that is preferred by most microbes.
+Low BPR score (control): The single carbon source with the lowest BPR score in the table.
+
+Step 3 — Apply solubility and toxicity filters.
+For each candidate selected in Step 2, evaluate solubility (at 50 mM in water) and toxicity (at 10–15 mM) using the values already recorded in the Step 1 table. If any candidate fails either filter, explicitly state why it is unsuitable and select the next best alternative from the Step 1 table, explaining your reasoning.
+
+Step 4 — Final recommendations.
+Present a concise final summary listing your recommended high, neutral, and low BPR carbon sources, with any substitutions clearly flagged.

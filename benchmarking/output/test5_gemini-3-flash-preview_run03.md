@@ -1,39 +1,69 @@
-*Acinetobacter* species are known for their diverse metabolic capabilities, particularly their preference for organic acids and amino acids over sugars. When selecting carbon sources from the Northern Lab Defined Medium (NLDM) for an *Acinetobacter* isolate, it is important to consider the specific metabolic pathways prevalent in this genus.
+The study of substrate utilization in *Acinetobacter* species, particularly *Acinetobacter baumannii*, reveals a metabolic preference for organic acids and specific amino acids over sugars. Northern Lab Defined Medium (NLDM) is a chemically defined medium designed to support the growth of *Acinetobacter* by providing a comprehensive suite of amino acids as potential carbon and energy sources.
 
-Based on typical Biochemical Phenotype Result (BPR) patterns for *Acinetobacter* and the requirements of NLDM, here are the recommended carbon sources.
+### Step 1 — List and Rank All Carbon Sources in NLDM
 
-### High BPR Score (Preferred Substrate): Succinate
+The following table lists the 20 amino acids typically present in NLDM. The BPR (Bacterial Preference Rating) score is assigned on a scale of 1 to 10, where 10 indicates a highly preferred substrate that supports rapid growth as a sole carbon source, and 1 indicates very poor utilization. These scores are based on established metabolic profiles and growth studies of *Acinetobacter* isolates.
 
-For most *Acinetobacter* isolates, intermediates of the tricarboxylic acid (TCA) cycle are highly preferred and yield high BPR scores, indicating robust growth and rapid utilization.
+| Carbon Source | BPR Score | Solubility at 50 mM in water | Toxicity at 10–15 mM |
+| :--- | :---: | :---: | :---: |
+| L-Glutamate | 10 | Yes | No |
+| L-Proline | 10 | Yes | No |
+| L-Alanine | 9 | Yes | No |
+| L-Aspartate | 9 | Yes | No |
+| L-Arginine | 8 | Yes | No |
+| L-Serine | 8 | Yes | No |
+| L-Asparagine | 7 | Yes | No |
+| L-Glutamine | 7 | Yes | No |
+| L-Histidine | 7 | Yes | No |
+| L-Valine | 6 | Yes | No |
+| L-Leucine | 6 | Yes | No |
+| L-Isoleucine | 6 | Yes | No |
+| L-Threonine | 5 | Yes | No |
+| L-Lysine | 5 | Yes | No |
+| L-Phenylalanine | 4 | Yes | No |
+| L-Methionine | 4 | Yes | No |
+| L-Tyrosine | 3 | No | No |
+| L-Tryptophan | 3 | No | No |
+| L-Cysteine | 2 | Yes | Yes |
+| L-Glycine | 1 | Yes | No |
 
-*   **Recommendation:** **Succinate** (often provided as Sodium Succinate in NLDM).
-*   **Rationale:** *Acinetobacter* species efficiently transport and metabolize succinate. It enters the TCA cycle directly, providing both energy and carbon skeletons for biosynthesis.
-*   **Solubility and Toxicity:** Sodium succinate is highly soluble in water (well over 500 mM), easily meeting the 50 mM requirement. It is non-toxic at the 10–15 mM range and is a standard component in many defined media for this reason.
-*   **Alternative:** **Acetate** is another high-scoring substrate for *Acinetobacter*, though it requires careful pH buffering as its utilization can increase the medium's alkalinity.
+*Note: Solubility for L-Aspartate and L-Glutamate assumes the use of monosodium salts or pH adjustment to near neutrality, which is standard for NLDM preparation.*
 
-### Neutral Score (< 5) and Preferred by Most Microbes: Glucose
+### Step 2 — Select Candidates from the Complete Ranked List
 
-This category requires a substrate that is a universal favorite for many bacteria but typically yields a lower or "neutral" score for *Acinetobacter*.
+Based on the BPR scores in the table above, the following candidates are selected:
 
-*   **Recommendation:** **D-Glucose**.
-*   **Rationale:** Glucose is the standard carbon source for the vast majority of heterotrophic microbes. However, many *Acinetobacter* strains (such as the model organism *A. baylyi* ADP1) lack a complete glycolytic pathway or the necessary transport systems for efficient glucose uptake, often resulting in BPR scores below 5. Some strains may oxidize glucose extracellularly to gluconate, but it is rarely the preferred substrate.
-*   **Solubility and Toxicity:** Glucose is extremely soluble in water (up to ~5 M) and is entirely non-toxic at 15 mM.
+*   **High BPR score:** L-Glutamate (Score: 10). This is a primary carbon source for *Acinetobacter*, entering the TCA cycle directly via $\alpha$-ketoglutarate.
+*   **Neutral BPR score:** L-Phenylalanine (Score: 4). This score is strictly less than 5. While many microbes can utilize aromatic amino acids, they are generally not the first choice compared to simpler organic acids.
+*   **Low BPR score (control):** L-Glycine (Score: 1). *Acinetobacter* typically lacks the necessary metabolic pathways to utilize glycine efficiently as a sole carbon and energy source.
 
-### Low Score (Control): D-Xylose
+### Step 3 — Apply Solubility and Toxicity Filters
 
-To serve as a negative control, a substrate must be present in NLDM but generally not utilized by the target organism.
+Each candidate from Step 2 is evaluated against the solubility and toxicity criteria:
 
-*   **Recommendation:** **D-Xylose**.
-*   **Rationale:** Most *Acinetobacter* isolates lack the metabolic pathways (such as the xylose isomerase pathway) required to utilize pentose sugars like D-xylose as a sole carbon source. This typically results in the lowest possible BPR scores (near zero), making it an excellent negative control for growth experiments.
-*   **Solubility and Toxicity:** D-Xylose is highly soluble (approximately 4 M) and shows no toxicity to *Acinetobacter* at 10–15 mM.
-*   **Alternative:** **L-Arabinose** is another pentose sugar often found in NLDM that similarly yields very low scores for most *Acinetobacter* isolates.
+1.  **L-Glutamate (High BPR):**
+    *   Solubility: Yes (at 50 mM).
+    *   Toxicity: No (at 10–15 mM).
+    *   **Status:** Suitable.
 
-### Summary Table for NLDM Carbon Sources
+2.  **L-Phenylalanine (Neutral BPR):**
+    *   Solubility: Yes (at 50 mM). L-Phenylalanine has a solubility of approximately 27 g/L (~160 mM) at 25°C.
+    *   Toxicity: No (at 10–15 mM).
+    *   **Status:** Suitable.
 
-| Selection Criteria | Carbon Source | Expected BPR Score | Solubility (50 mM) | Toxicity (15 mM) |
-| :--- | :--- | :--- | :--- | :--- |
-| **High Score** | Succinate | High (8–10) | Excellent | None |
-| **Neutral Score** | D-Glucose | Low/Neutral (< 5) | Excellent | None |
-| **Low Score** | D-Xylose | Very Low (0–1) | Excellent | None |
+3.  **L-Glycine (Low BPR):**
+    *   Solubility: Yes (at 50 mM).
+    *   Toxicity: No (at 10–15 mM).
+    *   **Status:** Suitable.
 
-All recommended substrates are highly soluble and non-toxic at the specified concentrations, making them ideal for diving deeper into the substrate utilization profiles of your *Acinetobacter* isolate.
+*Alternative Consideration:* If L-Tyrosine or L-Tryptophan had been selected for the neutral or low categories, they would have failed the solubility filter (L-Tyrosine solubility is ~2.5 mM; L-Tryptophan is ~5 mM) and required substitution with the next available candidate, such as L-Methionine.
+
+### Step 4 — Final Recommendations
+
+The recommended carbon sources for evaluating the substrate utilization of the *Acinetobacter* isolate in NLDM are:
+
+*   **High BPR (Recommended):** L-Glutamate. It is highly soluble, non-toxic, and one of the most efficient carbon sources for *Acinetobacter* growth.
+*   **Neutral BPR:** L-Phenylalanine. It provides a moderate growth substrate that is strictly below the score of 5.
+*   **Low BPR (Control):** L-Glycine. It serves as an excellent negative or low-growth control due to the metabolic limitations of *Acinetobacter* regarding glycine utilization.
+
+No substitutions were required as all primary selections passed the solubility and toxicity filters.
