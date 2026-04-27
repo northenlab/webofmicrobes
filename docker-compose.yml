@@ -51,7 +51,7 @@ services:
     environment:
       MODEL_DIR: trained_models/bpr_consumed
 
-# networks:
-#   nginx-net:
-#     external:
-#       name: nginx-net
+networks:
+  nginx-net:
+    external:
+      name: nginx-net
