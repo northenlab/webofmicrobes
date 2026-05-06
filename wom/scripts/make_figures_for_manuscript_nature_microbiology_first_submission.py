@@ -1942,6 +1942,108 @@ def compute_precision_recall(experimental_df, predictions_df, threshold=0, metho
     return pd.DataFrame(results)
 
 
+def _bootstrap_auc(true_labels, scores, n_boot=500, seed=42):
+    """Bootstrap SE for ROC-AUC by resampling compound observations with replacement."""
+    from sklearn.metrics import roc_auc_score as _roc
+    rng = np.random.default_rng(seed)
+    true_labels = np.array(true_labels)
+    scores = np.array(scores)
+    n = len(true_labels)
+    boot_aucs = []
+    for _ in range(n_boot):
+        idx = rng.choice(n, size=n, replace=True)
+        tl, sc = true_labels[idx], scores[idx]
+        if tl.sum() == 0 or tl.sum() == n:
+            continue
+        try:
+            boot_aucs.append(_roc(tl, sc))
+        except Exception:
+            pass
+    return float(np.std(boot_aucs)) if len(boot_aucs) > 1 else None
+
+
+def _compute_taxon_embedding_diversity_fig8(model, training_data, taxon_name, tax_level,
+                                             min_isolates=3, n_boot=500, seed=42):
+    """Mean pairwise cosine distance between BPR embeddings, plus bootstrap SE.
+
+    Returns (mean_diversity, se) where se is None when K<3 (single pair, no variance).
+    """
+    E_all = model.microbe_embeddings
+    norms = np.linalg.norm(E_all, axis=1, keepdims=True).clip(1e-12)
+    E_norm = E_all / norms
+    isolate_ids = [
+        org_id for org_id, tax in training_data.microbe_taxonomy.items()
+        if tax.get_level(tax_level) == taxon_name and org_id in training_data.microbe_to_idx
+    ]
+    if len(isolate_ids) < min_isolates:
+        return None, None
+    indices = np.array([training_data.microbe_to_idx[oid] for oid in isolate_ids])
+    E = E_norm[indices]
+    K = len(indices)
+    sims = E @ E.T
+    mask = np.triu(np.ones((K, K), dtype=bool), k=1)
+    mean_div = 1.0 - float(sims[mask].mean())
+    if K < 3:
+        return mean_div, None
+    rng = np.random.default_rng(seed)
+    boot_vals = []
+    for _ in range(n_boot):
+        bi = rng.choice(K, size=K, replace=True)
+        Eb = E[bi]
+        sb = Eb @ Eb.T
+        boot_vals.append(1.0 - float(sb[mask].mean()))
+    return mean_div, float(np.std(boot_vals))
+
+
+def _compute_taxon_empirical_consistency_fig8(taxon_name, tax_level, emp_df,
+                                               min_isolates=3, min_shared=5,
+                                               n_boot=500, seed=42):
+    """Mean within-taxon pairwise Spearman ρ from exometabolite data, plus bootstrap SE.
+
+    Returns (mean_rho, se) where se is None when only one pair exists.
+    """
+    from scipy.stats import spearmanr as _sr
+    sub = emp_df[emp_df[tax_level] == taxon_name]
+    if sub.empty:
+        return None, None
+    wide = sub.pivot_table(index='organism_id', columns='representative_compound', values='assertion_value')
+    if len(wide) < min_isolates:
+        return None, None
+    organisms = wide.index.tolist()
+    rhos = []
+    for i in range(len(organisms)):
+        for j in range(i + 1, len(organisms)):
+            shared = wide.iloc[i].notna() & wide.iloc[j].notna()
+            if shared.sum() < min_shared:
+                continue
+            rho, _ = _sr(wide.iloc[i][shared], wide.iloc[j][shared])
+            rhos.append(rho)
+    if not rhos:
+        return None, None
+    mean_rho = float(np.mean(rhos))
+    if len(organisms) < 3:
+        return mean_rho, None
+    rng = np.random.default_rng(seed)
+    n = len(organisms)
+    boot_vals = []
+    for _ in range(n_boot):
+        bi = rng.choice(n, size=n, replace=True)
+        b_rhos = []
+        for ii in range(n):
+            for jj in range(ii + 1, n):
+                if bi[ii] == bi[jj]:
+                    continue
+                shared = wide.iloc[bi[ii]].notna() & wide.iloc[bi[jj]].notna()
+                if shared.sum() < min_shared:
+                    continue
+                rho, _ = _sr(wide.iloc[bi[ii]][shared], wide.iloc[bi[jj]][shared])
+                b_rhos.append(rho)
+        if b_rhos:
+            boot_vals.append(float(np.mean(b_rhos)))
+    se = float(np.std(boot_vals)) if len(boot_vals) > 1 else None
+    return mean_rho, se
+
+
 def figure_8_experimental_validation_single_model(
     model,
     training_data,
@@ -2025,7 +2127,8 @@ def figure_8_experimental_validation_single_model(
             merged_iso = iso_merged[pd.notna(iso_merged['mean_score'])]
             isolate_meta[isolate] = {
                 'tax_level': level, 'n_training': n_training,
-                'genus': genus, 'display': isolate_display.get(isolate, genus),
+                'genus': genus, 'family': family, 'order': order,
+                'display': isolate_display.get(isolate, genus),
             }
             logger.info(f"  {isolate}: using {level}-level predictions "
                         f"(n_training={n_training})")
@@ -2053,13 +2156,33 @@ def figure_8_experimental_validation_single_model(
                              sharex=True)
     axes = axes.flatten() if n_panels > 1 else [axes]
 
-    # Dynamic bin edges across all isolates
-    score_min = merged['mean_score'].min()
-    score_max = merged['mean_score'].max()
-    padding = max((score_max - score_min) * 0.05, 0.1)
-    edges = np.linspace(score_min - padding, score_max + padding, 25)
+    edges = np.linspace(-5, 15, 25)
 
     from sklearn.metrics import roc_auc_score
+
+    # Build per-isolate consistency score and embedding diversity lookup (with SE)
+    _gcs_csv_lookup = {}  # genus -> (gcs, gcs_se)  from pre-computed CSV
+    _gcs_csv = output_dir / "stats_gcs_emb_diversity.csv"
+    if _gcs_csv.exists():
+        _gcs_df = pd.read_csv(_gcs_csv)
+        for _, _row in _gcs_df.iterrows():
+            _ci_half = (_row['ci_high'] - _row['ci_low']) / 2.0
+            _gcs_se = _ci_half / 1.96 if _ci_half > 0 else None
+            _gcs_csv_lookup[_row['genus']] = (_row['gcs'], _gcs_se)
+    _emp_df_full = load_exometabolite()
+    # _isolate_cs: isolate -> (gcs, gcs_se, emb_div, emb_div_se, label)
+    _isolate_cs = {}
+    for _iso, _meta in isolate_meta.items():
+        _level = _meta.get('tax_level', 'genus')
+        _taxon = _meta.get(_level, '')
+        _ed, _ed_se = _compute_taxon_embedding_diversity_fig8(
+            model, training_data, _taxon, _level, min_isolates=2)
+        if _level == 'genus' and _taxon in _gcs_csv_lookup:
+            _cs, _cs_se = _gcs_csv_lookup[_taxon]
+        else:
+            _cs, _cs_se = _compute_taxon_empirical_consistency_fig8(
+                _taxon, _level, _emp_df_full, min_isolates=2)
+        _isolate_cs[_iso] = (_cs, _cs_se, _ed, _ed_se, 'GCS')
 
     all_auc = []
     legend_handles = None
@@ -2097,9 +2220,12 @@ def figure_8_experimental_validation_single_model(
         else:
             auc = float('nan')
 
-        all_auc.append(auc)
+        auc_se = (_bootstrap_auc(true_consumed.values, cn_subset['mean_score'].values)
+                  if not np.isnan(auc) else None)
+        all_auc.append((auc, auc_se))
+        _se_str = f"{auc_se:.3f}" if auc_se is not None else "n/a"
         logger.info(f"  {isolate} ({display_name}): n_total={n_total}, "
-                    f"n_consumed={n_consumed}, AUC={auc:.3f}, level={tax_level}")
+                    f"n_consumed={n_consumed}, AUC={auc:.3f}, AUC_SE={_se_str}, level={tax_level}")
 
         # Title: italicised species name + training-isolate count
         title = f"{display_name} ({n_training})"
@@ -2112,12 +2238,59 @@ def figure_8_experimental_validation_single_model(
             ax.text(0.04, 0.97, f"AUC={auc:.2f}",
                     transform=ax.transAxes, fontsize=19,
                     ha='left', va='top')
+        _cs_val, _cs_se, _ed_val, _ed_se, _cs_label = _isolate_cs.get(
+            isolate, (None, None, None, None, 'GCS'))
+        if _cs_val is not None:
+            _cs_str = (f"{_cs_label}={_cs_val:.2f}±{_cs_se:.2f}"
+                       if _cs_se is not None else f"{_cs_label}={_cs_val:.2f}")
+            ax.text(0.04, 0.87, _cs_str, transform=ax.transAxes,
+                    fontsize=19, ha='left', va='top')
+        if _ed_val is not None:
+            _ed_str = (f"Emb.Div.={_ed_val:.2f}±{_ed_se:.2f}"
+                       if _ed_se is not None else f"Emb.Div.={_ed_val:.2f}")
+            ax.text(0.04, 0.77, _ed_str, transform=ax.transAxes,
+                    fontsize=19, ha='left', va='top')
+        ax.set_xlim(-5, 15)
+        ax.set_xticks(np.arange(-5, 16, 5))
+        ax.xaxis.set_minor_locator(plt.MultipleLocator(2.5))
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
 
     # Remove extra axes
     for i in range(n_panels, len(axes)):
         axes[i].remove()
+
+    # Spearman correlations: AUC vs GCS and AUC vs Emb.Div.
+    # Average across isolates from the same taxon to avoid pseudoreplication.
+    from scipy.stats import spearmanr as _spearmanr_fig
+    _corr_rows = []
+    for _iso in isolates:
+        _meta = isolate_meta.get(_iso, {})
+        _level = _meta.get('tax_level', 'genus')
+        _taxon = _meta.get(_level, '')
+        _cs_v, _cs_se_v, _ed_v, _ed_se_v, _ = _isolate_cs.get(_iso, (None, None, None, None, 'GCS'))
+        _auc_v, _auc_se_v = all_auc[isolates.index(_iso)]
+        if not np.isnan(_auc_v):
+            _corr_rows.append({'taxon': _taxon, 'auc': _auc_v, 'gcs': _cs_v, 'emb_div': _ed_v})
+    _corr_df = pd.DataFrame(_corr_rows).groupby('taxon', as_index=False).mean(numeric_only=True)
+    _gcs_mask = _corr_df['gcs'].notna() & _corr_df['auc'].notna()
+    _ed_mask  = _corr_df['emb_div'].notna() & _corr_df['auc'].notna()
+    _gcs_rho, _gcs_p = _spearmanr_fig(_corr_df.loc[_gcs_mask, 'auc'], _corr_df.loc[_gcs_mask, 'gcs']) if _gcs_mask.sum() >= 3 else (float('nan'), float('nan'))
+    _ed_rho,  _ed_p  = _spearmanr_fig(_corr_df.loc[_ed_mask,  'auc'], _corr_df.loc[_ed_mask,  'emb_div']) if _ed_mask.sum() >= 3 else (float('nan'), float('nan'))
+    _n_gcs = int(_gcs_mask.sum())
+    _n_ed  = int(_ed_mask.sum())
+    logger.info(f"  Spearman AUC~GCS: ρ={_gcs_rho:.3f}, p={_gcs_p:.3f}, n={_n_gcs}")
+    logger.info(f"  Spearman AUC~Emb.Div.: ρ={_ed_rho:.3f}, p={_ed_p:.3f}, n={_n_ed}")
+
+    def _fmt_p(p):
+        if np.isnan(p): return 'n/a'
+        if p < 0.001:   return 'p<0.001'
+        return f'p={p:.2f}'
+
+    _stat_line = (
+        f"GCS: ρ={_gcs_rho:.2f}, {_fmt_p(_gcs_p)} (n={_n_gcs})    "
+        f"Emb. Diversity: ρ={_ed_rho:.2f}, {_fmt_p(_ed_p)} (n={_n_ed})"
+    )
 
     # Single-line figure-level legend above the subplots
     if legend_handles:
@@ -2127,12 +2300,16 @@ def figure_8_experimental_validation_single_model(
                    fontsize=20, title="experimental observation",
                    title_fontsize=20)
 
+    # Correlation stats below legend, above subplots
+    fig.text(0.5, 0.905, f"Spearman ρ (AUC vs.): {_stat_line}",
+             ha='center', va='center', fontsize=16)
+
     # Shared axis labels — positioned inside tight_layout rect
-    fig.text(0.5, 0.01, f'Mean {model_name} Score (Genus-Level)', ha='center', fontsize=22)
+    fig.text(0.5, 0.01, 'Mean BPR Score (at taxonomic level)', ha='center', fontsize=22)
     fig.text(0.01, 0.5, 'Number of Metabolites', va='center', rotation='vertical', fontsize=22)
 
-    # Reserve left/bottom margins for shared labels; top margin for legend
-    plt.tight_layout(rect=[0.05, 0.05, 1.0, 0.88])
+    # Reserve left/bottom margins for shared labels; top margin for legend + stats
+    plt.tight_layout(rect=[0.05, 0.05, 1.0, 0.85])
     
     # Save figure
     safe_name = model_name.lower().replace('-', '_').replace(' ', '_')
@@ -2142,14 +2319,87 @@ def figure_8_experimental_validation_single_model(
     plt.close()
     
     logger.info(f"Saved figure8_experimental_validation_{safe_name}")
-    valid_auc = [a for a in all_auc if not np.isnan(a)]
+    valid_auc = [a for a, _ in all_auc if not np.isnan(a)]
     logger.info(f"  Mean AUC across isolates: {np.mean(valid_auc):.3f}" if valid_auc else "  No valid AUC scores")
+
+    # --- Scatter figure: AUC vs Embedding Diversity ---
+    from scipy.stats import spearmanr as _sr_scatter
+    _scatter_rows = []
+    for _iso, (_auc, _auc_se) in zip(isolates, all_auc):
+        if np.isnan(_auc):
+            continue
+        _meta = isolate_meta.get(_iso, {})
+        _level = _meta.get('tax_level', 'genus')
+        _cs_v, _cs_se_v, _ed_v, _ed_se_v, _ = _isolate_cs.get(_iso, (None, None, None, None, 'GCS'))
+        if _ed_v is None:
+            continue
+        _scatter_rows.append({
+            'label': _meta.get('display', _iso),
+            'taxon': _meta.get(_level, ''),
+            'tax_level': _level,
+            'auc': _auc, 'auc_se': _auc_se,
+            'emb_div': _ed_v, 'emb_div_se': _ed_se_v,
+            'gcs': _cs_v, 'gcs_se': _cs_se_v,
+        })
+    _sdf = pd.DataFrame(_scatter_rows)
+
+    if len(_sdf) >= 3:
+        _level_colors = {'genus': '#2196F3', 'family': '#FF9800', 'order': '#9C27B0'}
+        _sdf_avg = _sdf.groupby('taxon', as_index=False).mean(numeric_only=True)
+
+        def _panel(ax, x_col, x_se_col, xlabel, title_prefix):
+            _sub = _sdf.dropna(subset=[x_col])
+            for _, _row in _sub.iterrows():
+                _col = _level_colors.get(_row['tax_level'], '#555555')
+                _xe = _row[x_se_col] if pd.notna(_row.get(x_se_col)) else 0
+                _ye = _row['auc_se'] if pd.notna(_row.get('auc_se')) else 0
+                ax.errorbar(_row[x_col], _row['auc'],
+                            xerr=[[_xe], [_xe]], yerr=[[_ye], [_ye]],
+                            fmt='o', color=_col, markersize=9, capsize=4,
+                            elinewidth=1.5, ecolor=_col, alpha=0.85, zorder=3)
+                ax.text(_row[x_col] + 0.01 * (_sub[x_col].max() - _sub[x_col].min()),
+                        _row['auc'], _row['label'], fontsize=9, va='center', style='italic')
+            _avg = _sub.groupby('taxon', as_index=False).mean(numeric_only=True)
+            _rho, _p = _sr_scatter(_avg[x_col], _avg['auc'])
+            _p_str = 'p<0.001' if _p < 0.001 else f'p={_p:.2f}'
+            ax.set_xlabel(xlabel, fontsize=12)
+            ax.set_ylabel('AUC', fontsize=12)
+            ax.set_title(f'{title_prefix}\nSpearman ρ={_rho:.2f}, {_p_str} (n={len(_avg)} taxa)',
+                         fontsize=12)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            return _rho, _p, _p_str, len(_avg)
+
+        fig_s, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
+
+        _rho_g, _p_g, _ps_g, _ng = _panel(
+            ax_a, 'gcs', 'gcs_se',
+            'GCS (mean within-taxon pairwise Spearman ρ)',
+            'a   AUC vs. GCS')
+        _rho_e, _p_e, _ps_e, _ne = _panel(
+            ax_b, 'emb_div', 'emb_div_se',
+            'Embedding Diversity (mean pairwise cosine distance)',
+            'b   AUC vs. Embedding Diversity')
+
+        # Shared legend
+        for _lv, _lc in _level_colors.items():
+            if (_sdf['tax_level'] == _lv).any():
+                ax_a.scatter([], [], color=_lc, s=60, label=f'{_lv}-level')
+        ax_a.legend(title='Prediction level', fontsize=10, title_fontsize=10, frameon=False)
+
+        plt.tight_layout()
+        for _ext in ['png', 'pdf']:
+            fig_s.savefig(output_dir / f"figure8_scatter_auc_gcs_embdiv_{safe_name}.{_ext}",
+                          dpi=300, bbox_inches='tight')
+        plt.close(fig_s)
+        logger.info(f"  Saved figure8_scatter_auc_gcs_embdiv_{safe_name} "
+                    f"(GCS: ρ={_rho_g:.3f}, {_ps_g}; Emb.Div.: ρ={_rho_e:.3f}, {_ps_e})")
 
     return {
         'model': model_name,
         'mean_auc': np.mean(valid_auc) if valid_auc else float('nan'),
         'isolates': isolates,
-        'per_isolate_auc': dict(zip(isolates, all_auc)),
+        'per_isolate_auc': {iso: auc for iso, (auc, _) in zip(isolates, all_auc)},
         'isolate_meta': isolate_meta,
     }
 
