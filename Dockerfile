@@ -14,12 +14,16 @@ RUN echo "export PATH=$CONDA_DIR:$PATH" >> ~/.bashrc
 
 # Forcing version of Python
 RUN mamba create -n python310 python=3.10 -y
+RUN /bin/bash -c 'source activate python310 && python -m pip install --no-cache-dir --upgrade pip uv'
 
-COPY requirements.txt .
-RUN /bin/bash -c 'source activate python310 && pip install -r requirements.txt'
+COPY requirements-streamlit.txt .
+RUN /bin/bash -c 'source activate python310 && uv pip install --python $(which python) --no-cache -r requirements-streamlit.txt'
 
 # google-genai (new SDK)
-RUN /bin/bash -c 'source activate python310 && pip install google-genai python-dotenv'
+RUN /bin/bash -c 'source activate python310 && uv pip install --python $(which python) --no-cache python-dotenv'
+
+# mcp
+RUN /bin/bash -c 'source activate python310 && uv pip install --python $(which python) --no-cache mcp pydantic_ai'
 
 COPY . /app
 WORKDIR /app

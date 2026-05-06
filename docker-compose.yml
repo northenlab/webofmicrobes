@@ -8,11 +8,14 @@ services:
     volumes:
       - ./logs:/app/logs:rw
       - ./chat:/app/chat:rw
+      - ./pages:/app/pages:rw
     networks:
       - default
       - nginx-net
     restart: unless-stopped
     command: /app/run_server.sh
+    ports:
+    - "5002:5000"
     logging:
       driver: json-file
       options:
@@ -28,44 +31,14 @@ services:
       LETSENCRYPT_HOST: wom-chat.gnps2.org
       LETSENCRYPT_EMAIL: mwang87@gmail.com
 
-  wom-flask:
+  wom-mcp:
     build:
       context: .
-      dockerfile: Dockerfile.dash
-    container_name: wom-flask
-    volumes:
-      - ./logs:/app/logs:rw
-      - ./cache:/app/cache:rw
-    networks:
-      - default
-      - nginx-net
-    restart: unless-stopped
-    command: /app/wom/run_api_server.sh
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"      # Maximum size of a single log file
-        max-file: "3"        # Maximum number of log files to keep (rotates after 3 files)
-    deploy:
-      resources:
-        limits:
-          memory: 8000M
-    environment:
-      VIRTUAL_HOST: wom-api.gnps2.org
-      VIRTUAL_PORT: 5000
-      LETSENCRYPT_HOST: wom-api.gnps2.org
-      LETSENCRYPT_EMAIL: mwang87@gmail.com
-  growth-rate:
-    build:
-      context: growth_rate
-      dockerfile: Dockerfile
-    container_name: growth-rate
+      dockerfile: ./mcp/Dockerfile
+    container_name: wom-mcp
     working_dir: /app
-    volumes:
-      - ./growth_rate/logs:/app/logs:rw
     networks:
       - default
-      - nginx-net
     restart: unless-stopped
     logging:
       driver: json-file
@@ -76,6 +49,9 @@ services:
       resources:
         limits:
           memory: 8000M
+    environment:
+      MODEL_DIR: trained_models/bpr_consumed
+
 networks:
   nginx-net:
     external:

@@ -1,0 +1,10 @@
+streamlit
+pandas
+requests
+plotly
+flask
+gunicorn
+flask-cors
+litellm
+nest_asyncio
+fastmcp

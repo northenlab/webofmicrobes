@@ -6,10 +6,6 @@ services:
     ports:
     - "5002:5000"
 
-  wom-flask:
+  wom-mcp:
     ports:
-    - "5001:5000"
-
-  growth-rate:
-    ports:
-    - "5003:5000"
+    - "8000:8000"
