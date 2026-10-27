@@ -11,7 +11,12 @@ wom/figures/
 wom/manuscript_figures/
 wom/raw/
 chat/
-wom/exometabolite_data/
+wom/exometabolite_data/*
+# Archive the Fig. S3 held-out validation input (git cannot re-include a file
+# under an excluded directory, so the directory rules above use /*)
+!wom/exometabolite_data/validation/
+wom/exometabolite_data/validation/*
+!wom/exometabolite_data/validation/held-out-validation-data.tsv
 wom/chebi_source
 wom/data
 wom/processed_data/function_reactions.parquet

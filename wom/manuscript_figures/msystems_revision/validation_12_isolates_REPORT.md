@@ -8,6 +8,7 @@ Outputs in this directory:
 | `table_S_validation_12_isolates.csv` | One row per isolate: taxonomy, reference rank/taxon, counts, ROC-AUC / PR-AUC / prevalence for every model variant and label set |
 | `validation_12_isolates_summary.csv` | Mean / median ROC-AUC and number of isolates ≥ 0.8 per variant, for all 12 isolates and for the 10 not in the training data |
 | `validation_12_isolates_per_seed.csv` | Per-isolate results for every seeded retrain |
+| `figS3_validation_clean_holdout.{png,pdf}` | Revised Fig. S3 from the clean hold-out models (`wom/scripts/revision_figS3_clean_holdout.py`). Histograms show the seed-0 model; panel ROC-AUC is the mean ± SD over 20 seeds and is checked against the table |
 
 ## Summary
 
@@ -33,8 +34,8 @@ Outputs in this directory:
 Suggested wording for the revision, if the clean hold-out models are adopted:
 "…12 newly profiled NLDM isolates absent from training: mean ROC-AUC 0.88 (median 0.89; 20 independently
 initialised models, SD 0.004), with 10–11 of 12 isolates ≥ 0.80 depending on initialisation; *Caulobacter*
-was lowest (0.75)." Fig. S3 itself was not regenerated. Its panels still show the model trained with
-GW456-R20 and FW507-4G11.
+was lowest (0.75)." The revised Fig. S3 (`figS3_validation_clean_holdout.png`) is drawn from these clean
+models. The submitted figure is left unchanged.
 
 ## 1. Provenance of Fig. S3
 
@@ -196,8 +197,9 @@ materially inflate their scores.
 - **Brevundimonas is missing from the 12-isolate set.** The 8-isolate first submission included it, with a per-genus AUC of 0.75 in
   `manuscript_figures_nat_microbiology_first_submission/figure8_auc_per_genus.csv`. It is absent from
   `held-out-validation-data.tsv`. The reason is not recorded. A reviewer comparing versions may ask.
-- **The original data files are gone.** The 12-isolate validation TSV is gitignored. Consider archiving it, because it is the only copy of the
-  Fig. S3 input in the repo tree.
+- **The original `~/Downloads` data files are gone.** The 12-isolate validation TSV, which is the Fig. S3 input, is now tracked in git
+  (`.gitignore` negation). The raw training sources in `wom/exometabolite_data/` (`wom_*.tsv`, `phylogeny.tsv`) remain untracked.
+  The formatted training table `wom/processed_data/exometabolite.parquet` is tracked.
 
 ## Reproduce
 
@@ -205,6 +207,7 @@ materially inflate their scores.
 cd wom
 .venv/bin/python scripts/revision_validation_12_isolates.py            # 20 seeds per training set, ~4 min
 .venv/bin/python scripts/revision_validation_12_isolates.py --n-seeds 5
+.venv/bin/python scripts/revision_figS3_clean_holdout.py               # revised Fig. S3, ~2.5 min; needs the table above
 ```
 
 Seeds 0–19 are set via `np.random.seed` and `torch.manual_seed`. Seeded runs are bit-for-bit reproducible on CPU.
