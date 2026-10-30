@@ -95,6 +95,10 @@ ABLATIONS = {
 ABLATION_DIM = 32
 HOLDOUT_FRACTION = 0.2
 LABELS = ("consumed", "neutral", "secreted", "untested")
+RESULT_COLUMNS = ["model", "dim", "repeat", "protocol", "pool", "roc_auc", "roc_auc_pooled",
+                  "pr_auc_pooled", "prevalence", "n_microbes", "n_pairs", "n_pos", "n_neg",
+                  "known_negatives_passed", "mean_score_withheld", "mean_score_neutral",
+                  "mean_score_untested"]
 
 
 def seed_everything(seed: int):
@@ -352,7 +356,9 @@ def ordinal_inertness_check(training_data: TrainingData, labels: np.ndarray, dim
 
 
 def run_benchmark(training_data: TrainingData, labels: np.ndarray, dims: list[int],
-                  repeats: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+                  repeats: int, model_names: list[str] | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Protocols A and B. By default runs the five main models at every dim plus the
+    ablations at ABLATION_DIM; pass model_names to run exactly those at every dim."""
     rows, heldout = [], []
     idx_to_microbe = np.array([m for m, _ in sorted(training_data.microbe_to_idx.items(), key=lambda x: x[1])])
     idx_to_compound = np.array([c for c, _ in sorted(training_data.metabolite_to_idx.items(), key=lambda x: x[1])])
@@ -367,8 +373,11 @@ def run_benchmark(training_data: TrainingData, labels: np.ndarray, dims: list[in
 
         for dim in dims:
             seed = training_seed(repeat, dim)
-            model_names = list(MODEL_TYPES) + (list(ABLATIONS) if dim == ABLATION_DIM else [])
-            for model_name in model_names:
+            if model_names is None:
+                names = list(MODEL_TYPES) + (list(ABLATIONS) if dim == ABLATION_DIM else [])
+            else:
+                names = model_names
+            for model_name in names:
                 is_ordinal = model_name.startswith("Ordinal-BPR")
                 t0 = time.time()
                 scores = score_matrix(train(loo_data, model_name, dim, seed))
@@ -486,12 +495,8 @@ def main(output_dir: Path, dims: list[int], repeats: int):
 
     results = pd.concat([submitted_rows, results], ignore_index=True)
     results["n_pairs"] = results["n_pos"] + results["n_neg"]
-    columns = ["model", "dim", "repeat", "protocol", "pool", "roc_auc", "roc_auc_pooled",
-               "pr_auc_pooled", "prevalence", "n_microbes", "n_pairs", "n_pos", "n_neg",
-               "known_negatives_passed", "mean_score_withheld", "mean_score_neutral",
-               "mean_score_untested"]
-    results[columns].to_csv(output_dir / "fig1b_benchmark_results.csv", index=False,
-                            float_format="%.6f")
+    results[RESULT_COLUMNS].to_csv(output_dir / "fig1b_benchmark_results.csv", index=False,
+                                   float_format="%.6f")
     heldout.to_parquet(output_dir / "fig1b_heldout_scores.parquet", index=False)
     plot_revised_figure(results, output_dir)
 
