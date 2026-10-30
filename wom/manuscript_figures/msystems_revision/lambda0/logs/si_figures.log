@@ -1,0 +1,57 @@
+15:38:03 [INFO] === Assertion type: consumed | output: manuscript_figures/msystems_revision/lambda0/si_figures ===
+15:38:03 [INFO] Loading model from trained_models/ordinal_bpr_consumed
+15:38:03 [INFO] Loaded OrdinalBPRModel from trained_models/ordinal_bpr_consumed
+15:38:03 [INFO] Loaded OrdinalBPRModel with 433 microbes and 311 metabolites
+15:38:03 [INFO] Exporting taxonomic score matrices to TSV
+15:38:03 [INFO] Exporting taxonomic score matrices to manuscript_figures/msystems_revision/lambda0/si_figures
+15:38:03 [INFO] Exporting 433 organisms
+15:38:04 [INFO] Saved raw scores to manuscript_figures/msystems_revision/lambda0/si_figures/taxonomic_raw_scores.tsv
+15:38:04 [INFO] Saved distinctive scores to manuscript_figures/msystems_revision/lambda0/si_figures/taxonomic_distinctive_scores.tsv
+15:38:04 [INFO] Saved ranks to manuscript_figures/msystems_revision/lambda0/si_figures/taxonomic_ranks.tsv
+15:38:04 [INFO] Raw scores - min: -11.603, max: 16.002, mean: -1.677
+15:38:04 [INFO] Distinctive scores - min: -11.093, max: 12.919, mean: 0.000
+15:38:04 [INFO] Ranks - min: 1, max: 311, mean: 156.0
+15:38:04 [INFO] Generating Figure 3: Distinctive-score biclustering
+15:38:04 [INFO] Data file not found at --data, loading exometabolite cache via loader
+15:38:04 [INFO] Loading exometabolite data from cache
+15:38:04 [INFO] Preparing training data for preference type: consumed
+15:38:04 [INFO]   433 unique organisms
+15:38:04 [INFO]   311 unique metabolites
+15:38:04 [INFO]   430 organisms with positive interactions
+15:38:04 [INFO]   11,093 total positive interactions
+15:38:04 [INFO]   433 organisms with known negatives
+15:38:04 [INFO]   59,749 total known-negative interactions
+15:38:12 [INFO] Saved figure3_heatmap_biclustering_distinctive (score_col=distinctive_score)
+15:38:12 [INFO] Preparing training data for preference type: consumed
+15:38:12 [INFO]   433 unique organisms
+15:38:12 [INFO]   311 unique metabolites
+15:38:12 [INFO]   430 organisms with positive interactions
+15:38:12 [INFO]   11,093 total positive interactions
+15:38:12 [INFO]   433 organisms with known negatives
+15:38:12 [INFO]   59,749 total known-negative interactions
+15:38:19 [INFO] Saved figure3_heatmap_biclustering_raw (score_col=raw_score)
+15:38:19 [INFO] Preparing training data for preference type: consumed
+15:38:19 [INFO]   433 unique organisms
+15:38:19 [INFO]   311 unique metabolites
+15:38:19 [INFO]   430 organisms with positive interactions
+15:38:19 [INFO]   11,093 total positive interactions
+15:38:20 [INFO]   433 organisms with known negatives
+15:38:20 [INFO]   59,749 total known-negative interactions
+15:38:27 [INFO] Saved figure3_heatmap_biclustering_most-measured-distinctive (score_col=distinctive_score)
+15:38:27 [INFO] Preparing training data for preference type: consumed
+15:38:27 [INFO]   433 unique organisms
+15:38:27 [INFO]   311 unique metabolites
+15:38:27 [INFO]   430 organisms with positive interactions
+15:38:27 [INFO]   11,093 total positive interactions
+15:38:27 [INFO]   433 organisms with known negatives
+15:38:27 [INFO]   59,749 total known-negative interactions
+15:38:34 [INFO] Saved figure3_heatmap_biclustering_most-measured-raw (score_col=raw_score)
+15:38:34 [INFO] Generating Figure 2: t-SNE embeddings
+15:38:34 [ERROR] Failed to generate Figure 2: name 'DEFAULT_CLASS_COLOR' is not defined
+15:38:34 [INFO] Generating Figure 6: Rank clustermap
+/Users/bpb/repos/webofmicrobes/wom/.venv/lib/python3.13/site-packages/seaborn/matrix.py:560: UserWarning: Clustering large matrix with scipy. Installing `fastcluster` may give better performance.
+  warnings.warn(msg)
+15:38:36 [INFO] Saved figure6_rank_clustermap
+15:38:36 [INFO] Generating Figure 7: Embedding distance by taxonomy
+15:38:37 [INFO] Saved figure7_embedding_distance
+15:38:37 [INFO] Figure generation complete

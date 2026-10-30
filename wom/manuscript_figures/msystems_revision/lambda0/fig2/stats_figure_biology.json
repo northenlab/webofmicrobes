@@ -1,0 +1,52 @@
+{
+  "model_dir": "trained_models/ordinal_bpr_consumed",
+  "within_genus_empirical_spearman": {
+    "mean": 0.4434351147957362,
+    "median": 0.45483266788414073,
+    "n_pairs": 3174
+  },
+  "within_genus_embedding_cosine": {
+    "mean": 0.5449956125825075,
+    "median": 0.5718418061733246,
+    "n_pairs": 3174
+  },
+  "kruskal_wallis": {
+    "empirical": {
+      "H": 10531.975572655021,
+      "p": 0.0
+    },
+    "embedding": {
+      "H": 8256.39040838813,
+      "p": 0.0
+    }
+  },
+  "permanova_empirical": {
+    "pseudo_f": 7.059277520488843,
+    "r2": 0.5922882228803585,
+    "p": 0.001,
+    "n_permutations": 999,
+    "n_isolates": 376,
+    "n_genera": 65,
+    "df": [
+      64,
+      311
+    ]
+  },
+  "permanova_embedding": {
+    "pseudo_f": 8.518647581233735,
+    "r2": 0.6373942499270545,
+    "p": 0.001,
+    "n_permutations": 999,
+    "n_isolates": 381,
+    "n_genera": 66,
+    "df": [
+      65,
+      315
+    ]
+  },
+  "gcs_vs_embedding_diversity": {
+    "spearman_rho": -0.7381676074685192,
+    "p": 2.1351354707300204e-09,
+    "n_genera": 48
+  }
+}

@@ -34,8 +34,10 @@ import matplotlib.pyplot as plt
 from core.types import AssertionType
 from loaders.loaders import prepare_training_data, load_exometabolite
 from scripts.revision_validation_12_isolates import (
+    ORDINAL_BPR_KWARGS,
     load_validation_with_mapping,
     find_validation_isolates_in_training,
+    training_ids_in,
     evaluate_model,
     train_seeded,
     corrected_labels,
@@ -56,10 +58,11 @@ def clean_holdout_results(exp: pd.DataFrame, df: pd.DataFrame) -> tuple[pd.DataF
     Returns (per-seed per-isolate metrics, seed-0 merged score rows, removed isolate IDs).
     """
     in_training = find_validation_isolates_in_training(exp, df)
-    df_clean = df[~df["organism_id"].astype(str).str.strip().isin(in_training)]
+    removed = training_ids_in(in_training)
+    df_clean = df[~df["organism_id"].astype(str).str.strip().isin(removed)]
     training_clean = prepare_training_data(df_clean, preference_type=AssertionType.CONSUMED,
                                            include_secreted=False)
-    logger.info(f"Removed from training: {sorted(in_training)}; "
+    logger.info(f"Removed from training: {sorted(removed)}; "
                 f"{training_clean.n_microbes} microbes remain")
 
     per_seed, histogram_rows = [], None
@@ -71,7 +74,7 @@ def clean_holdout_results(exp: pd.DataFrame, df: pd.DataFrame) -> tuple[pd.DataF
         if seed == HISTOGRAM_SEED:
             histogram_rows = merged
         logger.info(f"  clean seed {seed}: mean ROC-AUC = {per_iso['roc_auc'].mean():.3f}")
-    return pd.concat(per_seed, ignore_index=True), histogram_rows, sorted(in_training)
+    return pd.concat(per_seed, ignore_index=True), histogram_rows, sorted(removed)
 
 
 def summarize_and_check(per_seed: pd.DataFrame, table_csv: Path) -> pd.DataFrame:
@@ -171,10 +174,11 @@ def plot_figure(histogram_rows: pd.DataFrame, panels: pd.DataFrame, exp: pd.Data
                fontsize=18, title="experimental observation (secreted, ≥ 2, excluded)",
                title_fontsize=18)
     fig.text(0.5, 0.905,
-             f"Models trained without any validation isolate. Histograms: seed-{HISTOGRAM_SEED} model; "
+             f"BPR models (lambda_ord = {ORDINAL_BPR_KWARGS['lambda_ord']:g}) trained without any validation "
+             f"isolate. Histograms: seed-{HISTOGRAM_SEED} model; "
              f"ROC-AUC: mean ± SD over {N_SEEDS} seeds. Title: (reference training isolates, rank)",
              ha="center", va="center", fontsize=14)
-    fig.text(0.5, 0.01, "Mean Ordinal-BPR score (at reference taxonomic level)",
+    fig.text(0.5, 0.01, "Mean BPR score (at reference taxonomic level)",
              ha="center", fontsize=20)
     fig.text(0.01, 0.5, "Number of metabolites", va="center", rotation="vertical", fontsize=20)
 
@@ -221,6 +225,13 @@ if __name__ == "__main__":
         / "table_S_validation_12_isolates.csv",
         help="Per-isolate table whose clean_holdout columns the panels must match",
     )
+    parser.add_argument(
+        "--lambda-ord",
+        type=float,
+        default=0.0,
+        help="Ordinal-term weight for the clean retrains (0.1 reproduces the submitted analysis)",
+    )
     args = parser.parse_args()
 
+    ORDINAL_BPR_KWARGS["lambda_ord"] = args.lambda_ord
     main(args.output_dir, args.table_csv)

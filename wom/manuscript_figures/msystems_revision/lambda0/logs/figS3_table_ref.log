@@ -1,0 +1,90 @@
+16:13:18 [INFO] Loaded validation data: 831 measurements, 12 isolates, 11 genera
+16:13:19 [INFO] Validation data: 12 isolates, 831 measurements
+16:13:19 [INFO] Loading exometabolite data from cache
+16:13:19 [WARNING]   FW507-4G11 is present in the training data as FW507-4G11 (wom_1.tsv)
+16:13:19 [WARNING]   GW456-R20 is present in the training data as GW456-R20 (wom_1.tsv, wom_8.tsv)
+16:13:19 [WARNING]   MT49 is present in the training data as MT049 (wom_8.tsv)
+16:13:19 [INFO] Loaded OrdinalBPRModel from trained_models/archive_submitted_lambda0.1/ordinal_bpr_consumed
+16:13:19 [INFO] Loaded OrdinalBPRModel (32-dim) from trained_models/archive_submitted_lambda0.1/ordinal_bpr_consumed
+16:13:20 [INFO] Preparing training data for preference type: consumed
+16:13:20 [INFO]   433 unique organisms
+16:13:20 [INFO]   311 unique metabolites
+16:13:20 [INFO]   430 organisms with positive interactions
+16:13:20 [INFO]   11,093 total positive interactions
+16:13:21 [INFO]   433 organisms with known negatives
+16:13:21 [INFO]   59,749 total known-negative interactions
+16:13:21 [INFO] Preparing training data for preference type: consumed
+16:13:21 [INFO]   430 unique organisms
+16:13:21 [INFO]   311 unique metabolites
+16:13:21 [INFO]   427 organisms with positive interactions
+16:13:21 [INFO]   10,955 total positive interactions
+16:13:21 [INFO]   430 organisms with known negatives
+16:13:21 [INFO]   59,684 total known-negative interactions
+16:13:21 [INFO] Retraining 20 seeds on full data (433 microbes) and clean data (430 microbes)
+16:13:28 [INFO]   retrain seed 0: mean ROC-AUC = 0.892
+16:13:34 [INFO]   retrain seed 1: mean ROC-AUC = 0.877
+16:13:40 [INFO]   retrain seed 2: mean ROC-AUC = 0.887
+16:13:46 [INFO]   retrain seed 3: mean ROC-AUC = 0.894
+16:13:52 [INFO]   retrain seed 4: mean ROC-AUC = 0.882
+16:13:58 [INFO]   retrain seed 5: mean ROC-AUC = 0.869
+16:14:04 [INFO]   retrain seed 6: mean ROC-AUC = 0.881
+16:14:10 [INFO]   retrain seed 7: mean ROC-AUC = 0.882
+16:14:16 [INFO]   retrain seed 8: mean ROC-AUC = 0.879
+16:14:23 [INFO]   retrain seed 9: mean ROC-AUC = 0.887
+16:14:29 [INFO]   retrain seed 10: mean ROC-AUC = 0.870
+16:14:35 [INFO]   retrain seed 11: mean ROC-AUC = 0.890
+16:14:41 [INFO]   retrain seed 12: mean ROC-AUC = 0.878
+16:14:47 [INFO]   retrain seed 13: mean ROC-AUC = 0.877
+16:14:53 [INFO]   retrain seed 14: mean ROC-AUC = 0.881
+16:14:59 [INFO]   retrain seed 15: mean ROC-AUC = 0.877
+16:15:05 [INFO]   retrain seed 16: mean ROC-AUC = 0.888
+16:15:11 [INFO]   retrain seed 17: mean ROC-AUC = 0.888
+16:15:16 [INFO]   retrain seed 18: mean ROC-AUC = 0.876
+16:15:23 [INFO]   retrain seed 19: mean ROC-AUC = 0.894
+16:15:29 [INFO]   clean_holdout seed 0: mean ROC-AUC = 0.879
+16:15:35 [INFO]   clean_holdout seed 1: mean ROC-AUC = 0.892
+16:15:41 [INFO]   clean_holdout seed 2: mean ROC-AUC = 0.881
+16:15:47 [INFO]   clean_holdout seed 3: mean ROC-AUC = 0.879
+16:15:53 [INFO]   clean_holdout seed 4: mean ROC-AUC = 0.868
+16:15:59 [INFO]   clean_holdout seed 5: mean ROC-AUC = 0.885
+16:16:05 [INFO]   clean_holdout seed 6: mean ROC-AUC = 0.891
+16:16:11 [INFO]   clean_holdout seed 7: mean ROC-AUC = 0.880
+16:16:17 [INFO]   clean_holdout seed 8: mean ROC-AUC = 0.891
+16:16:23 [INFO]   clean_holdout seed 9: mean ROC-AUC = 0.889
+16:16:29 [INFO]   clean_holdout seed 10: mean ROC-AUC = 0.868
+16:16:35 [INFO]   clean_holdout seed 11: mean ROC-AUC = 0.892
+16:16:41 [INFO]   clean_holdout seed 12: mean ROC-AUC = 0.880
+16:16:47 [INFO]   clean_holdout seed 13: mean ROC-AUC = 0.877
+16:16:53 [INFO]   clean_holdout seed 14: mean ROC-AUC = 0.884
+16:16:59 [INFO]   clean_holdout seed 15: mean ROC-AUC = 0.875
+16:17:05 [INFO]   clean_holdout seed 16: mean ROC-AUC = 0.872
+16:17:12 [INFO]   clean_holdout seed 17: mean ROC-AUC = 0.882
+16:17:17 [INFO]   clean_holdout seed 18: mean ROC-AUC = 0.889
+16:17:23 [INFO]   clean_holdout seed 19: mean ROC-AUC = 0.889
+16:17:24 [INFO] 
+         isolate_id             genus reference_rank_used  n_source_training_isolates  in_training_data  fig_s3_submitted_roc_auc  roc_auc  legacy_roc_auc  retrain_roc_auc_mean  clean_holdout_roc_auc_mean
+     GW821-FHT01E09     Acinetobacter               genus                           1             False                     0.855    0.850           0.921                 0.843                       0.852
+     GW821-FHT02D03     Agrobacterium              family                           8             False                     0.803    0.795           0.803                 0.801                       0.806
+     GW822-FHT02A07       Caulobacter               genus                           3             False                     0.773    0.761           0.813                 0.747                       0.746
+            TBS_030  Chryseobacterium               genus                           4             False                     0.957    0.951           0.961                 0.957                       0.955
+         FW507-4G11       Cupriavidus               genus                           8              True                     0.917    0.905           0.905                 0.902                       0.898
+          GW456-R20           Delftia               genus                           3              True                     0.897    0.882           0.898                 0.896                       0.886
+  EB106-05-01-XG146           Ensifer               genus                           2             False                     0.969    0.985           0.945                 0.974                       0.967
+     GW822-FHT05C05 Janthinobacterium               genus                           5             False                     0.919    0.924           0.948                 0.924                       0.921
+     GW821-FHT02A12  Paraburkholderia               genus                           2             False                     0.957    0.948           0.948                 0.953                       0.956
+GW456-11-11-14-TSB2       Pseudomonas               genus                          42             False                     0.873    0.861           0.886                 0.858                       0.859
+ GW458-11-26-14-LB3       Pseudomonas               genus                          42             False                     0.835    0.794           0.835                 0.827                       0.828
+               MT49          Serratia               order                           2              True                     0.894    0.919           0.921                 0.908                       0.913
+16:17:24 [INFO] 
+                 model_variant                subset  n_seeds  n_isolates  mean_roc_auc  median_roc_auc  n_roc_auc_ge_0.8  min_roc_auc  mean_roc_auc_sd_across_seeds  mean_roc_auc_min_across_seeds  mean_roc_auc_max_across_seeds
+          fig_s3_submitted_run                all_12        1          12         0.887           0.895            11.000        0.773                           NaN                            NaN                            NaN
+          fig_s3_submitted_run excluding_in_training        1           9         0.882           0.873             8.000        0.773                           NaN                            NaN                            NaN
+  saved_model_corrected_labels                all_12        1          12         0.881           0.894             9.000        0.761                           NaN                            NaN                            NaN
+  saved_model_corrected_labels excluding_in_training        1           9         0.874           0.861             6.000        0.761                           NaN                            NaN                            NaN
+     saved_model_legacy_labels                all_12        1          12         0.899           0.913            12.000        0.803                           NaN                            NaN                            NaN
+     saved_model_legacy_labels excluding_in_training        1           9         0.896           0.921             9.000        0.803                           NaN                            NaN                            NaN
+clean_holdout_corrected_labels                all_12       20          12         0.882           0.890            10.800        0.745                         0.008                          0.868                          0.892
+clean_holdout_corrected_labels excluding_in_training       20           9         0.877           0.861             7.800        0.745                         0.008                          0.861                          0.891
+      retrain_corrected_labels                all_12       20          12         0.883           0.895            10.500        0.745                         0.007                          0.869                          0.894
+      retrain_corrected_labels excluding_in_training       20           9         0.876           0.863             7.500        0.745                         0.008                          0.856                          0.890
+16:17:24 [INFO] Saved outputs to manuscript_figures/msystems_revision/lambda0/reference_lambda0.1/figS3

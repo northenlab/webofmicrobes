@@ -1,0 +1,53 @@
+table,genus,substrate,model_compound,n_isolates,quoted_score,quoted_sd,recomputed_old_score,recomputed_old_sd,old_reproduces_quote,new_score,new_sd,delta_score
+Prompt 1,Pseudomonas,Serine,L-serine,42,10.13,2.06,10.1303,2.0636,True,9.272,1.7648,-0.8582
+Prompt 1,Pseudomonas,Glutamate,glutamate,42,9.75,2.15,9.7534,2.146,True,8.7589,2.0794,-0.9945
+Prompt 1,Pseudomonas,Guanine,guanine,42,9.56,2.15,9.5646,2.1531,True,7.5547,1.6582,-2.0099
+Prompt 1,Pseudomonas,Adenosine,adenosine,42,9.56,2.88,9.5609,2.8772,True,7.4399,2.5295,-2.1209
+Prompt 1,Pseudomonas,Leucine,D-leucine,42,9.53,1.84,9.5256,1.8391,True,8.5879,1.3655,-0.9378
+Prompt 1,Pseudomonas,Arginine,arginine,42,9.16,2.22,9.1565,2.2235,True,7.9772,2.2057,-1.1792
+Prompt 1,Pseudomonas,Isoleucine,D-isoleucine,42,9.01,2.02,9.0059,2.0197,True,7.6894,1.3704,-1.3165
+Prompt 1,Pseudomonas,Lysine,L-lysine,42,8.82,2.05,8.8227,2.0533,True,8.2332,2.1158,-0.5896
+Prompt 1,Pseudomonas,Glycine,glycine,42,8.43,2.19,8.4341,2.1917,True,5.4549,1.8134,-2.9792
+Prompt 1,Pseudomonas,Hypoxanthine,hypoxanthine,42,8.35,2.62,8.3473,2.6156,True,7.5157,2.4344,-0.8316
+Prompt 1,Pseudomonas,Alanine,D-alanine,42,7.82,1.63,7.8229,1.6262,True,6.0245,1.5067,-1.7984
+Prompt 1,Pseudomonas,Uridine,uridine,42,7.77,2.42,7.7656,2.4203,True,4.5342,2.0601,-3.2314
+Prompt 1,Pseudomonas,Threonine,D-threonine,42,7.44,1.66,7.4353,1.6605,True,6.983,1.1957,-0.4523
+Prompt 1,Pseudomonas,Phenylalanine,D-phenylalanine,42,7.4,2.06,7.3964,2.0555,True,6.4884,1.8003,-0.908
+Prompt 1,Pseudomonas,Proline,D-proline,42,7.35,1.67,7.3535,1.6661,True,6.7286,1.3989,-0.625
+Prompt 1,Pseudomonas,Glucose,D-glucose,42,7.07,2.31,7.065,2.3102,True,5.527,1.9289,-1.538
+Prompt 1,Pseudomonas,Mannose,D-glucose,42,7.07,2.31,7.065,2.3102,True,5.527,1.9289,-1.538
+Prompt 1,Pseudomonas,Trehalose,"α,α-trehalose",42,3.54,2.41,3.5382,2.4106,True,2.3426,2.1281,-1.1955
+Prompt 1,Pseudomonas,Mannitol,D-sorbitol,42,3.47,2.39,3.4722,2.3906,True,2.1805,2.6166,-1.2917
+Prompt 1,Pseudomonas,Arabinose,D-xylose,42,2.74,2.35,2.7422,2.3515,True,1.6195,2.1128,-1.1227
+Prompt 1,Pseudomonas,4-guanidinobutanoic acid,4-guanidinobutanoate,42,-1.42,1.33,-1.4236,1.3343,True,-1.0454,1.386,0.3782
+Prompt 1,Pseudomonas,Maltose,D-maltose,42,-2.37,2.03,-2.3664,2.0263,True,-0.2855,1.3964,2.081
+Prompt 2,Bacteroides,adenosine,adenosine,54,7.85,2.69,7.8546,2.695,True,8.5095,2.9925,0.6548
+Prompt 2,Bacteroides,3-(carbamoylamino)propanoate,3-(carbamoylamino)propanoate,54,7.24,1.99,7.2371,1.9937,True,6.7206,2.2715,-0.5165
+Prompt 2,Bacteroides,uridine,uridine,54,7.23,2.65,7.2299,2.6485,True,7.5382,2.5045,0.3083
+Prompt 2,Blautia,S-methyl-5'-thioadenosine,S-methyl-5'-thioadenosine,2,9.08,0.73,9.0774,0.7314,True,11.1906,1.9125,2.1132
+Prompt 2,Blautia,choline,choline,2,6.91,0.71,6.9106,0.7121,True,6.4556,2.4578,-0.455
+Prompt 2,Blautia,S-adenosyl-L-homocysteine,S-adenosyl-L-homocysteine,2,6.81,0.97,6.8063,0.9741,True,6.8017,0.0104,-0.0046
+Prompt 2,Clostridium,S-methyl-5'-thioadenosine,S-methyl-5'-thioadenosine,24,8.09,1.61,8.0858,1.6114,True,8.6051,0.9927,0.5193
+Prompt 2,Clostridium,nicotinamide,nicotinamide,24,6.73,2.42,6.7334,2.4224,True,8.1869,2.1323,1.4535
+Prompt 2,Clostridium,S-adenosyl-L-homocysteine,S-adenosyl-L-homocysteine,24,6.34,1.5,6.3421,1.499,True,6.7228,1.4172,0.3807
+Prompt 2,Collinsella,arginine,arginine,3,7.65,1.1,7.6497,1.1041,True,7.3097,2.1287,-0.3401
+Prompt 2,Collinsella,S-methyl-5'-thioadenosine,S-methyl-5'-thioadenosine,3,7.09,1.83,7.0863,1.8262,True,6.8571,4.0056,-0.2292
+Prompt 2,Collinsella,N-benzoylglycine,N-benzoylglycine,3,6.36,2.55,6.3624,2.5546,True,4.7618,1.5792,-1.6006
+Prompt 2,Eggerthella,nicotinamide,nicotinamide,1,7.51,,7.5053,,True,6.9589,,-0.5464
+Prompt 2,Eggerthella,arginine,arginine,1,7.41,,7.4065,,True,6.6291,,-0.7774
+Prompt 2,Eggerthella,(9Z)-octadecenoate,(9Z)-octadecenoate,1,6.54,,6.5438,,True,7.7325,,1.1887
+Prompt 2,Eubacterium,S-methyl-5'-thioadenosine,S-methyl-5'-thioadenosine,6,9.15,2.52,9.1518,2.5152,True,10.1817,1.6713,1.0298
+Prompt 2,Eubacterium,S-adenosyl-L-homocysteine,S-adenosyl-L-homocysteine,6,7.07,2.41,7.0718,2.4109,True,7.0477,1.4806,-0.024
+Prompt 2,Eubacterium,nicotinamide,nicotinamide,6,6.19,3.74,6.1864,3.7372,True,7.0818,3.4212,0.8954
+Prompt 2,Faecalibacterium,S-methyl-5'-thioadenosine,S-methyl-5'-thioadenosine,3,8.35,1.12,8.3508,1.1209,True,6.2378,1.7753,-2.113
+Prompt 2,Faecalibacterium,adenosine,adenosine,3,7.6,3.05,7.5996,3.0543,True,5.4744,3.3766,-2.1253
+Prompt 2,Faecalibacterium,uridine,uridine,3,6.19,3.25,6.1895,3.2508,True,4.3672,3.6453,-1.8223
+Prompt 2,Prevotella,S-methyl-5'-thioadenosine,S-methyl-5'-thioadenosine,4,9.56,2.8,9.5562,2.7968,True,9.529,1.0906,-0.0272
+Prompt 2,Prevotella,S-adenosyl-L-homocysteine,S-adenosyl-L-homocysteine,4,7.96,2.75,7.9553,2.7507,True,8.4327,1.5156,0.4774
+Prompt 2,Prevotella,"3',5'-cyclic AMP","3',5'-cyclic AMP",4,6.25,0.88,6.2514,0.8806,True,7.3649,1.716,1.1135
+Prompt 3 / Fig. S5,Acinetobacter,Malate,malate,1,13.06,,13.06,,True,8.164,,-4.896
+Prompt 3 / Fig. S5,Acinetobacter,Succinate,succinate,1,10.98,,10.9763,,True,10.9074,,-0.0689
+Prompt 3 / Fig. S5,Acinetobacter,Pyruvate,pyruvate,1,9.44,,9.435,,False,6.9526,,-2.4824
+Prompt 3 / Fig. S5,Acinetobacter,D-glucose,D-glucose,1,4.62,,4.6222,,True,2.3947,,-2.2274
+Prompt 3 / Fig. S5,Acinetobacter,L-ectoine,L-ectoine,1,-0.89,,-0.8944,,True,-3.9758,,-3.0814
+Prompt 3 / Fig. S5,Acinetobacter,Spermidine,spermidine,1,-3.76,,-3.755,,True,-1.4572,,2.2978

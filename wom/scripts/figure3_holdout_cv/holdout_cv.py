@@ -24,6 +24,7 @@ from core.models import OrdinalBPRModel
 
 SEED = 0
 N_EPOCHS = 400
+LAMBDA_ORD = 0.0  # 0.1 (fit() default) in the submitted analysis
 OUT = str(Path(__file__).parent / 'holdout_cv_results.csv')
 
 def auc(pos_scores, neg_scores):
@@ -39,7 +40,7 @@ def train(positives_sub, known_neg_sub, n_mic, n_met):
     import torch; torch.manual_seed(SEED)
     m = OrdinalBPRModel(embedding_dim=32)
     m.fit(positives=positives_sub, n_microbes=n_mic, n_metabolites=n_met,
-          known_negatives=known_neg_sub, n_epochs=N_EPOCHS, verbose=False)
+          known_negatives=known_neg_sub, n_epochs=N_EPOCHS, lambda_ord=LAMBDA_ORD, verbose=False)
     return m.microbe_embeddings, m.metabolite_embeddings
 
 def scores_for(pred_emb, met_emb, gdir=None):

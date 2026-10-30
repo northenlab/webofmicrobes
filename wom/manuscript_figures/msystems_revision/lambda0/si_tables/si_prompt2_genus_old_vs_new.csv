@@ -1,0 +1,9 @@
+genus,n_isolates,quoted_embedding_diversity,recomputed_old_embedding_diversity,new_embedding_diversity,quoted_top3,old_model_top3,new_model_top3,old_top3_matches_quote,new_top3_same_as_quote
+Bacteroides,54,0.42,0.4173,0.4676,adenosine; 3-(carbamoylamino)propanoate; uridine,adenosine; 3-(carbamoylamino)propanoate; uridine,adenosine; uridine; 3-(carbamoylamino)propanoate,True,False
+Blautia,2,0.4,0.4047,0.3273,S-methyl-5'-thioadenosine; choline; S-adenosyl-L-homocysteine,S-methyl-5'-thioadenosine; choline; S-adenosyl-L-homocysteine,S-methyl-5'-thioadenosine; uridine; adenosine,True,False
+Clostridium,24,0.52,0.5151,0.5437,S-methyl-5'-thioadenosine; nicotinamide; S-adenosyl-L-homocysteine,S-methyl-5'-thioadenosine; nicotinamide; S-adenosyl-L-homocysteine,S-methyl-5'-thioadenosine; nicotinamide; S-adenosyl-L-homocysteine,True,True
+Collinsella,3,0.45,0.4455,0.4716,arginine; S-methyl-5'-thioadenosine; N-benzoylglycine,arginine; S-methyl-5'-thioadenosine; N-benzoylglycine,arginine; S-methyl-5'-thioadenosine; adenosine,True,False
+Eggerthella,1,,,,nicotinamide; arginine; (9Z)-octadecenoate,nicotinamide; arginine; (9Z)-octadecenoate,"1,2-didecanoyl-sn-glycero-3-phosphocholine; (9Z)-octadecenoate; nicotinamide",True,False
+Eubacterium,6,0.47,0.4661,0.493,S-methyl-5'-thioadenosine; S-adenosyl-L-homocysteine; nicotinamide,S-methyl-5'-thioadenosine; S-adenosyl-L-homocysteine; nicotinamide,S-methyl-5'-thioadenosine; nicotinamide; S-adenosyl-L-homocysteine,True,False
+Faecalibacterium,3,0.48,0.4781,0.5662,S-methyl-5'-thioadenosine; adenosine; uridine,S-methyl-5'-thioadenosine; adenosine; uridine,3-(carbamoylamino)propanoate; S-methyl-5'-thioadenosine; 2'-deoxyadenosine 5'-monophosphate,True,False
+Prevotella,4,0.47,0.4717,0.4648,"S-methyl-5'-thioadenosine; S-adenosyl-L-homocysteine; 3',5'-cyclic AMP","S-methyl-5'-thioadenosine; S-adenosyl-L-homocysteine; 3',5'-cyclic AMP","S-methyl-5'-thioadenosine; S-adenosyl-L-homocysteine; 3',5'-cyclic AMP",True,True

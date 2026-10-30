@@ -1,0 +1,68 @@
+16:03:36 [INFO] Loaded OrdinalBPRModel from /Users/bpb/repos/webofmicrobes/wom/trained_models/archive_submitted_lambda0.1/ordinal_bpr_consumed
+16:03:36 [INFO] Loaded OrdinalBPRModel from /Users/bpb/repos/webofmicrobes/wom/trained_models/ordinal_bpr_consumed
+16:03:37 [INFO] SI scores: 52 rows; archived model reproduces 51/52 quoted values
+16:03:38 [INFO] Gemini table ranks: archived model reproduces 17/17; {'n_metabolites': 17, 'spearman_score_vs_depletion_time_old': {'rho': -0.4444636424364233, 'p': 0.07385882815297949}, 'spearman_score_vs_depletion_time_new': {'rho': -0.4306174230458805, 'p': 0.08443423565243682}, 'spearman_old_vs_new_score': {'rho': 0.8331288343558284, 'p': 3.289110490284797e-05}}
+16:03:38 [INFO] 
+             table            genus                    substrate  quoted_score  recomputed_old_score  old_reproduces_quote  new_score  new_sd
+          Prompt 1      Pseudomonas                       Serine         10.13               10.1303                  True     9.2720  1.7648
+          Prompt 1      Pseudomonas                    Glutamate          9.75                9.7534                  True     8.7589  2.0794
+          Prompt 1      Pseudomonas                      Guanine          9.56                9.5646                  True     7.5547  1.6582
+          Prompt 1      Pseudomonas                    Adenosine          9.56                9.5609                  True     7.4399  2.5295
+          Prompt 1      Pseudomonas                      Leucine          9.53                9.5256                  True     8.5879  1.3655
+          Prompt 1      Pseudomonas                     Arginine          9.16                9.1565                  True     7.9772  2.2057
+          Prompt 1      Pseudomonas                   Isoleucine          9.01                9.0059                  True     7.6894  1.3704
+          Prompt 1      Pseudomonas                       Lysine          8.82                8.8227                  True     8.2332  2.1158
+          Prompt 1      Pseudomonas                      Glycine          8.43                8.4341                  True     5.4549  1.8134
+          Prompt 1      Pseudomonas                 Hypoxanthine          8.35                8.3473                  True     7.5157  2.4344
+          Prompt 1      Pseudomonas                      Alanine          7.82                7.8229                  True     6.0245  1.5067
+          Prompt 1      Pseudomonas                      Uridine          7.77                7.7656                  True     4.5342  2.0601
+          Prompt 1      Pseudomonas                    Threonine          7.44                7.4353                  True     6.9830  1.1957
+          Prompt 1      Pseudomonas                Phenylalanine          7.40                7.3964                  True     6.4884  1.8003
+          Prompt 1      Pseudomonas                      Proline          7.35                7.3535                  True     6.7286  1.3989
+          Prompt 1      Pseudomonas                      Glucose          7.07                7.0650                  True     5.5270  1.9289
+          Prompt 1      Pseudomonas                      Mannose          7.07                7.0650                  True     5.5270  1.9289
+          Prompt 1      Pseudomonas                    Trehalose          3.54                3.5382                  True     2.3426  2.1281
+          Prompt 1      Pseudomonas                     Mannitol          3.47                3.4722                  True     2.1805  2.6166
+          Prompt 1      Pseudomonas                    Arabinose          2.74                2.7422                  True     1.6195  2.1128
+          Prompt 1      Pseudomonas     4-guanidinobutanoic acid         -1.42               -1.4236                  True    -1.0454  1.3860
+          Prompt 1      Pseudomonas                      Maltose         -2.37               -2.3664                  True    -0.2855  1.3964
+          Prompt 2      Bacteroides                    adenosine          7.85                7.8546                  True     8.5095  2.9925
+          Prompt 2      Bacteroides 3-(carbamoylamino)propanoate          7.24                7.2371                  True     6.7206  2.2715
+          Prompt 2      Bacteroides                      uridine          7.23                7.2299                  True     7.5382  2.5045
+          Prompt 2          Blautia    S-methyl-5'-thioadenosine          9.08                9.0774                  True    11.1906  1.9125
+          Prompt 2          Blautia                      choline          6.91                6.9106                  True     6.4556  2.4578
+          Prompt 2          Blautia    S-adenosyl-L-homocysteine          6.81                6.8063                  True     6.8017  0.0104
+          Prompt 2      Clostridium    S-methyl-5'-thioadenosine          8.09                8.0858                  True     8.6051  0.9927
+          Prompt 2      Clostridium                 nicotinamide          6.73                6.7334                  True     8.1869  2.1323
+          Prompt 2      Clostridium    S-adenosyl-L-homocysteine          6.34                6.3421                  True     6.7228  1.4172
+          Prompt 2      Collinsella                     arginine          7.65                7.6497                  True     7.3097  2.1287
+          Prompt 2      Collinsella    S-methyl-5'-thioadenosine          7.09                7.0863                  True     6.8571  4.0056
+          Prompt 2      Collinsella             N-benzoylglycine          6.36                6.3624                  True     4.7618  1.5792
+          Prompt 2      Eggerthella                 nicotinamide          7.51                7.5053                  True     6.9589     NaN
+          Prompt 2      Eggerthella                     arginine          7.41                7.4065                  True     6.6291     NaN
+          Prompt 2      Eggerthella           (9Z)-octadecenoate          6.54                6.5438                  True     7.7325     NaN
+          Prompt 2      Eubacterium    S-methyl-5'-thioadenosine          9.15                9.1518                  True    10.1817  1.6713
+          Prompt 2      Eubacterium    S-adenosyl-L-homocysteine          7.07                7.0718                  True     7.0477  1.4806
+          Prompt 2      Eubacterium                 nicotinamide          6.19                6.1864                  True     7.0818  3.4212
+          Prompt 2 Faecalibacterium    S-methyl-5'-thioadenosine          8.35                8.3508                  True     6.2378  1.7753
+          Prompt 2 Faecalibacterium                    adenosine          7.60                7.5996                  True     5.4744  3.3766
+          Prompt 2 Faecalibacterium                      uridine          6.19                6.1895                  True     4.3672  3.6453
+          Prompt 2       Prevotella    S-methyl-5'-thioadenosine          9.56                9.5562                  True     9.5290  1.0906
+          Prompt 2       Prevotella    S-adenosyl-L-homocysteine          7.96                7.9553                  True     8.4327  1.5156
+          Prompt 2       Prevotella             3',5'-cyclic AMP          6.25                6.2514                  True     7.3649  1.7160
+Prompt 3 / Fig. S5    Acinetobacter                       Malate         13.06               13.0600                  True     8.1640     NaN
+Prompt 3 / Fig. S5    Acinetobacter                    Succinate         10.98               10.9763                  True    10.9074     NaN
+Prompt 3 / Fig. S5    Acinetobacter                     Pyruvate          9.44                9.4350                 False     6.9526     NaN
+Prompt 3 / Fig. S5    Acinetobacter                    D-glucose          4.62                4.6222                  True     2.3947     NaN
+Prompt 3 / Fig. S5    Acinetobacter                    L-ectoine         -0.89               -0.8944                  True    -3.9758     NaN
+Prompt 3 / Fig. S5    Acinetobacter                   Spermidine         -3.76               -3.7550                  True    -1.4572     NaN
+16:03:38 [INFO] 
+           genus  n_isolates  quoted_embedding_diversity  recomputed_old_embedding_diversity  new_embedding_diversity                                                            quoted_top3                                                         old_model_top3                                                                              new_model_top3  old_top3_matches_quote  new_top3_same_as_quote
+     Bacteroides          54                        0.42                              0.4173                   0.4676                       adenosine; 3-(carbamoylamino)propanoate; uridine                       adenosine; 3-(carbamoylamino)propanoate; uridine                                            adenosine; uridine; 3-(carbamoylamino)propanoate                    True                   False
+         Blautia           2                        0.40                              0.4047                   0.3273          S-methyl-5'-thioadenosine; choline; S-adenosyl-L-homocysteine          S-methyl-5'-thioadenosine; choline; S-adenosyl-L-homocysteine                                               S-methyl-5'-thioadenosine; uridine; adenosine                    True                   False
+     Clostridium          24                        0.52                              0.5151                   0.5437     S-methyl-5'-thioadenosine; nicotinamide; S-adenosyl-L-homocysteine     S-methyl-5'-thioadenosine; nicotinamide; S-adenosyl-L-homocysteine                          S-methyl-5'-thioadenosine; nicotinamide; S-adenosyl-L-homocysteine                    True                    True
+     Collinsella           3                        0.45                              0.4455                   0.4716                  arginine; S-methyl-5'-thioadenosine; N-benzoylglycine                  arginine; S-methyl-5'-thioadenosine; N-benzoylglycine                                              arginine; S-methyl-5'-thioadenosine; adenosine                    True                   False
+     Eggerthella           1                         NaN                                 NaN                      NaN                             nicotinamide; arginine; (9Z)-octadecenoate                             nicotinamide; arginine; (9Z)-octadecenoate                1,2-didecanoyl-sn-glycero-3-phosphocholine; (9Z)-octadecenoate; nicotinamide                    True                   False
+     Eubacterium           6                        0.47                              0.4661                   0.4930     S-methyl-5'-thioadenosine; S-adenosyl-L-homocysteine; nicotinamide     S-methyl-5'-thioadenosine; S-adenosyl-L-homocysteine; nicotinamide                          S-methyl-5'-thioadenosine; nicotinamide; S-adenosyl-L-homocysteine                    True                   False
+Faecalibacterium           3                        0.48                              0.4781                   0.5662                          S-methyl-5'-thioadenosine; adenosine; uridine                          S-methyl-5'-thioadenosine; adenosine; uridine 3-(carbamoylamino)propanoate; S-methyl-5'-thioadenosine; 2'-deoxyadenosine 5'-monophosphate                    True                   False
+      Prevotella           4                        0.47                              0.4717                   0.4648 S-methyl-5'-thioadenosine; S-adenosyl-L-homocysteine; 3',5'-cyclic AMP S-methyl-5'-thioadenosine; S-adenosyl-L-homocysteine; 3',5'-cyclic AMP                      S-methyl-5'-thioadenosine; S-adenosyl-L-homocysteine; 3',5'-cyclic AMP                    True                    True

@@ -21,6 +21,7 @@ Usage:
 """
 
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
@@ -678,6 +679,33 @@ def main() -> None:
     # Save merged table
     merged.to_csv(args.output_dir / "stats_gcs_emb_diversity.csv", index=False)
     logger.info("  Saved stats_gcs_emb_diversity.csv")
+
+    # Summary statistics quoted in the manuscript
+    def _permanova(res):
+        n, g = res["permanova_n"], res["permanova_n_groups"]
+        return {"pseudo_f": float(res["permanova_f"]), "r2": float(res["permanova_r2"]),
+                "p": float(res["permanova_p"]), "n_permutations": args.n_permutations,
+                "n_isolates": n, "n_genera": g, "df": [g - 1, n - g]}
+
+    def _same_genus(summary):
+        row = summary.loc[summary["distance"] == 1].iloc[0]  # 1 = same genus
+        return {"mean": float(row["mean_rho"]), "median": float(row["median_rho"]),
+                "n_pairs": int(row["n_pairs"])}
+
+    stats = {
+        "model_dir": str(args.model_dir),
+        "within_genus_empirical_spearman": _same_genus(result["summary"]),
+        "within_genus_embedding_cosine": _same_genus(result_emb["summary"]),
+        "kruskal_wallis": {"empirical": {"H": result["kw_stat"], "p": result["kw_p"]},
+                           "embedding": {"H": result_emb["kw_stat"], "p": result_emb["kw_p"]}},
+        "permanova_empirical": _permanova(result),
+        "permanova_embedding": _permanova(result_emb),
+        "gcs_vs_embedding_diversity": {"spearman_rho": float(rho), "p": float(pval),
+                                       "n_genera": int(len(merged))},
+    }
+    with open(args.output_dir / "stats_figure_biology.json", "w") as f:
+        json.dump(stats, f, indent=2)
+    logger.info("  Saved stats_figure_biology.json")
 
     # ---- Step 7: Stats text file ----
     logger.info("=== Step 7: Write distance-decay stats text file ===")

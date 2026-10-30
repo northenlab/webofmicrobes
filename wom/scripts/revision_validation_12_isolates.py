@@ -13,7 +13,7 @@ Fig. S3 trained a fresh, unseeded Ordinal-BPR model at run time and never saved
 it, so that exact model cannot be reloaded. This script evaluates:
 
   saved     trained_models/ordinal_bpr_consumed (32-dim, same training data
-            and hyper-parameters as the Fig. S3 run)
+            as the Fig. S3 run; its lambda_ord must equal --lambda-ord)
   retrain   N seeded retrains on the same training data (run-to-run spread)
   clean     N seeded retrains with every validation isolate that is present in
             the training data removed (true hold-out)
@@ -27,12 +27,19 @@ Labels:
 Scores are taxon-mean scores at genus level, falling back to family and then
 order only when the genus (or family) has no training isolates.
 
+Ordinal-BPR uses lambda_ord = 0 (adopted for the revision). The outputs in
+manuscript_figures/msystems_revision/ were produced with lambda_ord = 0.1 and
+the archived model:
+    --lambda-ord 0.1 --model-dir trained_models/archive_submitted_lambda0.1/ordinal_bpr_consumed
+
 Usage:
-    python scripts/revision_validation_12_isolates.py
-    python scripts/revision_validation_12_isolates.py --n-seeds 5
+    python scripts/revision_validation_12_isolates.py --output-dir <dir>
+    python scripts/revision_validation_12_isolates.py --output-dir <dir> --n-seeds 5
 """
 
+import re
 import sys
+import json
 import logging
 import argparse
 from pathlib import Path
@@ -57,14 +64,14 @@ from scripts.make_figures_for_manuscript_nature_microbiology_first_submission im
 
 logger = logging.getLogger(__name__)
 
-# Hyper-parameters used by Fig. S3 (figure_8_experimental_validation_all_models)
-# and by train_all_models.py for trained_models/ordinal_bpr_consumed.
+# Hyper-parameters of train_all_models.py for trained_models/ordinal_bpr_consumed.
+# lambda_ord was 0.1 for the submitted Fig. S3; set at run time by --lambda-ord.
 ORDINAL_BPR_KWARGS = {
     "n_epochs": 1000,
     "batch_size": 256,
     "learning_rate": 0.01,
     "hard_neg_ratio": 0.5,
-    "lambda_ord": 0.1,
+    "lambda_ord": 0.0,
 }
 EMBEDDING_DIM = 32
 TAX_LEVELS = ("genus", "family", "order")
@@ -123,14 +130,29 @@ def load_validation_with_mapping() -> pd.DataFrame:
     return exp[exp["media"] == "nldm"]
 
 
+def normalize_isolate_id(isolate_id) -> str:
+    """Case- and punctuation-insensitive ID with leading zeros dropped from digit runs,
+    so that e.g. training organism MT049 matches validation isolate MT49."""
+    s = re.sub(r"[^a-z0-9]", "", str(isolate_id).lower())
+    return re.sub(r"(?<![0-9])0+(?=[0-9])", "", s)
+
+
 def find_validation_isolates_in_training(exp: pd.DataFrame, df: pd.DataFrame) -> dict:
-    """Return {isolate_id: [source files]} for validation isolates present in the training table."""
-    ids = set(exp["isolate"].unique())
-    hits = df[df["organism_id"].astype(str).str.strip().isin(ids)]
-    return {
-        iso: sorted(grp["source_file"].unique())
-        for iso, grp in hits.groupby(hits["organism_id"].astype(str).str.strip())
-    }
+    """Return {validation isolate: {training organism_id: [source files]}} for validation
+    isolates present in the training table, matching IDs with normalize_isolate_id()."""
+    wanted = {normalize_isolate_id(i): i for i in exp["isolate"].unique()}
+    organism_ids = df["organism_id"].astype(str).str.strip()
+    hits = {}
+    for organism_id, grp in df.groupby(organism_ids):
+        key = normalize_isolate_id(organism_id)
+        if key in wanted:
+            hits.setdefault(wanted[key], {})[organism_id] = sorted(grp["source_file"].unique())
+    return hits
+
+
+def training_ids_in(in_training: dict) -> set:
+    """Training organism_ids of the validation isolates found by find_validation_isolates_in_training()."""
+    return {organism_id for matches in in_training.values() for organism_id in matches}
 
 
 # =============================================================================
@@ -304,6 +326,18 @@ def build_summary(table: pd.DataFrame, per_seed: pd.DataFrame) -> pd.DataFrame:
 # =============================================================================
 
 
+def check_model_lambda(model_dir: Path):
+    """Refuse a saved model whose recorded lambda_ord differs from the one used for retrains."""
+    config_path = model_dir / "training_config.json"
+    if not config_path.exists():
+        logger.warning(f"No training_config.json in {model_dir}; cannot verify lambda_ord")
+        return
+    recorded = json.loads(config_path.read_text()).get("lambda_ord")
+    if recorded != ORDINAL_BPR_KWARGS["lambda_ord"]:
+        raise ValueError(f"{model_dir} was trained with lambda_ord={recorded}, but retrains use "
+                         f"lambda_ord={ORDINAL_BPR_KWARGS['lambda_ord']}; pass a matching --model-dir")
+
+
 def main(model_dir: Path, output_dir: Path, submitted_auc_csv: Path, n_seeds: int):
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -312,10 +346,12 @@ def main(model_dir: Path, output_dir: Path, submitted_auc_csv: Path, n_seeds: in
 
     df = load_exometabolite()
     in_training = find_validation_isolates_in_training(exp, df)
-    for iso, sources in in_training.items():
-        logger.warning(f"  {iso} is present in the training data ({', '.join(sources)})")
+    for iso, matches in in_training.items():
+        logger.warning(f"  {iso} is present in the training data as "
+                       + "; ".join(f"{tid} ({', '.join(src)})" for tid, src in matches.items()))
 
     # Saved final model
+    check_model_lambda(model_dir)
     artifacts = load_model_artifacts(model_dir)
     logger.info(f"Loaded {type(artifacts.model).__name__} ({artifacts.model.embedding_dim}-dim) "
                 f"from {model_dir}")
@@ -325,7 +361,7 @@ def main(model_dir: Path, output_dir: Path, submitted_auc_csv: Path, n_seeds: in
     table = table.join(taxonomy, on="isolate_id")
     table["in_training_data"] = table["isolate_id"].isin(in_training)
     table["training_source_files"] = table["isolate_id"].map(
-        lambda x: ";".join(in_training.get(x, [])))
+        lambda x: "; ".join(f"{tid} ({','.join(src)})" for tid, src in in_training.get(x, {}).items()))
 
     if submitted_auc_csv.exists():
         submitted = pd.read_csv(submitted_auc_csv).set_index("isolate")["auc"]
@@ -338,7 +374,7 @@ def main(model_dir: Path, output_dir: Path, submitted_auc_csv: Path, n_seeds: in
     seeds = list(range(n_seeds))
     training_full = prepare_training_data(df, preference_type=AssertionType.CONSUMED,
                                           include_secreted=False)
-    df_clean = df[~df["organism_id"].astype(str).str.strip().isin(in_training)]
+    df_clean = df[~df["organism_id"].astype(str).str.strip().isin(training_ids_in(in_training))]
     training_clean = prepare_training_data(df_clean, preference_type=AssertionType.CONSUMED,
                                            include_secreted=False)
     logger.info(f"Retraining {n_seeds} seeds on full data ({training_full.n_microbes} microbes) "
@@ -426,6 +462,12 @@ if __name__ == "__main__":
         help="Per-isolate AUCs written by the submitted Fig. S3 run (read only)",
     )
     parser.add_argument(
+        "--lambda-ord",
+        type=float,
+        default=0.0,
+        help="Ordinal-term weight for retrains (0.1 reproduces the submitted analysis)",
+    )
+    parser.add_argument(
         "--n-seeds",
         type=int,
         default=20,
@@ -433,4 +475,5 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    ORDINAL_BPR_KWARGS["lambda_ord"] = args.lambda_ord
     main(args.model_dir, args.output_dir, args.submitted_auc_csv, args.n_seeds)

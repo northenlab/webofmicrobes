@@ -1,0 +1,12 @@
+{
+  "model_type": "ordinal_bpr",
+  "embedding_dim": 32,
+  "assertion_type": "consumed",
+  "seed": 0,
+  "n_epochs": 1000,
+  "batch_size": 256,
+  "learning_rate": 0.01,
+  "hard_neg_ratio": 0.5,
+  "lambda_ord": 0.0,
+  "trained_by": "scripts/train_all_models.py"
+}

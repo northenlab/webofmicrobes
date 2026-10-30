@@ -1,0 +1,48 @@
+15:36:33 [INFO] === Step 1: Load empirical data ===
+15:36:33 [INFO] Loading exometabolite data...
+15:36:33 [INFO] Loading exometabolite data from cache
+15:36:33 [INFO]   80,834 rows, 433 isolates, 311 compounds
+15:36:33 [INFO]   Wide matrix: 433 isolates × 311 compounds
+15:36:33 [INFO] === Step 2: Pairwise Spearman ρ ===
+15:36:33 [INFO] Computing pairwise Spearman ρ for 428 isolates (91,378 pairs)...
+/Users/bpb/repos/webofmicrobes/wom/scripts/taxonomic_group_analysis.py:208: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  rho, _ = spearmanr(v1[mask], v2[mask])
+15:36:58 [INFO]   90,998 valid pairs (380 skipped, <5 shared compounds)
+15:36:58 [INFO]   Pairs by distance: {1: 3174, 2: 783, 3: 4131, 4: 2987, 5: 9857, 6: 70066}
+15:36:58 [INFO] === Step 3: Distance-decay analysis (empirical) ===
+15:36:58 [INFO] Kruskal-Wallis: H = 10531.98, p = 0.00e+00
+15:36:59 [INFO]   14/15 pairwise contrasts significant (Bonferroni α = 0.0033)
+15:36:59 [INFO]   Running PERMANOVA (999 permutations)...
+15:37:00 [INFO]   PERMANOVA: pseudo-F = 7.06, R² = 0.592, p = 0.0010
+15:37:00 [INFO]   KW H=10532.0, p=0.00e+00, PERMANOVA R²=0.592
+15:37:00 [INFO] === Step 3b: Load embeddings and compute embedding distance decay ===
+15:37:00 [INFO] Loading BPR model from trained_models/ordinal_bpr_consumed...
+15:37:00 [INFO] Loaded OrdinalBPRModel from trained_models/ordinal_bpr_consumed
+15:37:00 [INFO]   Loaded 433 isolates, 311 compounds, embedding dim = 32
+15:37:00 [INFO] Computing pairwise cosine similarity for 433 isolates (93,528 pairs)...
+15:37:13 [INFO]   93,528 embedding pairs by distance: {1: 3174, 2: 783, 3: 4131, 4: 2988, 6: 82452}
+15:37:13 [INFO] Kruskal-Wallis: H = 8256.39, p = 0.00e+00
+15:37:13 [INFO]   10/10 pairwise contrasts significant (Bonferroni α = 0.0050)
+15:37:13 [INFO]   Running PERMANOVA (999 permutations)...
+15:37:15 [INFO]   PERMANOVA: pseudo-F = 8.52, R² = 0.637, p = 0.0010
+15:37:15 [INFO]   Embedding KW H=8256.4, p=0.00e+00, PERMANOVA R²=0.637
+15:37:15 [INFO] === Step 4: Per-genus GCS ===
+15:37:15 [INFO] Per-genus: 48 genera with ≥3 isolates
+15:37:15 [INFO]   Top 5: ['Delftia', 'Lysinibacillus', 'Chryseobacterium', 'Stenotrophomonas', 'Acidovorax']
+  Bottom 5: ['Bosea', 'Dorea', 'Parabacteroides', 'Sphingomonas', 'Lachnospiraceae']
+15:37:15 [INFO]   48 genera
+15:37:15 [INFO] === Step 5: Within-genus embedding diversity ===
+15:37:15 [INFO] Loading BPR model from trained_models/ordinal_bpr_consumed...
+15:37:15 [INFO] Loaded OrdinalBPRModel from trained_models/ordinal_bpr_consumed
+15:37:15 [INFO]   Embedding diversity computed for 48 genera (mean=0.4816, sd=0.1620)
+15:37:15 [INFO] === Step 6: Merge GCS ↔ embedding diversity ===
+15:37:15 [INFO]   GCS vs embedding diversity: Spearman ρ = -0.738, p = 2.135e-09, n = 48 genera
+15:37:15 [INFO]   Saved stats_gcs_emb_diversity.csv
+15:37:15 [INFO]   Saved stats_figure_biology.json
+15:37:15 [INFO] === Step 7: Write distance-decay stats text file ===
+15:37:15 [INFO] Saved manuscript_figures/msystems_revision/lambda0/fig2/figure_biology_panel_A_stats.txt
+15:37:15 [INFO] === Step 8: Generate figure ===
+15:37:16 [INFO] Saved figure_biology_main (.png + .pdf)
+15:37:16 [INFO] === Step 9: GCS ranking figure ===
+15:37:16 [INFO] Saved figure_gcs_ranking (.png + .pdf)
+15:37:16 [INFO] === Done. Outputs in manuscript_figures/msystems_revision/lambda0/fig2/ ===

@@ -1,0 +1,33 @@
+16:03:34 [INFO] 
+                              model  dim  mean    sd
+BPR with measured-neutral negatives    4 0.849 0.007
+BPR with measured-neutral negatives    8 0.859 0.006
+BPR with measured-neutral negatives   16 0.865 0.006
+BPR with measured-neutral negatives   32 0.865 0.009
+BPR with measured-neutral negatives   64 0.856 0.005
+BPR with measured-neutral negatives  128 0.835 0.007
+                                BPR    4 0.840 0.008
+                                BPR    8 0.846 0.005
+                                BPR   16 0.842 0.008
+                                BPR   32 0.824 0.006
+                                BPR   64 0.804 0.006
+                                BPR  128 0.770 0.016
+                                LMF    4 0.817 0.007
+                                LMF    8 0.814 0.011
+                                LMF   16 0.809 0.009
+                                LMF   32 0.801 0.010
+                                LMF   64 0.749 0.007
+                                LMF  128 0.685 0.011
+                              WR-MF    4 0.846 0.007
+                              WR-MF    8 0.842 0.002
+                              WR-MF   16 0.828 0.008
+                              WR-MF   32 0.765 0.006
+                              WR-MF   64 0.663 0.011
+                              WR-MF  128 0.627 0.012
+                                SVD    4 0.846 0.007
+                                SVD    8 0.841 0.002
+                                SVD   16 0.828 0.006
+                                SVD   32 0.762 0.006
+                                SVD   64 0.653 0.009
+                                SVD  128 0.573 0.013
+16:03:34 [INFO] Saved manuscript_figures/msystems_revision/lambda0/fig1b/fig1b_main.png

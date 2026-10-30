@@ -1,0 +1,11 @@
+model_variant,subset,n_seeds,n_isolates,mean_roc_auc,median_roc_auc,n_roc_auc_ge_0.8,min_roc_auc,mean_roc_auc_sd_across_seeds,mean_roc_auc_min_across_seeds,mean_roc_auc_max_across_seeds
+fig_s3_submitted_run,all_12,1,12,0.8875,0.8953,11.0000,0.7732,,,
+fig_s3_submitted_run,excluding_in_training,1,9,0.8824,0.8730,8.0000,0.7732,,,
+saved_model_corrected_labels,all_12,1,12,0.8856,0.9024,11.0000,0.7589,,,
+saved_model_corrected_labels,excluding_in_training,1,9,0.8763,0.8353,8.0000,0.7589,,,
+saved_model_legacy_labels,all_12,1,12,0.8982,0.9101,12.0000,0.8091,,,
+saved_model_legacy_labels,excluding_in_training,1,9,0.8913,0.8889,9.0000,0.8091,,,
+clean_holdout_corrected_labels,all_12,20,12,0.8856,0.8937,10.6500,0.7499,0.0060,0.8739,0.8982
+clean_holdout_corrected_labels,excluding_in_training,20,9,0.8803,0.8682,7.6500,0.7499,0.0066,0.8671,0.8910
+retrain_corrected_labels,all_12,20,12,0.8874,0.8986,11.0000,0.7554,0.0057,0.8772,0.8975
+retrain_corrected_labels,excluding_in_training,20,9,0.8813,0.8661,8.0000,0.7554,0.0064,0.8724,0.8946

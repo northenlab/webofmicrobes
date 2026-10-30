@@ -1,0 +1,13 @@
+{
+  "model_type": "ordinal_bpr",
+  "embedding_dim": 32,
+  "assertion_type": "consumed",
+  "seed": null,
+  "n_epochs": 1000,
+  "batch_size": 256,
+  "learning_rate": 0.01,
+  "hard_neg_ratio": 0.5,
+  "lambda_ord": 0.1,
+  "trained_by": "scripts/train_all_models.py",
+  "note": "Model used for the submitted manuscript; copied from trained_models/ordinal_bpr_consumed as last committed in 36022a4 (2026-03-25). Training was unseeded."
+}

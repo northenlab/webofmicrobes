@@ -1,0 +1,53 @@
+========================================================================
+Distance-decay analysis statistics (Panel A)
+========================================================================
+
+Two complementary metrics are compared at each taxonomic distance:
+  Empirical : pairwise Spearman ρ between isolate assertion-value profiles
+  Embedding : pairwise cosine similarity between BPR microbe latent vectors
+
+Only distances present in BOTH datasets are included in the figure.
+
+------------------------------------------------------------------------
+EMPIRICAL (Spearman ρ)
+------------------------------------------------------------------------
+
+  Kruskal-Wallis omnibus test across distance groups:
+    H = 10531.98,  p < 1e-300
+  PERMANOVA R² (genus label) = 0.5923
+
+  Distance                n_pairs      Mean    Median        SD  95% CI low  95% CI high
+  --------------------------------------------------------------------------------
+  Same genus                3,174    0.4434    0.4548    0.2303      0.4359       0.4509
+  Same family                 783    0.3522    0.3301    0.2041      0.3374       0.3668
+  Same order                4,131    0.2361    0.2113    0.1761      0.2305       0.2417
+  Same class                2,987    0.2246    0.2209    0.1916      0.2181       0.2309
+  Same phylum               9,857    0.2411    0.2323    0.1833      0.2374       0.2445
+  Different phylum         70,066    0.1177    0.1100    0.1709      0.1165       0.1190
+
+------------------------------------------------------------------------
+EMBEDDING (cosine similarity)
+------------------------------------------------------------------------
+
+  Kruskal-Wallis omnibus test across distance groups:
+    H = 8256.39,  p < 1e-300
+  PERMANOVA R² (genus label) = 0.6374
+
+  Distance                n_pairs      Mean    Median        SD  95% CI low  95% CI high
+  --------------------------------------------------------------------------------
+  Same genus                3,174    0.5450    0.5718    0.2110      0.5381       0.5530
+  Same family                 783    0.4268    0.4196    0.1878      0.4146       0.4404
+  Same order                4,131    0.3769    0.3886    0.2015      0.3709       0.3828
+  Same class                2,988    0.2420    0.2448    0.2075      0.2343       0.2500
+  Different phylum         82,452    0.1978    0.1925    0.2067      0.1965       0.1992
+
+========================================================================
+Notes
+========================================================================
+
+• Mean and 95% CI are shown as dots with error bars on the figure.
+• White horizontal lines on the violins indicate the median.
+• 95% CI computed by bootstrap resampling (n_bootstrap specified at run time).
+• PERMANOVA uses genus labels as groups and pairwise (1 − similarity) as distance.
+• The abstract claim about within-genus similarity is supported by the
+  'Same genus' group having the highest mean and median in both datasets.

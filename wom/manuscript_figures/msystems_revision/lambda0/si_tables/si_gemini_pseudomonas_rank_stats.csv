@@ -1,0 +1,5 @@
+,value
+n_metabolites,17
+spearman_score_vs_depletion_time_old,"{'rho': -0.4444636424364233, 'p': 0.07385882815297949}"
+spearman_score_vs_depletion_time_new,"{'rho': -0.4306174230458805, 'p': 0.08443423565243682}"
+spearman_old_vs_new_score,"{'rho': 0.8331288343558284, 'p': 3.289110490284797e-05}"
