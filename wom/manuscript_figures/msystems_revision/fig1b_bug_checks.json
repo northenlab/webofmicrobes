@@ -1,0 +1,26 @@
+{
+  "dim": 32,
+  "repeat": 0,
+  "seed": 32,
+  "known_negatives_in_submitted_split": 0,
+  "known_negatives_in_full_training_data": 59749,
+  "embeddings_identical_default_vs_switched_off": true,
+  "embeddings_identical_default_vs_with_known_negatives": false,
+  "mixed_pool_auc_default": 0.9364786492276108,
+  "mixed_pool_auc_switched_off": 0.9364786492276108,
+  "mixed_pool_auc_with_known_negatives": 0.8474143245629693,
+  "known_negatives_passed_in_submitted_code_rerun": [
+    0
+  ],
+  "pair_label_counts": {
+    "consumed": 11093,
+    "neutral": 59573,
+    "secreted": 3938,
+    "untested": 60059
+  },
+  "runtime_seconds": {
+    "submitted_code_rerun": 133.3,
+    "protocols_A_B": 959.3,
+    "total": 1110.1
+  }
+}
