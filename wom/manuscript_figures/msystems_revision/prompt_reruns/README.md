@@ -13,11 +13,15 @@ make server-compose-production   # docker compose build + up -d (both images)
 
 ## 2. Check that the site serves the revised model
 
-| Query | Revised model | Submitted model |
-|---|---|---|
-| Acinetobacter, top NLDM carbon source | succinate, 10.91 (rank 1 of 64) | malate, 13.06 |
-| Pseudomonas, serine | 9.27 ± 1.76 | 10.13 ± 2.06 |
-| Pseudomonas, glycine | 5.45 ± 1.81 | 8.43 ± 2.19 |
+| Query | Revised model (λ=0) | Submitted model (λ=0.1) | Plain BPR (`bpr_consumed`) |
+|---|---|---|---|
+| Acinetobacter, top NLDM carbon source | succinate, 10.91 | malate, 13.06 | pyruvate, 10.99 |
+| Acinetobacter, spermidine | −1.46 | −3.76 | 1.94 |
+| Pseudomonas, serine | 9.27 ± 1.76 | 10.13 ± 2.06 | 10.70 ± 1.86 |
+| Pseudomonas, glycine | 5.45 ± 1.81 | 8.43 ± 2.19 | 8.63 ± 1.94 |
+
+The submitted SI transcripts match the submitted model exactly, so the old site served that model, not plain BPR.
+The server code has never read the `MODEL_DIR` variable that was in docker-compose.yml.
 
 Each tool response also reports `model_dir`. It should end in `ordinal_bpr_consumed` (or `_secreted`).
 The tools accept an optional `model_type`; if a transcript shows a different `model_dir`, re-run that prompt.
