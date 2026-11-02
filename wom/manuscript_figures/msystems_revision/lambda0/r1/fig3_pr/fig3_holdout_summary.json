@@ -1,0 +1,42 @@
+{
+  "isolate": {
+    "n_paired": 375,
+    "n_groups": 375,
+    "median_auc_bpr_scoreable": 0.9053819444444444,
+    "median_auc_baseline_scoreable": 0.89867941712204,
+    "median_delta": 0.001315789473684159,
+    "wilcoxon_p": 0.00010704948262861592,
+    "median_auc_bpr_all": 0.9064082801145122,
+    "n_all": 375
+  },
+  "genus": {
+    "n_paired": 213,
+    "n_groups": 70,
+    "median_auc_bpr_scoreable": 0.8484848484848485,
+    "median_auc_baseline_scoreable": 0.8018018018018018,
+    "median_delta": 0.041935483870967794,
+    "wilcoxon_p": 1.6721488969314435e-15,
+    "median_auc_bpr_all": 0.8441176470588235,
+    "n_all": 213
+  },
+  "family": {
+    "n_paired": 325,
+    "n_groups": 48,
+    "median_auc_bpr_scoreable": 0.8493265993265994,
+    "median_auc_baseline_scoreable": 0.7854330708661418,
+    "median_delta": 0.023946360153256685,
+    "wilcoxon_p": 6.718393757755014e-14,
+    "median_auc_bpr_all": 0.847128550991212,
+    "n_all": 325
+  },
+  "order": {
+    "n_paired": 320,
+    "n_groups": 25,
+    "median_auc_bpr_scoreable": 0.7755117501546074,
+    "median_auc_baseline_scoreable": 0.7067892062171238,
+    "median_delta": 0.04407266782682068,
+    "wilcoxon_p": 2.895192967784817e-25,
+    "median_auc_bpr_all": 0.7785459183673469,
+    "n_all": 320
+  }
+}

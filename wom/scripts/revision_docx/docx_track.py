@@ -25,6 +25,14 @@ from pathlib import Path
 from lxml import etree
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+NS = {"w": W, "r": R, "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
+      "wp": "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing",
+      "pic": "http://schemas.openxmlformats.org/drawingml/2006/picture"}
+REL_IMAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+PKG_RELS = "http://schemas.openxmlformats.org/package/2006/relationships"
+W14_IDS = ("{http://schemas.microsoft.com/office/word/2010/wordml}paraId",
+           "{http://schemas.microsoft.com/office/word/2010/wordml}textId")
 XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
 PROTECTED = {"hyperlink", "fldSimple", "sdt", "smartTag"}
 
@@ -103,6 +111,47 @@ class _Package:
         if name not in self._parts:
             raise KeyError(name)
         self._parts[name] = data
+
+    def add_part(self, name: str, data: bytes):
+        """Add a new package part (e.g. word/media/image6.png)."""
+        if name in self._parts:
+            raise KeyError(f"{name} already exists")
+        info = zipfile.ZipInfo(name, date_time=self._infos[0].date_time)
+        info.compress_type = zipfile.ZIP_DEFLATED
+        self._infos.append(info)
+        self._parts[name] = data
+
+    def _rels(self):
+        return etree.fromstring(self._parts["word/_rels/document.xml.rels"])
+
+    def add_image(self, media_name: str, png: bytes) -> str:
+        """Add word/media/<media_name> and an image relationship; returns its rId."""
+        self.add_part(f"word/media/{media_name}", png)
+        rels = self._rels()
+        n = max(int(r.get("Id")[3:]) for r in rels if r.get("Id", "").startswith("rId")) + 1
+        rel = etree.SubElement(rels, f"{{{PKG_RELS}}}Relationship")
+        rel.set("Id", f"rId{n}")
+        rel.set("Type", REL_IMAGE)
+        rel.set("Target", f"media/{media_name}")
+        self._parts["word/_rels/document.xml.rels"] = etree.tostring(
+            rels, xml_declaration=True, encoding="UTF-8", standalone=True)
+        return f"rId{n}"
+
+    def image_rid(self, media_name: str) -> str:
+        hits = [r.get("Id") for r in self._rels() if r.get("Target") == f"media/{media_name}"]
+        if len(hits) != 1:
+            raise ValueError(f"{len(hits)} relationships target media/{media_name}")
+        return hits[0]
+
+    def set_image_extent(self, media_name: str, cx: int, cy: int):
+        """Resize the frame of the (single) drawing showing media/<media_name>; not tracked."""
+        blips = self.root.xpath(f"//a:blip[@r:embed='{self.image_rid(media_name)}']", namespaces=NS)
+        if len(blips) != 1:
+            raise ValueError(f"{len(blips)} drawings show {media_name}")
+        inline = next(a for a in blips[0].iterancestors() if local(a) in ("inline", "anchor"))
+        for ext in [inline.find("wp:extent", NS)] + inline.xpath(".//pic:spPr/a:xfrm/a:ext", namespaces=NS):
+            ext.set("cx", str(cx))
+            ext.set("cy", str(cy))
 
     def backup(self, backup_dir: Path) -> Path:
         backup_dir.mkdir(parents=True, exist_ok=True)
@@ -235,6 +284,77 @@ class TrackedDocx(_Package):
             last.getparent().addnext(insertion)  # after the w:del wrapping the last run
         self.log.append({"action": "replace", "old": old, "new": new})
 
+    def _mark_inserted(self, p):
+        """Mark paragraph p as a tracked insertion: its runs and its paragraph mark."""
+        for a in W14_IDS:
+            p.attrib.pop(a, None)
+        ppr = p.find(q("pPr"))
+        if ppr is None:
+            ppr = etree.Element(q("pPr"))
+            p.insert(0, ppr)
+        rpr = ppr.find(q("rPr"))
+        if rpr is None:
+            rpr = etree.SubElement(ppr, q("rPr"))
+        for old in rpr.findall(q("ins")):
+            rpr.remove(old)
+        rpr.insert(0, self._rev("ins"))
+        runs = [r for r in p if r.tag == q("r")]
+        if runs:
+            insertion = self._rev("ins")
+            runs[0].addprevious(insertion)
+            for r in runs:
+                insertion.append(r)
+
+    def insert_paragraph_after(self, after, runs: list[tuple], ppr_from=None):
+        """Tracked new paragraph after paragraph `after`. `runs` is [(rPr element or None, text)];
+        paragraph properties are copied from `ppr_from` (default: `after`). Returns the paragraph."""
+        p = etree.Element(q("p"))
+        src = (ppr_from if ppr_from is not None else after).find(q("pPr"))
+        if src is not None:
+            p.append(copy.deepcopy(src))
+        for rpr, text in runs:
+            r = etree.SubElement(p, q("r"))
+            if rpr is not None:
+                rpr = copy.deepcopy(rpr)
+                for change in rpr.findall(q("rPrChange")):
+                    rpr.remove(change)
+                r.append(rpr)
+            t = etree.SubElement(r, q("t"))
+            t.text = text
+            t.set(XML_SPACE, "preserve")
+        self._mark_inserted(p)
+        after.addnext(p)
+        self.log.append({"action": "insert_paragraph", "text": "".join(t for _, t in runs)})
+        return p
+
+    def insert_image_after(self, after, template, media_name: str, png: bytes, width_emu: int | None = None):
+        """Tracked new paragraph after `after` showing a new image, cloned from the drawing
+        paragraph `template` (same alignment and frame width unless `width_emu`). Returns it."""
+        from PIL import Image
+        import io
+        p = copy.deepcopy(template)
+        for r in p.findall(q("r")):
+            if r.find(q("drawing")) is None:
+                p.remove(r)
+        rid = self.add_image(media_name, png)
+        p.xpath(".//a:blip", namespaces=NS)[0].set(f"{{{R}}}embed", rid)
+        inline = p.xpath(".//wp:inline | .//wp:anchor", namespaces=NS)[0]
+        img = Image.open(io.BytesIO(png))
+        cx = width_emu or int(inline.find("wp:extent", NS).get("cx"))
+        cy = int(round(cx * img.height / img.width))
+        for ext in [inline.find("wp:extent", NS)] + inline.xpath(".//pic:spPr/a:xfrm/a:ext", namespaces=NS):
+            ext.set("cx", str(cx))
+            ext.set("cy", str(cy))
+        ids = [int(d.get("id")) for d in self.root.xpath("//wp:docPr", namespaces=NS)]
+        doc_pr = inline.find("wp:docPr", NS)
+        doc_pr.set("id", str(max(ids) + 1))
+        doc_pr.set("name", media_name)
+        p.xpath(".//pic:cNvPr", namespaces=NS)[0].set("name", media_name)
+        self._mark_inserted(p)
+        after.addnext(p)
+        self.log.append({"action": "insert_image", "media": media_name})
+        return p
+
     def insert_after(self, anchor: str, new: str, context: str | None = None):
         """Tracked insertion of `new` immediately after the text `anchor`."""
         p = self.find(context or anchor)
@@ -311,7 +431,10 @@ class LetterDocx(_Package):
     def set_text(self, snippet: str, text: str, exact: bool = False):
         """Replace the whole text of the paragraph containing `snippet` (or, if `exact`,
         consisting of it), keeping the formatting of its first run (used for quote paragraphs)."""
-        p = self.find(snippet, exact)
+        return self.set_paragraph_text(self.find(snippet, exact), text)
+
+    def set_paragraph_text(self, p, text: str):
+        """Replace the whole text of paragraph p, keeping the formatting of its first run."""
         runs = p.findall(q("r"))
         rpr = runs[0].find(q("rPr"))
         for r in runs:
@@ -331,12 +454,15 @@ class LetterDocx(_Package):
         text = self.accepted_text(self.response_paragraph_after(comment_start))
         return text[len("Response:"):].strip()
 
-    def add_pairs(self, after, pairs: list[tuple[str, str]]):
-        """Insert (label, quote) paragraph pairs after paragraph `after`; returns the last one."""
+    def add_pairs(self, after, pairs: list[tuple[str, str | None]]):
+        """Insert (label, quote) paragraph pairs after paragraph `after` (a label alone when the
+        quote is None, e.g. "Modified: see Comment 2."); returns the last paragraph inserted."""
         for label, quote in pairs:
             lp = self._clone_paragraph(self._t_label, label)
             after.addnext(lp)
-            qp = self._clone_paragraph(self._t_quote, quote)
-            lp.addnext(qp)
-            after = qp
+            after = lp
+            if quote is not None:
+                qp = self._clone_paragraph(self._t_quote, quote)
+                lp.addnext(qp)
+                after = qp
         return after

@@ -73,6 +73,16 @@ def auc(pos_scores, neg_scores):
     return float((np.sum(p > n) + 0.5 * np.sum(p == n)) / (len(pos_scores) * len(neg_scores)))
 
 
+def average_precision(pos_scores, neg_scores):
+    """PR-AUC (average precision) of consumed (positive) vs neutral; NaN if either side empty.
+    A random ranking scores the prevalence, len(pos) / (len(pos) + len(neg))."""
+    from sklearn.metrics import average_precision_score
+    if len(pos_scores) == 0 or len(neg_scores) == 0:
+        return np.nan
+    y = np.r_[np.ones(len(pos_scores)), np.zeros(len(neg_scores))]
+    return float(average_precision_score(y, np.r_[np.asarray(pos_scores, float), np.asarray(neg_scores, float)]))
+
+
 # --------------------------------------------------------------------------- compute
 def compute(out_csv=RESULTS_CSV, n_epochs=N_EPOCHS, isolate_limit=None, levels=LEVELS,
             lambda_ord=LAMBDA_ORD):
@@ -186,6 +196,13 @@ def compute(out_csv=RESULTS_CSV, n_epochs=N_EPOCHS, isolate_limit=None, levels=L
                 auc_bpr_scoreable=(auc(bpr_scores[pos_s], bpr_scores[neg_s]) if both_s else np.nan),
                 auc_baseline_scoreable=(auc([base_score(c) for c in pos_s],
                                             [base_score(c) for c in neg_s]) if both_s else np.nan),
+                # PR-AUC (Reviewer 1); a random ranking scores the prevalence
+                prevalence=len(pos) / (len(pos) + len(neg)),
+                prevalence_scoreable=(len(pos_s) / (len(pos_s) + len(neg_s)) if both_s else np.nan),
+                ap_bpr_all=average_precision(bpr_scores[pos], bpr_scores[neg]),
+                ap_bpr_scoreable=(average_precision(bpr_scores[pos_s], bpr_scores[neg_s]) if both_s else np.nan),
+                ap_baseline_scoreable=(average_precision([base_score(c) for c in pos_s],
+                                                         [base_score(c) for c in neg_s]) if both_s else np.nan),
             ))
             n_eval += 1
         return n_eval

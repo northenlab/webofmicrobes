@@ -81,4 +81,20 @@ step figS3_table_ref $PY scripts/revision_validation_12_isolates.py --lambda-ord
 step fig3       $PY scripts/molecular_system_biology_fig3.py --lambda-ord 0 \
                     --results-csv "$OUT/fig3/fig3_holdout_results.csv" --fig-stem "$OUT/fig3/fig3_holdout"
 
+# Reviewer 1: same hierarchical hold-out with PR-AUC (average precision) columns added;
+# the ROC-AUC columns must reproduce fig3/ (seeded), checked by revision_r1_pr_calibration.py
+step fig3_pr    $PY scripts/molecular_system_biology_fig3.py --lambda-ord 0 \
+                    --results-csv "$OUT/r1/fig3_pr/fig3_holdout_results.csv" --fig-stem "$OUT/r1/fig3_pr/fig3_holdout"
+
+# Reviewer 1, comment 6: learning curve on the Fig. 1b hold-out (fraction 1 reproduces Fig. 1b)
+step r1_learning_curve $PY scripts/revision_r1_learning_curve.py --output-dir "$OUT/r1/learning_curve" \
+                    --fig1b-results "$OUT/fig1b/fig1b_benchmark_results.csv"
+
+# Reviewer 1, comment 4: Figure 1c schematic (what is embedded and how scores are formed)
+step r1_fig1c   $PY scripts/revision_fig1c_schematic.py --output-dir "$OUT/r1/fig1c"
+
+# Reviewer 1, comments 2, 3 and 5: PR-AUC, learning-free baselines, calibration
+# (Supplementary Figs. 6 and 7); needs fig1b and fig3_pr
+step r1_pr_calibration $PY scripts/revision_r1_pr_calibration.py --lambda0-dir "$OUT"
+
 echo "Pipeline complete; runtimes in $OUT/pipeline_runtime.tsv"

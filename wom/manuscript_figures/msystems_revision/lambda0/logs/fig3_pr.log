@@ -1,0 +1,27 @@
+isolate 25/376 (51s) rows=25
+isolate 50/376 (103s) rows=49
+isolate 75/376 (156s) rows=74
+isolate 100/376 (210s) rows=99
+isolate 125/376 (264s) rows=124
+isolate 150/376 (315s) rows=149
+isolate 175/376 (371s) rows=174
+isolate 200/376 (428s) rows=199
+isolate 225/376 (480s) rows=224
+isolate 250/376 (532s) rows=249
+isolate 275/376 (585s) rows=274
+isolate 300/376 (638s) rows=299
+isolate 325/376 (690s) rows=324
+isolate 350/376 (743s) rows=349
+isolate 375/376 (795s) rows=374
+ISOLATE done (797s) rows=375
+GENUS done (947s) rows=588
+FAMILY done (1049s) rows=913
+ORDER done (1103s) rows=1233
+wrote manuscript_figures/msystems_revision/lambda0/r1/fig3_pr/fig3_holdout_results.csv  (1233 rows, 1103s)
+SAVED manuscript_figures/msystems_revision/lambda0/r1/fig3_pr/fig3_holdout.pdf/.png
+=== per-level summary ===
+isolate  n_all= 375 n_paired= 375 | BPR(scoreable) med=0.905 naive med=0.899 Δmed=+0.001 | BPR(all) med=0.906 | coverage=63%
+genus    n_all= 213 n_paired= 213 | BPR(scoreable) med=0.848 naive med=0.802 Δmed=+0.042 | BPR(all) med=0.844 | coverage=56%
+family   n_all= 325 n_paired= 325 | BPR(scoreable) med=0.849 naive med=0.785 Δmed=+0.024 | BPR(all) med=0.847 | coverage=66%
+order    n_all= 320 n_paired= 320 | BPR(scoreable) med=0.776 naive med=0.707 Δmed=+0.044 | BPR(all) med=0.779 | coverage=69%
+SAVED manuscript_figures/msystems_revision/lambda0/r1/fig3_pr/fig3_holdout_summary.json

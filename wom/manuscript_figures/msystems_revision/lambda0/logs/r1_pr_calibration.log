@@ -1,0 +1,11 @@
+11:59:58 [INFO] Per-isolate ROC-AUC reproduces fig1b_benchmark_results.csv (max |diff| 4.9e-07)
+11:59:58 [INFO] Loading exometabolite data from cache
+11:59:58 [INFO] Preparing training data for preference type: consumed
+11:59:58 [INFO]   433 unique organisms
+11:59:58 [INFO]   311 unique metabolites
+11:59:58 [INFO]   430 organisms with positive interactions
+11:59:58 [INFO]   11,093 total positive interactions
+11:59:59 [INFO]   433 organisms with known negatives
+11:59:59 [INFO]   59,749 total known-negative interactions
+12:00:03 [INFO] Fig. 3 PR run reproduces every Fig. 3 ROC-AUC
+12:00:04 [INFO] Saved manuscript_figures/msystems_revision/lambda0/r1/pr_calibration

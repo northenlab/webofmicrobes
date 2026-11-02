@@ -1,0 +1,45 @@
+11:52:16 [INFO] Loading exometabolite data from cache
+11:52:16 [INFO] Preparing training data for preference type: consumed
+11:52:16 [INFO]   433 unique organisms
+11:52:16 [INFO]   311 unique metabolites
+11:52:16 [INFO]   430 organisms with positive interactions
+11:52:16 [INFO]   11,093 total positive interactions
+11:52:16 [INFO]   433 organisms with known negatives
+11:52:16 [INFO]   59,749 total known-negative interactions
+11:52:22 [INFO] repeat 0 fraction 0.05 pairs   2833 ROC-AUC 0.519 PR-AUC 0.419 Brier 0.132 | popularity 0.767 genus 0.751 (4.6s)
+11:52:26 [INFO] repeat 0 fraction 0.10 pairs   5666 ROC-AUC 0.549 PR-AUC 0.428 Brier 0.129 | popularity 0.790 genus 0.772 (4.5s)
+11:52:31 [INFO] repeat 0 fraction 0.20 pairs  11333 ROC-AUC 0.628 PR-AUC 0.470 Brier 0.119 | popularity 0.803 genus 0.789 (5.0s)
+11:52:36 [INFO] repeat 0 fraction 0.30 pairs  17000 ROC-AUC 0.701 PR-AUC 0.528 Brier 0.109 | popularity 0.808 genus 0.794 (5.3s)
+11:52:42 [INFO] repeat 0 fraction 0.50 pairs  28332 ROC-AUC 0.776 PR-AUC 0.587 Brier 0.098 | popularity 0.815 genus 0.809 (5.7s)
+11:52:48 [INFO] repeat 0 fraction 0.75 pairs  42499 ROC-AUC 0.835 PR-AUC 0.652 Brier 0.091 | popularity 0.816 genus 0.823 (6.1s)
+11:52:54 [INFO] repeat 0 fraction 1.00 pairs  56665 ROC-AUC 0.866 PR-AUC 0.713 Brier 0.081 | popularity 0.816 genus 0.835 (6.1s)
+11:52:59 [INFO] repeat 1 fraction 0.05 pairs   2833 ROC-AUC 0.530 PR-AUC 0.414 Brier 0.132 | popularity 0.755 genus 0.749 (4.6s)
+11:53:04 [INFO] repeat 1 fraction 0.10 pairs   5666 ROC-AUC 0.552 PR-AUC 0.426 Brier 0.129 | popularity 0.790 genus 0.777 (4.7s)
+11:53:09 [INFO] repeat 1 fraction 0.20 pairs  11333 ROC-AUC 0.653 PR-AUC 0.482 Brier 0.117 | popularity 0.801 genus 0.789 (5.0s)
+11:53:14 [INFO] repeat 1 fraction 0.30 pairs  17000 ROC-AUC 0.699 PR-AUC 0.516 Brier 0.109 | popularity 0.802 genus 0.795 (5.4s)
+11:53:20 [INFO] repeat 1 fraction 0.50 pairs  28332 ROC-AUC 0.768 PR-AUC 0.586 Brier 0.098 | popularity 0.805 genus 0.813 (5.7s)
+11:53:26 [INFO] repeat 1 fraction 0.75 pairs  42499 ROC-AUC 0.845 PR-AUC 0.659 Brier 0.089 | popularity 0.808 genus 0.835 (5.9s)
+11:53:31 [INFO] repeat 1 fraction 1.00 pairs  56665 ROC-AUC 0.859 PR-AUC 0.693 Brier 0.081 | popularity 0.810 genus 0.846 (5.8s)
+11:53:36 [INFO] repeat 2 fraction 0.05 pairs   2833 ROC-AUC 0.512 PR-AUC 0.408 Brier 0.132 | popularity 0.770 genus 0.756 (4.0s)
+11:53:40 [INFO] repeat 2 fraction 0.10 pairs   5666 ROC-AUC 0.569 PR-AUC 0.429 Brier 0.128 | popularity 0.773 genus 0.760 (4.6s)
+11:53:45 [INFO] repeat 2 fraction 0.20 pairs  11333 ROC-AUC 0.595 PR-AUC 0.433 Brier 0.120 | popularity 0.786 genus 0.777 (5.0s)
+11:53:50 [INFO] repeat 2 fraction 0.30 pairs  17000 ROC-AUC 0.657 PR-AUC 0.476 Brier 0.114 | popularity 0.799 genus 0.799 (5.2s)
+11:53:56 [INFO] repeat 2 fraction 0.50 pairs  28332 ROC-AUC 0.783 PR-AUC 0.588 Brier 0.097 | popularity 0.807 genus 0.813 (5.7s)
+11:54:02 [INFO] repeat 2 fraction 0.75 pairs  42499 ROC-AUC 0.823 PR-AUC 0.635 Brier 0.089 | popularity 0.808 genus 0.820 (6.4s)
+11:54:09 [INFO] repeat 2 fraction 1.00 pairs  56665 ROC-AUC 0.865 PR-AUC 0.685 Brier 0.085 | popularity 0.809 genus 0.829 (6.6s)
+11:54:13 [INFO] repeat 3 fraction 0.05 pairs   2833 ROC-AUC 0.509 PR-AUC 0.398 Brier 0.133 | popularity 0.741 genus 0.733 (4.1s)
+11:54:18 [INFO] repeat 3 fraction 0.10 pairs   5666 ROC-AUC 0.536 PR-AUC 0.412 Brier 0.130 | popularity 0.774 genus 0.764 (5.1s)
+11:54:24 [INFO] repeat 3 fraction 0.20 pairs  11333 ROC-AUC 0.642 PR-AUC 0.465 Brier 0.119 | popularity 0.785 genus 0.784 (5.3s)
+11:54:29 [INFO] repeat 3 fraction 0.30 pairs  17000 ROC-AUC 0.706 PR-AUC 0.530 Brier 0.109 | popularity 0.797 genus 0.795 (5.3s)
+11:54:35 [INFO] repeat 3 fraction 0.50 pairs  28332 ROC-AUC 0.789 PR-AUC 0.612 Brier 0.097 | popularity 0.800 genus 0.811 (5.7s)
+11:54:41 [INFO] repeat 3 fraction 0.75 pairs  42499 ROC-AUC 0.828 PR-AUC 0.653 Brier 0.090 | popularity 0.804 genus 0.816 (6.0s)
+11:54:46 [INFO] repeat 3 fraction 1.00 pairs  56665 ROC-AUC 0.863 PR-AUC 0.679 Brier 0.084 | popularity 0.807 genus 0.833 (5.8s)
+11:54:51 [INFO] repeat 4 fraction 0.05 pairs   2833 ROC-AUC 0.526 PR-AUC 0.406 Brier 0.132 | popularity 0.781 genus 0.774 (4.2s)
+11:54:55 [INFO] repeat 4 fraction 0.10 pairs   5666 ROC-AUC 0.568 PR-AUC 0.440 Brier 0.128 | popularity 0.809 genus 0.798 (4.7s)
+11:55:01 [INFO] repeat 4 fraction 0.20 pairs  11333 ROC-AUC 0.630 PR-AUC 0.451 Brier 0.120 | popularity 0.822 genus 0.804 (5.4s)
+11:55:06 [INFO] repeat 4 fraction 0.30 pairs  17000 ROC-AUC 0.685 PR-AUC 0.508 Brier 0.112 | popularity 0.828 genus 0.812 (5.4s)
+11:55:12 [INFO] repeat 4 fraction 0.50 pairs  28332 ROC-AUC 0.782 PR-AUC 0.599 Brier 0.099 | popularity 0.830 genus 0.828 (5.6s)
+11:55:18 [INFO] repeat 4 fraction 0.75 pairs  42499 ROC-AUC 0.842 PR-AUC 0.668 Brier 0.090 | popularity 0.830 genus 0.842 (5.9s)
+11:55:24 [INFO] repeat 4 fraction 1.00 pairs  56665 ROC-AUC 0.869 PR-AUC 0.700 Brier 0.081 | popularity 0.829 genus 0.846 (6.0s)
+11:55:24 [INFO] fraction 1.0 reproduces fig1b_benchmark_results.csv (max |diff| 4.8e-07)
+11:55:24 [INFO] Saved manuscript_figures/msystems_revision/lambda0/r1/learning_curve in 189s
