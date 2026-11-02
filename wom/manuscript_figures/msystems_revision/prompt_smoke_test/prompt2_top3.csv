@@ -1,0 +1,9 @@
+genus,old_top3,new_top3,same_set,same_order,n_shared
+Bacteroides,adenosine 7.85; 3-(carbamoylamino)propanoate 7.24; uridine 7.23,adenosine 8.51; uridine 7.54; 3-(carbamoylamino)propanoate 6.72,True,False,3
+Blautia,S-methyl-5'-thioadenosine 9.08; choline 6.91; S-adenosyl-L-homocysteine 6.81,S-methyl-5'-thioadenosine 11.19; uridine 7.93; adenosine 7.79,False,False,1
+Clostridium,S-methyl-5'-thioadenosine 8.09; nicotinamide 6.73; S-adenosyl-L-homocysteine 6.34,S-methyl-5'-thioadenosine 8.61; nicotinamide 8.19; S-adenosyl-L-homocysteine 6.72,True,True,3
+Collinsella,arginine 7.65; S-methyl-5'-thioadenosine 7.09; N-benzoylglycine 6.36,arginine 7.31; S-methyl-5'-thioadenosine 6.86; adenosine 6.26,False,False,2
+Eggerthella,nicotinamide 7.51; arginine 7.41; (9Z)-octadecenoate 6.54,"1,2-didecanoyl-sn-glycero-3-phosphocholine 8.43; (9Z)-octadecenoate 7.73; nicotinamide 6.96",False,False,2
+Eubacterium,S-methyl-5'-thioadenosine 9.15; S-adenosyl-L-homocysteine 7.07; nicotinamide 6.19,S-methyl-5'-thioadenosine 10.18; nicotinamide 7.08; S-adenosyl-L-homocysteine 7.05,True,False,3
+Faecalibacterium,S-methyl-5'-thioadenosine 8.35; adenosine 7.60; uridine 6.19,3-(carbamoylamino)propanoate 6.28; S-methyl-5'-thioadenosine 6.24; 2'-deoxyadenosine 5'-monophosphate 6.15,False,False,1
+Prevotella,"S-methyl-5'-thioadenosine 9.56; S-adenosyl-L-homocysteine 7.96; 3',5'-cyclic AMP 6.25","S-methyl-5'-thioadenosine 9.53; S-adenosyl-L-homocysteine 8.43; 3',5'-cyclic AMP 7.36",True,True,3

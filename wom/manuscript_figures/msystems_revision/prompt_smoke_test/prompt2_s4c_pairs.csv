@@ -1,0 +1,78 @@
+isolate,compound,score_sheet,wom_score,consumed,genus,score_old,score_new
+Bacteroides ovatus,adenosine,7.850,-3.000,1.000,Bacteroides,7.855,8.509
+Bacteroides ovatus,uridine,7.230,-2.000,1.000,Bacteroides,7.230,7.538
+Bacteroides ovatus,S-methyl-5'-thioadenosine,5.480,-5.000,1.000,Bacteroides,5.481,4.979
+Bacteroides ovatus,choline,0.430,1.000,0.000,Bacteroides,0.431,-0.578
+Bacteroides ovatus,nicotinamide,1.500,-1.000,0.000,Bacteroides,1.497,3.084
+Bacteroides ovatus,arginine,2.920,1.000,0.000,Bacteroides,2.922,1.976
+Bacteroides ovatus,"3',5'-cyclic AMP",4.710,-2.000,1.000,Bacteroides,4.707,4.239
+Bacteroides thetaiotaomicron,adenosine,7.850,-2.000,1.000,Bacteroides,7.855,8.509
+Bacteroides thetaiotaomicron,uridine,7.230,-1.000,0.000,Bacteroides,7.230,7.538
+Bacteroides thetaiotaomicron,S-methyl-5'-thioadenosine,5.480,-5.000,1.000,Bacteroides,5.481,4.979
+Bacteroides thetaiotaomicron,choline,0.430,1.000,0.000,Bacteroides,0.431,-0.578
+Bacteroides thetaiotaomicron,nicotinamide,1.500,-1.000,0.000,Bacteroides,1.497,3.084
+Bacteroides thetaiotaomicron,arginine,2.920,1.000,0.000,Bacteroides,2.922,1.976
+Bacteroides thetaiotaomicron,"3',5'-cyclic AMP",4.710,-4.000,1.000,Bacteroides,4.707,4.239
+Bacteroides uniformis,adenosine,7.850,-2.000,1.000,Bacteroides,7.855,8.509
+Bacteroides uniformis,uridine,7.230,-1.000,0.000,Bacteroides,7.230,7.538
+Bacteroides uniformis,S-methyl-5'-thioadenosine,5.480,-5.000,1.000,Bacteroides,5.481,4.979
+Bacteroides uniformis,choline,0.430,2.000,0.000,Bacteroides,0.431,-0.578
+Bacteroides uniformis,nicotinamide,1.500,-1.000,0.000,Bacteroides,1.497,3.084
+Bacteroides uniformis,arginine,2.920,1.000,0.000,Bacteroides,2.922,1.976
+Bacteroides uniformis,"3',5'-cyclic AMP",4.710,-5.000,1.000,Bacteroides,4.707,4.239
+Bacteroides vulgatus,adenosine,7.850,-1.000,0.000,Bacteroides,7.855,8.509
+Bacteroides vulgatus,uridine,7.230,1.000,0.000,Bacteroides,7.230,7.538
+Bacteroides vulgatus,S-methyl-5'-thioadenosine,5.480,-5.000,1.000,Bacteroides,5.481,4.979
+Bacteroides vulgatus,choline,0.430,1.000,0.000,Bacteroides,0.431,-0.578
+Bacteroides vulgatus,nicotinamide,1.500,-1.000,0.000,Bacteroides,1.497,3.084
+Bacteroides vulgatus,arginine,2.920,1.000,0.000,Bacteroides,2.922,1.976
+Bacteroides vulgatus,"3',5'-cyclic AMP",4.710,-5.000,1.000,Bacteroides,4.707,4.239
+Blautia hydrogenotrophica,adenosine,6.330,-1.000,0.000,Blautia,6.335,7.794
+Blautia hydrogenotrophica,uridine,6.180,1.000,0.000,Blautia,6.176,7.934
+Blautia hydrogenotrophica,S-methyl-5'-thioadenosine,9.080,-5.000,1.000,Blautia,9.077,11.191
+Blautia hydrogenotrophica,choline,6.910,1.000,0.000,Blautia,6.911,6.456
+Blautia hydrogenotrophica,nicotinamide,5.820,-5.000,1.000,Blautia,5.820,7.232
+Blautia hydrogenotrophica,arginine,4.180,1.000,0.000,Blautia,4.182,0.666
+Blautia hydrogenotrophica,"3',5'-cyclic AMP",2.130,1.000,0.000,Blautia,2.129,1.776
+Clostridium hiranonis,adenosine,5.410,-3.000,1.000,Clostridium,5.407,5.471
+Clostridium hiranonis,uridine,5.320,1.000,0.000,Clostridium,5.316,4.522
+Clostridium hiranonis,S-methyl-5'-thioadenosine,8.090,-5.000,1.000,Clostridium,8.086,8.605
+Clostridium hiranonis,choline,3.700,1.000,0.000,Clostridium,3.703,3.965
+Clostridium hiranonis,nicotinamide,6.730,-5.000,1.000,Clostridium,6.733,8.187
+Clostridium hiranonis,arginine,3.600,1.000,0.000,Clostridium,3.597,1.195
+Clostridium hiranonis,"3',5'-cyclic AMP",2.380,-5.000,1.000,Clostridium,2.385,2.374
+Collinsella aerofaciens,adenosine,3.360,-3.000,1.000,Collinsella,3.362,6.261
+Collinsella aerofaciens,uridine,4.740,-3.000,1.000,Collinsella,4.744,3.706
+Collinsella aerofaciens,S-methyl-5'-thioadenosine,7.090,-1.000,0.000,Collinsella,7.086,6.857
+Collinsella aerofaciens,choline,2.460,1.000,0.000,Collinsella,2.459,4.269
+Collinsella aerofaciens,nicotinamide,4.600,-2.000,1.000,Collinsella,4.602,5.264
+Collinsella aerofaciens,arginine,7.650,-1.000,0.000,Collinsella,7.650,7.310
+Collinsella aerofaciens,"3',5'-cyclic AMP",0.650,1.000,0.000,Collinsella,0.646,0.613
+Eggerthella lenta,adenosine,2.350,1.000,0.000,Eggerthella,2.350,5.705
+Eggerthella lenta,uridine,4.880,-1.000,0.000,Eggerthella,4.876,3.257
+Eggerthella lenta,S-methyl-5'-thioadenosine,6.060,-4.000,1.000,Eggerthella,6.055,2.956
+Eggerthella lenta,choline,3.650,1.000,0.000,Eggerthella,3.649,1.000
+Eggerthella lenta,nicotinamide,7.510,-5.000,1.000,Eggerthella,7.505,6.959
+Eggerthella lenta,arginine,7.410,-4.000,1.000,Eggerthella,7.407,6.629
+Eggerthella lenta,"3',5'-cyclic AMP",0.270,1.000,0.000,Eggerthella,0.269,2.629
+Eubacterium rectale,adenosine,4.670,-5.000,1.000,Eubacterium,4.667,4.178
+Eubacterium rectale,uridine,4.060,-1.000,0.000,Eubacterium,4.059,2.799
+Eubacterium rectale,S-methyl-5'-thioadenosine,9.150,-5.000,1.000,Eubacterium,9.152,10.182
+Eubacterium rectale,choline,2.570,-1.000,0.000,Eubacterium,2.566,4.343
+Eubacterium rectale,nicotinamide,6.190,-5.000,1.000,Eubacterium,6.186,7.082
+Eubacterium rectale,arginine,3.090,1.000,0.000,Eubacterium,3.093,0.252
+Eubacterium rectale,"3',5'-cyclic AMP",2.360,1.000,0.000,Eubacterium,2.363,3.776
+Faecalibacterium prausnitzii,adenosine,7.600,-5.000,1.000,Faecalibacterium,7.600,5.474
+Faecalibacterium prausnitzii,uridine,6.190,-2.000,1.000,Faecalibacterium,6.189,4.367
+Faecalibacterium prausnitzii,S-methyl-5'-thioadenosine,8.350,-5.000,1.000,Faecalibacterium,8.351,6.238
+Faecalibacterium prausnitzii,choline,0.540,-1.000,0.000,Faecalibacterium,0.542,1.050
+Faecalibacterium prausnitzii,nicotinamide,3.570,-1.000,0.000,Faecalibacterium,3.573,2.421
+Faecalibacterium prausnitzii,arginine,2.200,-1.000,0.000,Faecalibacterium,2.198,-0.854
+Faecalibacterium prausnitzii,"3',5'-cyclic AMP",5.880,1.000,0.000,Faecalibacterium,5.883,4.817
+Prevotella copri,adenosine,4.100,-1.000,0.000,Prevotella,4.103,4.913
+Prevotella copri,uridine,2.330,-1.000,0.000,Prevotella,2.330,3.995
+Prevotella copri,S-methyl-5'-thioadenosine,9.560,-2.000,1.000,Prevotella,9.556,9.529
+Prevotella copri,choline,1.600,1.000,0.000,Prevotella,1.601,3.323
+Prevotella copri,nicotinamide,2.620,-1.000,0.000,Prevotella,2.618,3.231
+Prevotella copri,arginine,0.380,1.000,0.000,Prevotella,0.382,-0.924
+Prevotella copri,"3',5'-cyclic AMP",6.250,-1.000,0.000,Prevotella,6.251,7.365
