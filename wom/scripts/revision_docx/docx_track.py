@@ -35,6 +35,9 @@ W14_IDS = ("{http://schemas.microsoft.com/office/word/2010/wordml}paraId",
            "{http://schemas.microsoft.com/office/word/2010/wordml}textId")
 XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
 PROTECTED = {"hyperlink", "fldSimple", "sdt", "smartTag"}
+ORIGINAL_GREEN, MODIFIED_BLUE = "38761d", "0000ff"  # response letter: Original quotes green, Modified blue
+COLOR_FOLLOWERS = {"spacing", "w", "kern", "position", "sz", "szCs", "highlight", "u", "effect", "bdr", "shd",
+                   "fitText", "vertAlign", "rtl", "cs", "em", "lang", "eastAsianLayout", "specVanish", "oMath"}
 
 
 def q(tag: str) -> str:
@@ -454,15 +457,39 @@ class LetterDocx(_Package):
         text = self.accepted_text(self.response_paragraph_after(comment_start))
         return text[len("Response:"):].strip()
 
+    @staticmethod
+    def _set_color(p, color: str):
+        """Set the text colour of every run (and the paragraph mark) of p."""
+        rprs = [r.find(q("rPr")) for r in p.iter(q("r"))]
+        ppr = p.find(q("pPr"))
+        if ppr is not None and ppr.find(q("rPr")) is not None:
+            rprs.append(ppr.find(q("rPr")))
+        for rpr in rprs:
+            if rpr is None:
+                continue
+            c = rpr.find(q("color"))
+            if c is None:  # w:color precedes these run properties in the schema
+                c = etree.Element(q("color"))
+                later = [x for x in rpr if local(x) in COLOR_FOLLOWERS]
+                later[0].addprevious(c) if later else rpr.append(c)
+            for a in list(c.attrib):
+                if etree.QName(a).localname.startswith("theme"):
+                    del c.attrib[a]
+            c.set(q("val"), color)
+
     def add_pairs(self, after, pairs: list[tuple[str, str | None]]):
         """Insert (label, quote) paragraph pairs after paragraph `after` (a label alone when the
-        quote is None, e.g. "Modified: see Comment 2."); returns the last paragraph inserted."""
+        quote is None, e.g. "Modified: see Comment 2."); returns the last paragraph inserted.
+        Original labels and quotes are green and Modified ones blue, as in the letter."""
         for label, quote in pairs:
+            color = ORIGINAL_GREEN if label.startswith("Original") else MODIFIED_BLUE
             lp = self._clone_paragraph(self._t_label, label)
+            self._set_color(lp, color)
             after.addnext(lp)
             after = lp
             if quote is not None:
                 qp = self._clone_paragraph(self._t_quote, quote)
+                self._set_color(qp, color)
                 lp.addnext(qp)
                 after = qp
         return after
