@@ -1,35 +1,35 @@
-16:11:27 [INFO] Loaded validation data: 831 measurements, 12 isolates, 11 genera
-16:11:28 [INFO] Loading exometabolite data from cache
-16:11:28 [INFO] Preparing training data for preference type: consumed
-16:11:28 [INFO]   430 unique organisms
-16:11:28 [INFO]   311 unique metabolites
-16:11:28 [INFO]   427 organisms with positive interactions
-16:11:28 [INFO]   10,955 total positive interactions
-16:11:29 [INFO]   430 organisms with known negatives
-16:11:29 [INFO]   59,684 total known-negative interactions
-16:11:29 [INFO] Removed from training: ['FW507-4G11', 'GW456-R20', 'MT049']; 430 microbes remain
-16:11:34 [INFO]   clean seed 0: mean ROC-AUC = 0.882
-16:11:40 [INFO]   clean seed 1: mean ROC-AUC = 0.898
-16:11:45 [INFO]   clean seed 2: mean ROC-AUC = 0.884
-16:11:50 [INFO]   clean seed 3: mean ROC-AUC = 0.880
-16:11:55 [INFO]   clean seed 4: mean ROC-AUC = 0.880
-16:12:01 [INFO]   clean seed 5: mean ROC-AUC = 0.884
-16:12:06 [INFO]   clean seed 6: mean ROC-AUC = 0.891
-16:12:11 [INFO]   clean seed 7: mean ROC-AUC = 0.882
-16:12:16 [INFO]   clean seed 8: mean ROC-AUC = 0.882
-16:12:22 [INFO]   clean seed 9: mean ROC-AUC = 0.892
-16:12:27 [INFO]   clean seed 10: mean ROC-AUC = 0.883
-16:12:32 [INFO]   clean seed 11: mean ROC-AUC = 0.897
-16:12:37 [INFO]   clean seed 12: mean ROC-AUC = 0.891
-16:12:42 [INFO]   clean seed 13: mean ROC-AUC = 0.887
-16:12:48 [INFO]   clean seed 14: mean ROC-AUC = 0.891
-16:12:53 [INFO]   clean seed 15: mean ROC-AUC = 0.884
-16:12:58 [INFO]   clean seed 16: mean ROC-AUC = 0.874
-16:13:04 [INFO]   clean seed 17: mean ROC-AUC = 0.882
-16:13:09 [INFO]   clean seed 18: mean ROC-AUC = 0.884
-16:13:14 [INFO]   clean seed 19: mean ROC-AUC = 0.887
-16:13:14 [INFO] All 12 panel ROC-AUC mean/SD values, reference counts and ranks match table_S_validation_12_isolates.csv
-16:13:14 [INFO] 
+11:05:45 [INFO] Loaded validation data: 831 measurements, 12 isolates, 11 genera
+11:05:46 [INFO] Loading exometabolite data from cache
+11:05:46 [INFO] Preparing training data for preference type: consumed
+11:05:46 [INFO]   430 unique organisms
+11:05:46 [INFO]   311 unique metabolites
+11:05:47 [INFO]   427 organisms with positive interactions
+11:05:47 [INFO]   10,955 total positive interactions
+11:05:47 [INFO]   430 organisms with known negatives
+11:05:47 [INFO]   59,684 total known-negative interactions
+11:05:47 [INFO] Removed from training: ['FW507-4G11', 'GW456-R20', 'MT049']; 430 microbes remain
+11:05:53 [INFO]   clean seed 0: mean ROC-AUC = 0.882
+11:05:58 [INFO]   clean seed 1: mean ROC-AUC = 0.898
+11:06:03 [INFO]   clean seed 2: mean ROC-AUC = 0.884
+11:06:08 [INFO]   clean seed 3: mean ROC-AUC = 0.880
+11:06:14 [INFO]   clean seed 4: mean ROC-AUC = 0.880
+11:06:19 [INFO]   clean seed 5: mean ROC-AUC = 0.884
+11:06:24 [INFO]   clean seed 6: mean ROC-AUC = 0.891
+11:06:30 [INFO]   clean seed 7: mean ROC-AUC = 0.882
+11:06:35 [INFO]   clean seed 8: mean ROC-AUC = 0.882
+11:06:41 [INFO]   clean seed 9: mean ROC-AUC = 0.892
+11:06:47 [INFO]   clean seed 10: mean ROC-AUC = 0.883
+11:06:52 [INFO]   clean seed 11: mean ROC-AUC = 0.897
+11:06:58 [INFO]   clean seed 12: mean ROC-AUC = 0.891
+11:07:04 [INFO]   clean seed 13: mean ROC-AUC = 0.887
+11:07:09 [INFO]   clean seed 14: mean ROC-AUC = 0.891
+11:07:15 [INFO]   clean seed 15: mean ROC-AUC = 0.884
+11:07:22 [INFO]   clean seed 16: mean ROC-AUC = 0.874
+11:07:27 [INFO]   clean seed 17: mean ROC-AUC = 0.882
+11:07:33 [INFO]   clean seed 18: mean ROC-AUC = 0.884
+11:07:38 [INFO]   clean seed 19: mean ROC-AUC = 0.887
+11:07:38 [INFO] All 12 panel ROC-AUC mean/SD values, reference counts and ranks match table_S_validation_12_isolates.csv
+11:07:38 [INFO] 
                     reference_rank_used    reference_taxon  n_source_training_isolates  n_consumed  n_neutral  roc_auc_mean  roc_auc_sd
 isolate_id                                                                                                                             
 EB106-05-01-XG146                 genus            Ensifer                           2          65          1         0.980       0.013
@@ -44,5 +44,5 @@ GW822-FHT02A07                    genus        Caulobacter                      
 GW822-FHT05C05                    genus  Janthinobacterium                           5          46         19         0.925       0.010
 MT49                              order   Enterobacterales                           2          54         11         0.906       0.029
 TBS_030                           genus   Chryseobacterium                           4          37         29         0.963       0.011
-16:13:16 [INFO] Saved manuscript_figures/msystems_revision/lambda0/figS3/figS3_validation_clean_holdout.png
-16:13:16 [INFO] Saved manuscript_figures/msystems_revision/lambda0/figS3/figS3_validation_clean_holdout.pdf
+11:07:40 [INFO] Saved manuscript_figures/msystems_revision/lambda0/figS3/figS3_validation_clean_holdout.png
+11:07:41 [INFO] Saved manuscript_figures/msystems_revision/lambda0/figS3/figS3_validation_clean_holdout.pdf

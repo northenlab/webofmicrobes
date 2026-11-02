@@ -174,7 +174,7 @@ def plot_figure(histogram_rows: pd.DataFrame, panels: pd.DataFrame, exp: pd.Data
                fontsize=18, title="experimental observation (secreted, ≥ 2, excluded)",
                title_fontsize=18)
     fig.text(0.5, 0.905,
-             f"BPR models (lambda_ord = {ORDINAL_BPR_KWARGS['lambda_ord']:g}) trained without any validation "
+             f"BPR models trained without any validation "
              f"isolate. Histograms: seed-{HISTOGRAM_SEED} model; "
              f"ROC-AUC: mean ± SD over {N_SEEDS} seeds. Title: (reference training isolates, rank)",
              ha="center", va="center", fontsize=14)

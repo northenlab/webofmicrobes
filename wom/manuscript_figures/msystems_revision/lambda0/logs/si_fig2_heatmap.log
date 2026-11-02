@@ -1,0 +1,7 @@
+10:55:10 [INFO] Loading model from trained_models/ordinal_bpr_consumed
+10:55:10 [INFO] Loaded OrdinalBPRModel from trained_models/ordinal_bpr_consumed
+10:55:10 [INFO] Loaded OrdinalBPRModel — 433 microbes, 311 metabolites
+10:55:10 [INFO] Loading exometabolite data
+10:55:10 [INFO] Loading exometabolite data from cache
+10:55:10 [INFO] Matrix: 60 metabolites × 115 genera
+10:55:18 [INFO] Saved figS2_genus_heatmap

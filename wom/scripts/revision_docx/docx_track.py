@@ -87,8 +87,10 @@ class _Package:
                 out.append(el.text or "")
         return "".join(out)
 
-    def find(self, snippet: str):
-        hits = [p for p in self.paragraphs() if snippet in self.accepted_text(p)]
+    def find(self, snippet: str, exact: bool = False):
+        """The unique paragraph containing `snippet` (or, if `exact`, whose whole text it is)."""
+        hits = [p for p in self.paragraphs()
+                if (snippet == self.accepted_text(p).strip() if exact else snippet in self.accepted_text(p))]
         if len(hits) != 1:
             raise ValueError(f"{len(hits)} paragraphs contain {snippet[:70]!r}")
         return hits[0]
@@ -306,10 +308,10 @@ class LetterDocx(_Package):
         p.append(self._run(self._plain_rpr, " " + text))
         return p
 
-    def set_text(self, snippet: str, text: str):
-        """Replace the whole text of the paragraph containing `snippet`, keeping the
-        formatting of its first run (used for quote paragraphs)."""
-        p = self.find(snippet)
+    def set_text(self, snippet: str, text: str, exact: bool = False):
+        """Replace the whole text of the paragraph containing `snippet` (or, if `exact`,
+        consisting of it), keeping the formatting of its first run (used for quote paragraphs)."""
+        p = self.find(snippet, exact)
         runs = p.findall(q("r"))
         rpr = runs[0].find(q("rPr"))
         for r in runs:

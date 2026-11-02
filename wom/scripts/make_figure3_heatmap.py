@@ -96,6 +96,11 @@ def strip_stereo_prefix(name: str) -> str:
 # Data helpers
 # ---------------------------------------------------------------------------
 
+def _has_genus(tax) -> bool:
+    """Missing genera load as NaN (truthy) with current pandas; treat them as absent."""
+    return isinstance(tax.genus, str) and bool(tax.genus.strip())
+
+
 def build_genus_matrix(
     df: pd.DataFrame,
     model,
@@ -119,14 +124,14 @@ def build_genus_matrix(
     for microbe_id, microbe_idx in microbe_to_idx.items():
         if training_data.positives.get(microbe_idx):
             tax = microbe_taxonomy.get(microbe_id)
-            if tax and tax.genus:
+            if tax and _has_genus(tax):
                 genera_with_positives.add(tax.genus)
 
     # Map each isolate index → genus
     idx_to_genus: dict[int, str] = {}
     for microbe_id, microbe_idx in microbe_to_idx.items():
         tax = microbe_taxonomy.get(microbe_id)
-        if tax and tax.genus and tax.genus in genera_with_positives:
+        if tax and _has_genus(tax) and tax.genus in genera_with_positives:
             idx_to_genus[microbe_idx] = tax.genus
 
     # Compute genus-mean raw scores: microbe_emb @ metabolite_emb.T averaged per genus

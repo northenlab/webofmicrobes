@@ -63,6 +63,10 @@ step fig2_ref   $PY scripts/make_figure_biology.py --model-dir "$OLD_MODEL" \
 step si_figures $PY scripts/make_figures_for_manuscript_nature_microbiology_first_submission.py \
                     --figures 2 3 6 7 --model-dir "$NEW_MODEL" --output-dir "$OUT/si_figures"
 
+# Supplementary Fig. 2 as submitted (portrait genus x metabolite heatmap, make_figure3_heatmap.py)
+step si_fig2_heatmap $PY scripts/make_figure3_heatmap.py --model-dir "$NEW_MODEL" \
+                    --output-dir "$OUT/si_figures" --figure-name figS2_genus_heatmap
+
 # Supplementary Fig. 3 + SI Table 2: 12 held-out isolates, clean hold-out, 20 seeds
 step figS3_table  $PY scripts/revision_validation_12_isolates.py --lambda-ord 0 \
                       --model-dir "$NEW_MODEL" --output-dir "$OUT/figS3"
