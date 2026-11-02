@@ -49,8 +49,6 @@ services:
       resources:
         limits:
           memory: 8000M
-    environment:
-      MODEL_DIR: trained_models/bpr_consumed
 
 networks:
   nginx-net:
