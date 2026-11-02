@@ -2,19 +2,18 @@
 
 ### Fig. 1b (dim 32)
 
-Old = submitted Fig. 1b (leave-one-out vs all non-positive compounds; 'Ordinal-BPR' was trained without known negatives). New = strict hold-out per-microbe ROC-AUC (`fig1b/fig1b_main_data.csv`). The metric changed, so old and new are not directly comparable.
+Old = submitted Fig. 1b (leave-one-out vs all non-positive compounds; its 'Ordinal-BPR' was trained without known negatives). New = strict hold-out per-isolate ROC-AUC with the revised-Methods pair labelling (`fig1b/fig1b_main_data.csv`); "BPR" is the adopted model (lambda_ord = 0). The metric changed, so old and new are not directly comparable.
 
-| Model (new label) | Old: submitted Fig. 1b | New: strict hold-out |
+| Model | Old: submitted Fig. 1b | New: strict hold-out |
 |---|---|---|
-| BPR with measured-neutral negatives | 0.944 ± 0.006 | 0.865 ± 0.009 |
-| BPR | – (not in submitted figure) | 0.824 ± 0.006 |
-| LMF | 0.903 ± 0.007 | 0.801 ± 0.010 |
-| WR-MF | 0.895 ± 0.007 | 0.765 ± 0.006 |
-| SVD | 0.896 ± 0.007 | 0.762 ± 0.006 |
+| BPR | 0.944 ± 0.006 | 0.865 ± 0.004 |
+| WR-MF | 0.895 ± 0.007 | 0.766 ± 0.014 |
+| SVD | 0.896 ± 0.007 | 0.762 ± 0.013 |
+| LMF | 0.903 ± 0.007 | 0.804 ± 0.010 |
 
-| Number | Old | New (λ=0) |
+| Number | Old | New |
 |---|---|---|
-| Abstract: "ROC-AUC = 0.94", robust to dimensionality | 0.94 (leave-one-out, mixed pool) | 0.835–0.865 across dims 4–128 (peak 0.865 at dim 16); 0.865 at dim 32 |
+| Abstract: "ROC-AUC = 0.94", robust to dimensionality | 0.94 (leave-one-out, mixed pool) | 0.832–0.875 across dims 4–128 (peak 0.875 at dim 16); 0.865 at dim 32 |
 
 ### Fig. 2 / genus conservation (`make_figure_biology.py`)
 

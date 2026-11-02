@@ -78,12 +78,15 @@ MODEL_KWARGS = {
 }
 # Submitted Fig. 1b colours; plain BPR added in a colour that passes CVD checks
 # against them, with a dashed line and per-model markers as secondary encoding.
+# Plot styles in legend order. The adopted model (Ordinal-BPR with lambda_ord = 0) is
+# called "BPR" in the revised manuscript; models absent from the results are skipped.
 MODEL_STYLES = {
-    "Ordinal-BPR": {"color": "#e377c2", "marker": "*", "linestyle": "-"},
-    "BPR": {"color": "#bcbd22", "marker": "s", "linestyle": "--"},
-    "WR-MF": {"color": "#1f77b4", "marker": "o", "linestyle": "-"},
-    "SVD": {"color": "#2ca02c", "marker": "^", "linestyle": "-"},
-    "LMF": {"color": "#8c564b", "marker": "P", "linestyle": "-"},
+    "Ordinal-BPR [lambda_ord=0]": {"label": "BPR", "color": "#e377c2", "marker": "*", "linestyle": "-"},
+    "Ordinal-BPR": {"label": "Ordinal-BPR (submitted)", "color": "#000000", "marker": "D", "linestyle": ":"},
+    "BPR": {"label": "BPR without measured negatives", "color": "#bcbd22", "marker": "s", "linestyle": "--"},
+    "WR-MF": {"label": "WR-MF", "color": "#1f77b4", "marker": "o", "linestyle": "-"},
+    "SVD": {"label": "SVD", "color": "#2ca02c", "marker": "^", "linestyle": "-"},
+    "LMF": {"label": "LMF", "color": "#8c564b", "marker": "P", "linestyle": "-"},
 }
 # Ordinal-BPR component ablations, run at ABLATION_DIM only (not plotted). The ordinal
 # pairs are only formed in the hard-negative branch, so hard_neg_ratio=0 disables both;
@@ -95,6 +98,7 @@ ABLATIONS = {
 ABLATION_DIM = 32
 HOLDOUT_FRACTION = 0.2
 LABELS = ("consumed", "neutral", "secreted", "untested")
+LABEL_RULES = ("methods", "secreted_over_neutral")
 RESULT_COLUMNS = ["model", "dim", "repeat", "protocol", "pool", "roc_auc", "roc_auc_pooled",
                   "pr_auc_pooled", "prevalence", "n_microbes", "n_pairs", "n_pos", "n_neg",
                   "known_negatives_passed", "mean_score_withheld", "mean_score_neutral",
@@ -121,18 +125,29 @@ def n_known_negatives(known_negatives: dict) -> int:
 # =============================================================================
 
 
-def build_label_matrix(df: pd.DataFrame, training_data: TrainingData) -> np.ndarray:
-    """(n_microbes, n_metabolites) array of label codes, indexed like training_data."""
+def build_label_matrix(df: pd.DataFrame, training_data: TrainingData,
+                       rule: str = "methods") -> np.ndarray:
+    """(n_microbes, n_metabolites) array of label codes, indexed like training_data.
+
+    A pair with several records is consumed if any record is consumed. Otherwise:
+      rule="methods"                neutral if any record is neutral, else secreted
+                                    (the rule stated in the revised Methods; the neutral
+                                    set then equals the training known negatives)
+      rule="secreted_over_neutral"  secreted if any record is secreted, else neutral
+                                    (used for the 2026-10-30 outputs in msystems_revision/)
+    """
+    if rule not in LABEL_RULES:
+        raise ValueError(f"unknown label rule {rule!r}; choose from {LABEL_RULES}")
     labels = np.full((training_data.n_microbes, training_data.n_metabolites),
                      LABELS.index("untested"), dtype=np.int8)
     assertions = df.groupby(["organism_id", "representative_compound"])["assertion"].agg(set)
     for (org, compound), values in assertions.items():
         if "consumed" in values:
             label = "consumed"
-        elif "secreted" in values:
-            label = "secreted"
+        elif rule == "methods":
+            label = "neutral" if "neutral" in values else "secreted"
         else:
-            label = "neutral"
+            label = "secreted" if "secreted" in values else "neutral"
         labels[training_data.microbe_to_idx[org], training_data.metabolite_to_idx[compound]] = \
             LABELS.index(label)
 
@@ -427,7 +442,9 @@ def plot_revised_figure(results: pd.DataFrame, output_dir: Path):
         stats = sub.groupby(["model", "dim"])[metric].agg(["mean", "std"]).reset_index()
         for model_name, style in MODEL_STYLES.items():
             m = stats[stats["model"] == model_name].sort_values("dim")
-            ax.errorbar(m["dim"], m["mean"], yerr=m["std"], label=model_name,
+            if len(m) < 2:  # e.g. dim-32-only ablations
+                continue
+            ax.errorbar(m["dim"], m["mean"], yerr=m["std"], label=style["label"],
                         color=style["color"], marker=style["marker"], linestyle=style["linestyle"],
                         capsize=8, linewidth=4, markersize=10)
         if metric == "pr_auc_pooled":
@@ -451,8 +468,9 @@ def plot_revised_figure(results: pd.DataFrame, output_dir: Path):
 
     handles, labels = axes[0].get_legend_handles_labels()
     plt.tight_layout()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.0), ncol=len(labels),
-               frameon=False, fontsize=18)
+    if handles:  # none when fewer than two dims were run
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.0), ncol=len(labels),
+                   frameon=False, fontsize=18)
     for ext in ["png", "pdf"]:
         fig.savefig(output_dir / f"fig1b_revised.{ext}", dpi=600, bbox_inches="tight")
     plt.close(fig)
@@ -464,36 +482,42 @@ def plot_revised_figure(results: pd.DataFrame, output_dir: Path):
 # =============================================================================
 
 
-def main(output_dir: Path, dims: list[int], repeats: int):
+def main(output_dir: Path, dims: list[int], repeats: int, label_rule: str = "methods",
+         model_names: list[str] | None = None, submitted_checks: bool = True):
     start = time.time()
     output_dir.mkdir(parents=True, exist_ok=True)
 
     df = load_exometabolite()
     training_data = prepare_training_data(df, preference_type=AssertionType.CONSUMED,
                                           include_secreted=False)
-    labels = build_label_matrix(df, training_data)
+    labels = build_label_matrix(df, training_data, rule=label_rule)
     counts = {label: int((labels == i).sum()) for i, label in enumerate(LABELS)}
     logger.info(f"{training_data.n_microbes} microbes x {training_data.n_metabolites} metabolites; "
                 f"pair labels: {counts}")
 
-    logger.info("Re-running the submitted Fig. 1b code (unmodified)")
-    t0 = time.time()
-    submitted_rows = rerun_submitted_code(dims, repeats)
-    submitted_secs = time.time() - t0
+    submitted_rows, submitted_secs, checks = pd.DataFrame(columns=RESULT_COLUMNS), 0.0, {}
+    if submitted_checks:
+        # Independent of the label rule (mixed pool); skip when already on record
+        logger.info("Re-running the submitted Fig. 1b code (unmodified)")
+        t0 = time.time()
+        submitted_rows = rerun_submitted_code(dims, repeats)
+        submitted_secs = time.time() - t0
 
-    logger.info("Checking whether the ordinal modification is active on the submitted split")
-    checks = ordinal_inertness_check(training_data, labels)
-    checks["known_negatives_passed_in_submitted_code_rerun"] = sorted(
-        submitted_rows["known_negatives_passed"].dropna().astype(int).unique().tolist())
+        logger.info("Checking whether the ordinal modification is active on the submitted split")
+        checks = ordinal_inertness_check(training_data, labels)
+        checks["known_negatives_passed_in_submitted_code_rerun"] = sorted(
+            submitted_rows["known_negatives_passed"].dropna().astype(int).unique().tolist())
+    checks["label_rule"] = label_rule
     checks["pair_label_counts"] = counts
     logger.info(json.dumps(checks, indent=2))
 
     logger.info("Running Protocols A and B")
     t0 = time.time()
-    results, heldout = run_benchmark(training_data, labels, dims, repeats)
+    results, heldout = run_benchmark(training_data, labels, dims, repeats, model_names=model_names)
     benchmark_secs = time.time() - t0
 
-    results = pd.concat([submitted_rows, results], ignore_index=True)
+    if len(submitted_rows):
+        results = pd.concat([submitted_rows, results], ignore_index=True)
     results["n_pairs"] = results["n_pos"] + results["n_neg"]
     results[RESULT_COLUMNS].to_csv(output_dir / "fig1b_benchmark_results.csv", index=False,
                                    float_format="%.6f")
@@ -524,6 +548,13 @@ if __name__ == "__main__":
     )
     parser.add_argument("--dims", nargs="+", type=int, default=[4, 8, 16, 32, 64, 128])
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--label-rule", choices=LABEL_RULES, default="methods",
+                        help="pair labelling for multi-record pairs (default: the revised Methods rule)")
+    parser.add_argument("--models", nargs="+", default=None,
+                        help="models to run at every dim (default: the five models plus dim-32 ablations)")
+    parser.add_argument("--skip-submitted-checks", action="store_true",
+                        help="skip re-running the submitted code and the ordinal inertness check")
     args = parser.parse_args()
 
-    main(args.output_dir, args.dims, args.repeats)
+    main(args.output_dir, args.dims, args.repeats, args.label_rule, args.models,
+         not args.skip_submitted_checks)

@@ -1,0 +1,14 @@
+{
+  "label_rule": "methods",
+  "pair_label_counts": {
+    "consumed": 11093,
+    "neutral": 59749,
+    "secreted": 3762,
+    "untested": 60059
+  },
+  "runtime_seconds": {
+    "submitted_code_rerun": 0.0,
+    "protocols_A_B": 1160.2,
+    "total": 1162.9
+  }
+}

@@ -63,7 +63,8 @@ def main(output_dir: Path, dims: list[int], repeats: int):
     df = load_exometabolite()
     training_data = prepare_training_data(df, preference_type=AssertionType.CONSUMED,
                                           include_secreted=False)
-    labels = fig1b.build_label_matrix(df, training_data)
+    # same labelling as fig1b_benchmark_results.csv, which the dim-32 check compares against
+    labels = fig1b.build_label_matrix(df, training_data, rule="secreted_over_neutral")
 
     results, _ = fig1b.run_benchmark(training_data, labels, dims, repeats, model_names=[MODEL])
     results["n_pairs"] = results["n_pos"] + results["n_neg"]

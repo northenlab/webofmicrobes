@@ -263,26 +263,23 @@ def fig1b_section(out_dir: Path) -> str:
     sub32 = sub[sub.dim == 32].groupby("method")["auc"].agg(["mean", "std"])
     new = pd.read_csv(out_dir / "fig1b" / "fig1b_main_data.csv")
     new32 = new[new.dim == 32].set_index("model")
-    old_label = {"BPR with measured-neutral negatives": "Ordinal-BPR (trained without known negatives, i.e. plain BPR)",
-                 "BPR": None, "LMF": "LMF", "WR-MF": "WR-MF", "SVD": "SVD"}
-    rows = []
-    for model, r in new32.iterrows():
-        o = old_label[model]
-        old_val = f"{sub32.loc['Ordinal-BPR' if o and o.startswith('Ordinal') else o, 'mean']:.3f} ± " \
-                  f"{sub32.loc['Ordinal-BPR' if o and o.startswith('Ordinal') else o, 'std']:.3f}" if o else "– (not in submitted figure)"
-        rows.append([model, old_val, f"{r['mean']:.3f} ± {r['sd']:.3f}"])
-    lam = new[new.model == "BPR with measured-neutral negatives"]
+    # submitted label of each Fig. 1b model ("Ordinal-BPR" was trained without known negatives)
+    old_label = {"BPR": "Ordinal-BPR", "WR-MF": "WR-MF", "SVD": "SVD", "LMF": "LMF"}
+    rows = [[model, f"{sub32.loc[old_label[model], 'mean']:.3f} ± {sub32.loc[old_label[model], 'std']:.3f}",
+             f"{r['mean']:.3f} ± {r['sd']:.3f}"] for model, r in new32.iterrows()]
+    bpr = new[new.model == "BPR"]
+    peak = bpr.loc[bpr["mean"].idxmax()]
     rng = [["Abstract: \"ROC-AUC = 0.94\", robust to dimensionality",
             "0.94 (leave-one-out, mixed pool)",
-            f"{lam['mean'].min():.3f}–{lam['mean'].max():.3f} across dims 4–128 "
-            f"(peak {lam.loc[lam['mean'].idxmax(), 'mean']:.3f} at dim {int(lam.loc[lam['mean'].idxmax(), 'dim'])}); "
-            f"{new32.loc['BPR with measured-neutral negatives', 'mean']:.3f} at dim 32"]]
+            f"{bpr['mean'].min():.3f}–{bpr['mean'].max():.3f} across dims 4–128 "
+            f"(peak {peak['mean']:.3f} at dim {int(peak['dim'])}); {new32.loc['BPR', 'mean']:.3f} at dim 32"]]
     return ("### Fig. 1b (dim 32)\n\n"
-            "Old = submitted Fig. 1b (leave-one-out vs all non-positive compounds; 'Ordinal-BPR' was trained "
-            "without known negatives). New = strict hold-out per-microbe ROC-AUC (`fig1b/fig1b_main_data.csv`). "
-            "The metric changed, so old and new are not directly comparable.\n\n"
-            + md_table(["Model (new label)", "Old: submitted Fig. 1b", "New: strict hold-out"], rows)
-            + "\n\n" + md_table(["Number", "Old", "New (λ=0)"], rng))
+            "Old = submitted Fig. 1b (leave-one-out vs all non-positive compounds; its 'Ordinal-BPR' was trained "
+            "without known negatives). New = strict hold-out per-isolate ROC-AUC with the revised-Methods pair "
+            "labelling (`fig1b/fig1b_main_data.csv`); \"BPR\" is the adopted model (lambda_ord = 0). The metric "
+            "changed, so old and new are not directly comparable.\n\n"
+            + md_table(["Model", "Old: submitted Fig. 1b", "New: strict hold-out"], rows)
+            + "\n\n" + md_table(["Number", "Old", "New"], rng))
 
 
 # ----------------------------------------------------------------------------- SI tables

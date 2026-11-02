@@ -41,7 +41,12 @@ step() {
     echo "[done] $name (${secs}s)"
 }
 
-# Fig. 1b (main): strict hold-out, from the existing benchmark results
+# Fig. 1b benchmark with the revised-Methods pair labelling (BPR = lambda_ord 0, the
+# submitted comparison models, plain BPR and the submitted Ordinal-BPR), then the
+# main-text panel (strict hold-out)
+step fig1b_benchmark $PY scripts/revision_fig1b_benchmark.py --label-rule methods --skip-submitted-checks \
+                    --models "Ordinal-BPR [lambda_ord=0]" WR-MF SVD LMF BPR Ordinal-BPR \
+                    --output-dir "$OUT/fig1b"
 step fig1b      $PY scripts/revision_fig1b_main.py --output-dir "$OUT/fig1b"
 
 # BPR scores / ranks quoted in the SI (no LLM prompts re-run)
