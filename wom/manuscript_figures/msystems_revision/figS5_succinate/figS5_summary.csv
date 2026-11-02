@@ -1,0 +1,7 @@
+condition,od_end_mean,od_end_sd,od_max_mean,time_of_max_h,end_h
+NLDM,0.7227,0.1093,0.7227,21.0000,21.0000
+Succinic Acid,0.8524,0.0488,0.8524,21.0000,21.0000
+Xylose,0.2195,0.0879,0.2235,10.4110,21.0000
+Arginine,0.2724,0.0932,0.2798,15.2875,21.0000
+N-Acetyl-Glutamate,0.3841,0.1048,0.3891,17.7954,21.0000
+Water (Negative Control),0.1556,0.0266,0.1616,13.3369,21.0000
