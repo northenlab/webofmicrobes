@@ -428,6 +428,10 @@ PARAMETERS:
 
 - model_type (optional, default='ordinal_bpr'): Model family to query
   Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+  metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+  standard BPR without measured negatives; it and the other values are benchmark comparison models.
+  Use the default unless the user explicitly asks to compare models.
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -550,6 +554,10 @@ PARAMETERS:
 
 - model_type (optional, default='ordinal_bpr'): Model family to search against
   Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+  metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+  standard BPR without measured negatives; it and the other values are benchmark comparison models.
+  Use the default unless the user explicitly asks to compare models.
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -614,6 +622,10 @@ PARAMETERS:
 
 - model_type (optional, default='ordinal_bpr'): Model family providing taxa context
   Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+  metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+  standard BPR without measured negatives; it and the other values are benchmark comparison models.
+  Use the default unless the user explicitly asks to compare models.
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -699,6 +711,10 @@ PARAMETERS:
 
 - model_type (optional, default='ordinal_bpr'): Model family to query
   Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+  metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+  standard BPR without measured negatives; it and the other values are benchmark comparison models.
+  Use the default unless the user explicitly asks to compare models.
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -839,6 +855,10 @@ PARAMETERS:
 
 - model_type (optional, default='ordinal_bpr'): Model family to use
   Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+  metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+  standard BPR without measured negatives; it and the other values are benchmark comparison models.
+  Use the default unless the user explicitly asks to compare models.
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -927,6 +947,10 @@ PARAMETERS:
 
 - model_type (optional, default='ordinal_bpr'): Model family to use
   Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+  metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+  standard BPR without measured negatives; it and the other values are benchmark comparison models.
+  Use the default unless the user explicitly asks to compare models.
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -1023,6 +1047,10 @@ PARAMETERS:
 
 - model_type (optional, default='ordinal_bpr'): Model family to use
   Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+  metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+  standard BPR without measured negatives; it and the other values are benchmark comparison models.
+  Use the default unless the user explicitly asks to compare models.
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -1132,6 +1160,10 @@ PARAMETERS:
 
 - model_type (optional, default='ordinal_bpr'): Model family to use
   Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+  metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+  standard BPR without measured negatives; it and the other values are benchmark comparison models.
+  Use the default unless the user explicitly asks to compare models.
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -1237,6 +1269,10 @@ PARAMETERS:
 
 - model_type (optional, default='ordinal_bpr'): Model family to use
   Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+  metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+  standard BPR without measured negatives; it and the other values are benchmark comparison models.
+  Use the default unless the user explicitly asks to compare models.
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -1328,12 +1364,18 @@ PARAMETERS:
 
 - model_type (optional, default='ordinal_bpr'): Model family to inspect
   Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+  metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+  standard BPR without measured negatives; it and the other values are benchmark comparison models.
+  Use the default unless the user explicitly asks to compare models.
 
 RESPONSE FORMAT:
 Returns JSON with:
 - success (bool): Whether query succeeded
 - results (list): Single object with:
   - model_type: Name of the recommendation model (BPR, WRMF, SVD, etc.)
+    'OrdinalBPRModel' is the published Web of Microbes BPR model with the ordinal term disabled
+    (lambda_ord = 0); refer to it as BPR.
   - embedding_dim: Dimensionality of learned embeddings
   - n_microbes: Total microbes in training data
   - n_metabolites: Total metabolites in training data
@@ -1400,6 +1442,10 @@ PARAMETERS:
 
 - model_type (optional, default='ordinal_bpr'): Model family
   Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+  metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+  standard BPR without measured negatives; it and the other values are benchmark comparison models.
+  Use the default unless the user explicitly asks to compare models.
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -1474,6 +1520,10 @@ PARAMETERS:
 
 - model_type (optional, default='ordinal_bpr'): Model family
   Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+  metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+  standard BPR without measured negatives; it and the other values are benchmark comparison models.
+  Use the default unless the user explicitly asks to compare models.
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -1553,6 +1603,10 @@ PARAMETERS:
 
 - model_type (optional, default='ordinal_bpr'): Model family
   Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+  'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+  metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+  standard BPR without measured negatives; it and the other values are benchmark comparison models.
+  Use the default unless the user explicitly asks to compare models.
 
 RESPONSE FORMAT:
 Returns JSON with:
@@ -1632,6 +1686,10 @@ def get_environment_compounds(
 
   - model_type (optional, default='ordinal_bpr'): Model family context
     Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+    'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+    metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+    standard BPR without measured negatives; it and the other values are benchmark comparison models.
+    Use the default unless the user explicitly asks to compare models.
 
   RESPONSE FORMAT:
   - success (bool)
@@ -1732,6 +1790,10 @@ def list_function_enrichment_taxa(
 
   - model_type (optional, default='ordinal_bpr'): Model family context
     Valid values: 'ordinal_bpr', 'bpr', 'implicit_bpr', 'lmf', 'wrmf', 'svd'
+    'ordinal_bpr' (default) is the published Web of Microbes BPR model: BPR trained with measured-neutral
+    metabolites as negatives and the ordinal term disabled (the name is historical; call it BPR). 'bpr' is
+    standard BPR without measured negatives; it and the other values are benchmark comparison models.
+    Use the default unless the user explicitly asks to compare models.
 
   RESPONSE FORMAT:
   - success (bool)
