@@ -20,4 +20,4 @@ torch>=2.0.0
 
 litellm
 nest_asyncio
-fastmcp
+fastmcp==2.14.6
