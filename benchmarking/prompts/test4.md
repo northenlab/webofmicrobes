@@ -1,1 +1,0 @@
-What are the top 3 preferred substrates for these genera: Bacteroides, Blautia, Clostridium, Collinsella, Eggerthella, Eubacterium, Faecalibacterium, Prevotella? Then, make a non-redundant list of these metabolites and generate a table of genera vs the non-redundant metabolites showing BPR scores (no standard deviation).
