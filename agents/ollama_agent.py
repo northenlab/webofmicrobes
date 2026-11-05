@@ -3,7 +3,7 @@ import logging
 import os
 
 from pydantic_ai import Agent, Tool, capture_run_messages
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.google import GoogleProvider
@@ -139,7 +139,7 @@ class TestAgent:
         if provider_name == "openrouter":
             openrouter_base_url = base_url or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
             openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
-            self.model = OpenAIModel(
+            self.model = OpenAIChatModel(
                 model_name=model_name,
                 provider=OpenAIProvider(base_url=openrouter_base_url, api_key=openrouter_api_key),
             )
@@ -152,19 +152,19 @@ class TestAgent:
             litellm_base_url = base_url or os.getenv("LITELLM_PROXY_URL", "http://localhost:4000/v1")
             litellm_api_key = os.getenv("LITELLM_PROXY_API_KEY", "")
             litellm_model = model_name or os.getenv("LITELLM_MODEL_NAME")
-            self.model = OpenAIModel(
+            self.model = OpenAIChatModel(
                 model_name=litellm_model,
                 provider=OpenAIProvider(base_url=litellm_base_url, api_key=litellm_api_key),
             )
         elif provider_name in {"ollama", "local", "openai-compatible"}:
-            self.model = OpenAIModel(
+            self.model = OpenAIChatModel(
                 model_name=model_name,
                 provider=OpenAIProvider(base_url=base_url),
             )
         else:
             if os.getenv("OPENROUTER_API_KEY"):
                 openrouter_base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-                self.model = OpenAIModel(
+                self.model = OpenAIChatModel(
                     model_name=model_name,
                     provider=OpenAIProvider(base_url=openrouter_base_url, api_key=os.getenv("OPENROUTER_API_KEY")),
                 )
@@ -177,12 +177,12 @@ class TestAgent:
                 litellm_base_url = os.getenv("LITELLM_PROXY_URL", "http://localhost:4000/v1")
                 litellm_api_key = os.getenv("LITELLM_PROXY_API_KEY", "")
                 litellm_model = model_name or os.getenv("LITELLM_MODEL_NAME", "gpt-3.5-turbo")
-                self.model = OpenAIModel(
+                self.model = OpenAIChatModel(
                     model_name=litellm_model,
                     provider=OpenAIProvider(base_url=litellm_base_url, api_key=litellm_api_key),
                 )
             else:
-                self.model = OpenAIModel(
+                self.model = OpenAIChatModel(
                     model_name=model_name,
                     provider=OpenAIProvider(base_url=base_url),
                 )
