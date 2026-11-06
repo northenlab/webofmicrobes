@@ -23,7 +23,7 @@ RUN /bin/bash -c 'source activate python310 && uv pip install --python $(which p
 RUN /bin/bash -c 'source activate python310 && uv pip install --python $(which python) --no-cache python-dotenv'
 
 # mcp
-RUN /bin/bash -c 'source activate python310 && uv pip install --python $(which python) --no-cache mcp pydantic_ai'
+RUN /bin/bash -c 'source activate python310 && uv pip install --python $(which python) --no-cache "mcp<2" "pydantic_ai<2"'
 
 COPY . /app
 WORKDIR /app
