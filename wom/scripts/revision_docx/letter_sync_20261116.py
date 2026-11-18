@@ -18,13 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from docx_track import LetterDocx, _Package  # noqa: E402
-from r3_major1_edits import LINE_PDF, LineNumbers  # noqa: E402
-
-DOCS = Path.home() / "Downloads/revisions"
-LETTER = DOCS / "Response_to_reviewers.docx"
-MS = DOCS / "Northen_msystems_BPR.docx"
-SI = DOCS / "Northen_msystems_BPR_Supplementary Information.docx"
-BACKUPS = Path.home() / "Downloads/1st-revision/backups"
+from revision_paths import DOCS, MS, SI, LETTER, BACKUPS, original_lines  # noqa: E402
 
 
 def para(doc, snippet: str) -> str:
@@ -36,7 +30,6 @@ def main(apply: bool):
         raise SystemExit("Word lock files present; close the documents in Word first")
     ms, si = _Package(MS), _Package(SI)
     letter = LetterDocx(LETTER, template_response="We thank the reviewer for noticing that \"calibrated\"")
-    lines = LineNumbers(LINE_PDF)
     log = []
 
     def set_text(snippet, new, exact=False, what=""):
@@ -79,7 +72,7 @@ def main(apply: bool):
 
     # R3 minor 4: Abstract pair. The submitted sentence said "AUC"; the revised one starts "An experiment"
     orig = "A prospective experiment on 12 newly profiled isolates confirmed this generalization (mean AUC = 0.87)."
-    found = lines.lines(orig)
+    found = original_lines(orig, "abstract_generalization")
     assert found != "__", "original Abstract sentence not found in the line-numbered PDF"
     stale_orig = "A prospective experiment on 12 newly profiled isolates confirmed this generalization (mean ROC-AUC = 0.87)."
     if any(letter.accepted_text(p).strip() == stale_orig for p in letter.paragraphs()):

@@ -36,13 +36,7 @@ from lxml import etree
 
 sys.path.insert(0, str(Path(__file__).parent))
 from docx_track import TrackedDocx, LetterDocx, q, local, XML_SPACE  # noqa: E402
-from r3_major1_edits import LINE_PDF, LineNumbers  # noqa: E402
-
-DOCS = Path.home() / "Downloads/revisions"
-MS = DOCS / "Northen_msystems_BPR.docx"
-SI = DOCS / "Northen_msystems_BPR_Supplementary Information.docx"
-LETTER = DOCS / "Response_to_reviewers.docx"
-TABLES = DOCS / "Msystems BPR Supplementary Tables.xlsx"
+from revision_paths import DOCS, MS, SI, LETTER, TABLES, original_lines  # noqa: E402
 
 FIG3_OLD = "(a) Hold-out AUC separating experimentally consumed from neutral metabolites for BPR (teal)"
 FIG3_NEW = ("(a) Hold-out AUC separating experimentally consumed (assertion value ≤ −2) from neutral "
@@ -167,12 +161,11 @@ def fix_tables():
 
 
 def fix_letter(letter, ms):
-    lines = LineNumbers(LINE_PDF)
     caption = ms.accepted_text(ms.find("Figure 3. Comparison of BPR with naive taxonomic averaging"))
     end = "at four hold-out levels of increasing phylogenetic distance."
     modified = caption[caption.index(FIG3_NEW):caption.index(end) + len(end)]
     original = modified.replace(FIG3_NEW, FIG3_OLD)
-    found = lines.lines(original)
+    found = original_lines(original, "fig3_caption_panel_a")
     assert found != "__", "Fig. 3 caption sentence not found in the line-numbered original"
     r = letter.response_text("Minor comment 3.")
     for old, new in [
