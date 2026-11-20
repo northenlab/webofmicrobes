@@ -46,9 +46,10 @@ GEMINI_REF = ("Gemini 3 Flash Preview. Google AI for Developers. "
               "https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview. Retrieved 31 July 2026.")
 
 
-def plain_replace(doc, old: str, new: str, context: str | None = None):
-    """Untracked replacement of `old` by `new` in the paragraph containing `context` (or `old`)."""
-    p = doc.find(context or old)
+def plain_replace(doc, old: str, new: str, context: str | None = None, p=None):
+    """Untracked replacement of `old` by `new` in paragraph `p`, or in the one containing `context` (or `old`)."""
+    if p is None:
+        p = doc.find(context or old)
     text = doc.accepted_text(p)
     if text.count(old) != 1:
         raise ValueError(f"{text.count(old)} occurrences of {old[:60]!r} in the paragraph")
