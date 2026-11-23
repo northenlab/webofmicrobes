@@ -261,77 +261,13 @@
       "prevalence_sd": 0.0
     }
   ],
-  "fig1b_pooled_pr_auc_dim32": {
-    "Ordinal-BPR [lambda_ord=0]": {
-      "mean": 0.6557259999999999,
-      "sd": 0.014431044799320659
-    },
-    "WR-MF": {
-      "mean": 0.6858236,
-      "sd": 0.009783426230109733
-    },
-    "SVD": {
-      "mean": 0.6801798,
-      "sd": 0.009817084811694358
-    },
-    "LMF": {
-      "mean": 0.5076050000000001,
-      "sd": 0.004318875605988187
-    }
+  "calibration_unbinned": {
+    "slope_mean": 0.47911990417125266,
+    "slope_sd": 0.006343077918330615,
+    "intercept_mean": -0.053680690763371695,
+    "intercept_sd": 0.003516584320348589,
+    "n_pairs_pooled": 70885
   },
-  "calibration": [
-    {
-      "method": "isotonic",
-      "ols_slope_mean": 0.9888207964640499,
-      "ols_slope_std": 0.0019708106072688467,
-      "ols_intercept_mean": 0.0017053942137019995,
-      "ols_intercept_std": 0.0002714659349256849,
-      "logistic_slope_mean": 0.9648832735369617,
-      "logistic_slope_std": 0.004748349771768238,
-      "brier_mean": 0.0826808378500973,
-      "brier_std": 0.0018874989848304382,
-      "ece_mean": 0.0037191352657626594,
-      "ece_std": 0.0008868962805058114,
-      "prevalence_mean": 0.15715595683148761,
-      "prevalence_std": 0.0,
-      "n_pairs_mean": 14177.0,
-      "n_pairs_std": 0.0
-    },
-    {
-      "method": "platt",
-      "ols_slope_mean": 0.9963185245997425,
-      "ols_slope_std": 0.002651716928980437,
-      "ols_intercept_mean": 0.0005490853063846613,
-      "ols_intercept_std": 0.0003988427386432759,
-      "logistic_slope_mean": 0.9986976472450501,
-      "logistic_slope_std": 0.0010369170506264265,
-      "brier_mean": 0.08242606833505417,
-      "brier_std": 0.0018169368356016138,
-      "ece_mean": 0.005591286407755092,
-      "ece_std": 0.000691218191258034,
-      "prevalence_mean": 0.15715595683148761,
-      "prevalence_std": 0.0,
-      "n_pairs_mean": 14177.0,
-      "n_pairs_std": 0.0
-    },
-    {
-      "method": "raw",
-      "ols_slope_mean": 0.479119904171253,
-      "ols_slope_std": 0.006343077918330979,
-      "ols_intercept_mean": -0.05368069076337175,
-      "ols_intercept_std": 0.003516584320348674,
-      "logistic_slope_mean": 0.6692396797146667,
-      "logistic_slope_std": 0.020962866487206695,
-      "brier_mean": 0.21861914283745182,
-      "brier_std": 0.0016800571019206071,
-      "ece_mean": 0.28288046070445216,
-      "ece_std": 0.0023336735815874736,
-      "prevalence_mean": 0.15715595683148761,
-      "prevalence_std": 0.0,
-      "n_pairs_mean": 14177.0,
-      "n_pairs_std": 0.0
-    }
-  ],
   "fig3": {
     "isolate": {
       "n_all": 375,

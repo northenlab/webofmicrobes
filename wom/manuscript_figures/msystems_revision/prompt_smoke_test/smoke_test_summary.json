@@ -1,0 +1,308 @@
+{
+  "prompt1": {
+    "max_abs_diff_quoted_vs_replay": 0.010000000000000675,
+    "spearman_old_new": 0.896045197740113,
+    "s4a": {
+      "old": {
+        "TP": 16,
+        "FN": 1,
+        "TN": 4,
+        "FP": 1,
+        "r": 0.604496033767268,
+        "r_perm_p": 0.0044,
+        "accuracy": 0.9090909090909091,
+        "accuracy_perm_p": 0.0036,
+        "n": 22
+      },
+      "new": {
+        "TP": 16,
+        "FN": 1,
+        "TN": 4,
+        "FP": 1,
+        "r": 0.6797910107431805,
+        "r_perm_p": 0.0019,
+        "accuracy": 0.9090909090909091,
+        "accuracy_perm_p": 0.0036,
+        "n": 22
+      }
+    },
+    "s4b": {
+      "old": {
+        "pearson_r": -0.6272106242394158,
+        "pearson_p": 0.0017824192056097362,
+        "spearman_rho": -0.6624120356388435
+      },
+      "new": {
+        "pearson_r": -0.7120584867198243,
+        "pearson_p": 0.00020144062185379583,
+        "spearman_rho": -0.6983475891093052
+      }
+    }
+  },
+  "prompt2": {
+    "max_abs_diff_quoted_vs_replay": 0.0,
+    "n_quoted_checked": 8,
+    "genera_same_top3_set": 4,
+    "genera_same_order": 2,
+    "n_genera": 8,
+    "union_old": [
+      "adenosine",
+      "3-(carbamoylamino)propanoate",
+      "uridine",
+      "S-methyl-5'-thioadenosine",
+      "choline",
+      "S-adenosyl-L-homocysteine",
+      "nicotinamide",
+      "arginine",
+      "N-benzoylglycine",
+      "(9Z)-octadecenoate",
+      "3',5'-cyclic AMP"
+    ],
+    "union_new": [
+      "adenosine",
+      "uridine",
+      "3-(carbamoylamino)propanoate",
+      "S-methyl-5'-thioadenosine",
+      "nicotinamide",
+      "S-adenosyl-L-homocysteine",
+      "arginine",
+      "1,2-didecanoyl-sn-glycero-3-phosphocholine",
+      "(9Z)-octadecenoate",
+      "2'-deoxyadenosine 5'-monophosphate",
+      "3',5'-cyclic AMP"
+    ],
+    "new_compounds_without_s4_data": [
+      "(9Z)-octadecenoate",
+      "1,2-didecanoyl-sn-glycero-3-phosphocholine",
+      "2'-deoxyadenosine 5'-monophosphate",
+      "3-(carbamoylamino)propanoate",
+      "S-adenosyl-L-homocysteine"
+    ],
+    "s4c": {
+      "old": {
+        "TP": 29,
+        "FN": 2,
+        "TN": 30,
+        "FP": 16,
+        "r": 0.5550713190682764,
+        "r_perm_p": 0.0,
+        "accuracy": 0.7662337662337663,
+        "accuracy_perm_p": 0.0,
+        "n": 77
+      },
+      "new": {
+        "TP": 28,
+        "FN": 3,
+        "TN": 30,
+        "FP": 16,
+        "r": 0.48227732439542903,
+        "r_perm_p": 0.0,
+        "accuracy": 0.7532467532467533,
+        "accuracy_perm_p": 0.0,
+        "n": 77
+      },
+      "new_selected_compounds_only": {
+        "TP": 28,
+        "FN": 3,
+        "TN": 22,
+        "FP": 13,
+        "r": 0.438556929426189,
+        "r_perm_p": 0.0002,
+        "accuracy": 0.7575757575757576,
+        "accuracy_perm_p": 0.0,
+        "n": 66
+      },
+      "compounds_dropped_from_selection": [
+        "choline"
+      ]
+    },
+    "sheet_scores_match_old_replay": 0.0
+  },
+  "prompt3": {
+    "max_abs_diff_quoted_vs_replay": 0.009999999999999787,
+    "n_quoted_checked": 6,
+    "spearman_old_new": 0.9015937019969278,
+    "top8_old": [
+      [
+        "malate",
+        13.06
+      ],
+      [
+        "adenine",
+        11.7442
+      ],
+      [
+        "glycine",
+        11.6008
+      ],
+      [
+        "succinate",
+        10.9763
+      ],
+      [
+        "guanine",
+        9.5117
+      ],
+      [
+        "pyruvate",
+        9.435
+      ],
+      [
+        "4-aminobutanoate",
+        9.1459
+      ],
+      [
+        "uracil",
+        9.1399
+      ]
+    ],
+    "top8_new": [
+      [
+        "succinate",
+        10.9074
+      ],
+      [
+        "uracil",
+        10.2068
+      ],
+      [
+        "glutamate",
+        9.288
+      ],
+      [
+        "adenine",
+        9.2364
+      ],
+      [
+        "glycine",
+        8.8372
+      ],
+      [
+        "nicotinamide",
+        8.7043
+      ],
+      [
+        "hypoxanthine",
+        8.5792
+      ],
+      [
+        "malate",
+        8.164
+      ]
+    ],
+    "bottom3_old": [
+      [
+        "N-acetyl-L-lysine",
+        0.2445
+      ],
+      [
+        "L-ectoine",
+        -0.8944
+      ],
+      [
+        "spermidine",
+        -3.755
+      ]
+    ],
+    "bottom3_new": [
+      [
+        "carnitine",
+        -3.2103
+      ],
+      [
+        "N-acetyl-L-lysine",
+        -3.7991
+      ],
+      [
+        "L-ectoine",
+        -3.9758
+      ]
+    ],
+    "glucose_top_genera": {
+      "submitted": [
+        [
+          "Marmoricola",
+          10.07
+        ],
+        [
+          "Phyllobacterium",
+          9.05
+        ],
+        [
+          "Novosphingobium",
+          8.87
+        ],
+        [
+          "Pedobacter",
+          7.32
+        ],
+        [
+          "Janthinobacterium",
+          6.93
+        ],
+        [
+          "Erwinia",
+          6.58
+        ],
+        [
+          "Streptomyces",
+          6.42
+        ],
+        [
+          "Niastella",
+          6.02
+        ],
+        [
+          "Chromobacterium",
+          5.17
+        ],
+        [
+          "Chryseobacterium",
+          4.86
+        ]
+      ],
+      "revised": [
+        [
+          "Marmoricola",
+          9.23
+        ],
+        [
+          "Novosphingobium",
+          8.58
+        ],
+        [
+          "Chitinophaga",
+          7.21
+        ],
+        [
+          "Phyllobacterium",
+          6.64
+        ],
+        [
+          "Pedobacter",
+          6.55
+        ],
+        [
+          "Niastella",
+          6.02
+        ],
+        [
+          "Pseudomonas",
+          5.53
+        ],
+        [
+          "Streptomyces",
+          4.95
+        ],
+        [
+          "Simplicispira",
+          3.85
+        ],
+        [
+          "Pseudarthrobacter",
+          3.73
+        ]
+      ]
+    }
+  }
+}

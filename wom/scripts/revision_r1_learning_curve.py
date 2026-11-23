@@ -6,7 +6,7 @@ isolate's consumed and neutral pairs withheld, five repeats) and trains BPR (32
 dimensions, lambda_ord = 0, the settings of Fig. 1b) on nested random subsets of the
 remaining measured pairs (consumed and neutral), so the held-out pairs are fixed while
 the amount of training data varies. For each subset it reports per-isolate ROC-AUC and
-PR-AUC on the withheld pairs, and calibration after cross-fitted Platt scaling.
+PR-AUC on the withheld pairs.
 The full subset must reproduce the BPR dim-32 hold-out rows of fig1b_benchmark_results.csv.
 
 BPR draws one batch of 256 (isolate, consumed, negative) triples per epoch, so the
@@ -14,6 +14,7 @@ number of gradient steps does not depend on the number of training pairs.
 
 Usage:
     python scripts/revision_r1_learning_curve.py --output-dir <dir> --fig1b-results <csv>
+    python scripts/revision_r1_learning_curve.py --output-dir <dir> --fig1b-results <csv> --replot
 """
 
 import sys
@@ -34,7 +35,7 @@ import matplotlib.pyplot as plt
 from core.types import AssertionType
 from loaders.loaders import prepare_training_data, load_exometabolite
 import scripts.revision_fig1b_benchmark as fig1b
-from scripts.revision_r1_metrics import per_isolate, crossfit_probabilities, calibration_stats, baseline_scores
+from scripts.revision_r1_metrics import per_isolate, baseline_scores
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +79,6 @@ def run(repeats: int) -> pd.DataFrame:
             scores = fig1b.score_matrix(fig1b.train(data, MODEL, DIM, fig1b.training_seed(repeat, DIM)))
             metrics, y, s = fig1b.evaluate_holdout(scores, withheld, labels)
             iso = per_isolate(y, s, withheld[:, 0])
-            p = crossfit_probabilities(y, s, withheld[:, 0], seed=repeat)
-            cal = calibration_stats(y, p)
             n_pairs = sum(map(len, pos.values())) + sum(map(len, kn.values()))
             base = {}
             for name, bs in baseline_scores(pos, kn, td.n_microbes, td.n_metabolites, genus_of).items():
@@ -96,13 +95,11 @@ def run(repeats: int) -> pd.DataFrame:
                 "prevalence": float(iso.prevalence.mean()),
                 "roc_auc_fig1b_definition": metrics["roc_auc"], "pr_auc_pooled": metrics["pr_auc_pooled"],
                 "pooled_prevalence": metrics["prevalence"],
-                **{f"cal_{k}": v for k, v in cal.items() if k not in ("prevalence", "n_pairs")},
-                "brier_prevalence_only": float(y.mean() * (1 - y.mean())),
                 **base,
             })
             logger.info(f"repeat {repeat} fraction {fraction:.2f} pairs {n_pairs:>6} "
                         f"ROC-AUC {rows[-1]['roc_auc']:.3f} PR-AUC {rows[-1]['pr_auc']:.3f} "
-                        f"Brier {cal['brier']:.3f} | popularity {base['popularity_roc_auc']:.3f} "
+                        f"| popularity {base['popularity_roc_auc']:.3f} "
                         f"genus {base['genus_roc_auc']:.3f} ({time.time() - t0:.1f}s)")
     return pd.DataFrame(rows)
 
@@ -120,8 +117,7 @@ def check_full_fraction(results: pd.DataFrame, fig1b_csv: Path):
 
 def summarise(results: pd.DataFrame) -> pd.DataFrame:
     cols = ["n_train_pairs", "pct_of_training_pairs", "pct_of_matrix", "n_isolates_with_training_consumed",
-            "roc_auc", "pr_auc", "prevalence", "cal_brier", "brier_prevalence_only", "cal_ols_slope",
-            "cal_ols_intercept", "cal_ece", "popularity_roc_auc", "popularity_pr_auc", "genus_roc_auc",
+            "roc_auc", "pr_auc", "prevalence", "popularity_roc_auc", "popularity_pr_auc", "genus_roc_auc",
             "genus_pr_auc"]
     g = results.groupby("fraction")[cols]
     out = g.mean().add_suffix("_mean").join(g.std().add_suffix("_sd"))
@@ -130,13 +126,11 @@ def summarise(results: pd.DataFrame) -> pd.DataFrame:
 
 def plot(summary: pd.DataFrame, out_stem: Path):
     x = summary.pct_of_matrix_mean
-    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5))
     baselines = [("popularity", "popularity (no learning)", "-."), ("genus", "genus prevalence (no learning)", ":")]
     panels = [("roc_auc", "ROC-AUC (mean per isolate)", baselines, None),
-              ("pr_auc", "PR-AUC (mean per isolate)", baselines, ("prevalence", "random ranking (prevalence)")),
-              ("cal_brier", "Brier score, calibrated (lower is better)", [],
-               ("brier_prevalence_only", "prevalence-only prediction"))]
-    for ax, letter, (col, ylabel, base, ref) in zip(axes, "abc", panels):
+              ("pr_auc", "PR-AUC (mean per isolate)", baselines, ("prevalence", "random ranking (prevalence)"))]
+    for ax, letter, (col, ylabel, base, ref) in zip(axes, "ab", panels):
         ax.errorbar(x, summary[f"{col}_mean"], yerr=summary[f"{col}_sd"], color=BPR_COLOR, marker="*",
                     markersize=11, linewidth=2, capsize=3, label="BPR")
         for name, label, ls in base:
@@ -157,18 +151,24 @@ def plot(summary: pd.DataFrame, out_stem: Path):
     for ax in axes:  # one legend for all panels, in first-seen order
         for h, lab in zip(*ax.get_legend_handles_labels()):
             handles.setdefault(lab, h)
-    fig.legend(list(handles.values()), list(handles.keys()), loc="upper center", ncol=5, frameon=False,
-               fontsize=12, bbox_to_anchor=(0.5, 1.07))
+    fig.legend(list(handles.values()), list(handles.keys()), loc="upper center", ncol=4, frameon=False,
+               fontsize=11.5, bbox_to_anchor=(0.5, 1.07))
     plt.tight_layout()
     for ext in ("png", "pdf"):
         fig.savefig(out_stem.with_suffix(f".{ext}"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
-def main(output_dir: Path, fig1b_csv: Path, repeats: int):
+def saved_results(output_dir: Path) -> pd.DataFrame:
+    """learning_curve.csv of an earlier run, without the calibration columns that run() no longer writes."""
+    results = pd.read_csv(output_dir / "learning_curve.csv")
+    return results.drop(columns=[c for c in results if c.startswith("cal_") or c == "brier_prevalence_only"])
+
+
+def main(output_dir: Path, fig1b_csv: Path, repeats: int, replot: bool = False):
     output_dir.mkdir(parents=True, exist_ok=True)
     start = time.time()
-    results = run(repeats)
+    results = saved_results(output_dir) if replot else run(repeats)
     check_full_fraction(results, fig1b_csv)
     results.to_csv(output_dir / "learning_curve.csv", index=False, float_format="%.6f")
     summary = summarise(results)
@@ -185,5 +185,7 @@ if __name__ == "__main__":
     parser.add_argument("--fig1b-results", type=Path, required=True,
                         help="fig1b_benchmark_results.csv of the same labelling rule (check at fraction 1)")
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--replot", action="store_true",
+                        help="redraw the figure and summary from the saved learning_curve.csv without retraining")
     args = parser.parse_args()
-    main(args.output_dir, args.fig1b_results, args.repeats)
+    main(args.output_dir, args.fig1b_results, args.repeats, args.replot)

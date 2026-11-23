@@ -1,0 +1,23 @@
+genus,substrate,matched,score_old,sd_old,rank_old,score_new,sd_new,rank_new,quoted,rank_change
+Pseudomonas,serine,L-serine,10.130,2.064,1,9.272,1.765,1,10.130,0
+Pseudomonas,glutamate,glutamate,9.753,2.146,2,8.759,2.079,2,9.750,0
+Pseudomonas,guanine,guanine,9.565,2.153,3,7.555,1.658,7,9.560,-4
+Pseudomonas,adenosine,adenosine,9.561,2.877,4,7.440,2.530,9,9.560,-5
+Pseudomonas,leucine,D-leucine,9.526,1.839,5,8.588,1.365,3,9.530,2
+Pseudomonas,arginine,arginine,9.156,2.224,6,7.977,2.206,5,9.160,1
+Pseudomonas,isoleucine,D-isoleucine,9.006,2.020,7,7.689,1.370,6,9.010,1
+Pseudomonas,lysine,L-lysine,8.823,2.053,8,8.233,2.116,4,8.820,4
+Pseudomonas,glycine,glycine,8.434,2.192,9,5.455,1.813,16,8.430,-7
+Pseudomonas,hypoxanthine,hypoxanthine,8.347,2.616,10,7.516,2.434,8,8.350,2
+Pseudomonas,alanine,D-alanine,7.823,1.626,11,6.024,1.507,13,7.820,-2
+Pseudomonas,uridine,uridine,7.766,2.420,12,4.534,2.060,17,7.770,-5
+Pseudomonas,threonine,D-threonine,7.435,1.661,13,6.983,1.196,10,7.440,3
+Pseudomonas,phenylalanine,D-phenylalanine,7.396,2.055,14,6.488,1.800,12,7.400,2
+Pseudomonas,proline,D-proline,7.354,1.666,15,6.729,1.399,11,7.350,4
+Pseudomonas,glucose,D-glucose,7.065,2.310,16,5.527,1.929,14,7.070,2
+Pseudomonas,mannose,D-glucose,7.065,2.310,16,5.527,1.929,14,7.070,2
+Pseudomonas,trehalose,"α,α-trehalose",3.538,2.411,18,2.343,2.128,18,3.540,0
+Pseudomonas,mannitol,D-sorbitol,3.472,2.391,19,2.180,2.617,19,3.470,0
+Pseudomonas,arabinose,D-xylose,2.742,2.352,20,1.619,2.113,20,2.740,0
+Pseudomonas,4-guanidinobutanoic acid,4-guanidinobutanoate,-1.424,1.334,21,-1.045,1.386,22,-1.420,-1
+Pseudomonas,maltose,D-maltose,-2.366,2.026,22,-0.285,1.396,21,-2.370,1
