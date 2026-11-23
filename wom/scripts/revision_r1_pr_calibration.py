@@ -76,14 +76,6 @@ def check_against_results(per_iso: pd.DataFrame, results_csv: Path):
     logger.info(f"Per-isolate ROC-AUC reproduces {results_csv.name} (max |diff| {diff:.1e})")
 
 
-def pooled_pr(results_csv: Path) -> dict:
-    """PR-AUC over all withheld pairs pooled across isolates (also rewards between-isolate score scale)."""
-    res = pd.read_csv(results_csv)
-    res = res[(res.protocol == "B_holdout") & (res.dim == DIM) & res.model.isin(MODELS)]
-    g = res.groupby("model").pr_auc_pooled
-    return {m: {"mean": float(g.mean()[m]), "sd": float(g.std()[m])} for m in MODELS}
-
-
 def summarise_by_repeat(per_iso: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
     rep = per_iso.groupby(keys + ["repeat"])[["roc_auc", "pr_auc", "prevalence"]].mean()
     g = rep.groupby(keys)
@@ -325,7 +317,6 @@ def main(lambda0_dir: Path):
     summary = {
         "fig1b_by_dim": by_dim.to_dict(orient="records"),
         "fig1b_baselines": base_summary.to_dict(orient="records"),
-        "fig1b_pooled_pr_auc_dim32": pooled_pr(lambda0_dir / "fig1b" / "fig1b_benchmark_results.csv"),
         "calibration_unbinned": {"slope_mean": float(slopes.slope.mean()), "slope_sd": float(slopes.slope.std()),
                                  "intercept_mean": float(slopes.intercept.mean()),
                                  "intercept_sd": float(slopes.intercept.std()),
