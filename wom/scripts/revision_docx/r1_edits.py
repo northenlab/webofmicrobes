@@ -227,7 +227,8 @@ def si_captions(n: dict) -> list:
 def figure1_with_c(old_png: bytes) -> bytes:
     from PIL import Image
     Image.MAX_IMAGE_PIXELS = None
-    top = Image.open(io.BytesIO(old_png)).convert("RGB")
+    top = Image.open(io.BytesIO(old_png)).convert("RGBA")  # panel a has a transparent background: place it on white
+    top = Image.alpha_composite(Image.new("RGBA", top.size, (255, 255, 255, 255)), top).convert("RGB")
     if top.height != FIG1_HEIGHT_BEFORE:
         raise SystemExit(f"Figure 1 image is {top.size}; panel c appears to be present already")
     c = Image.open(FIG1C).convert("RGB")
