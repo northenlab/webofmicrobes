@@ -2,10 +2,10 @@
 """Metrics shared by the Reviewer 1 analyses (mSystems revision).
 
 Per-isolate ROC-AUC and PR-AUC (average precision), learning-free baselines, and the
-calibration curve Reviewer 1 asked for. BPR scores are ranking statistics; the model
-does not output a probability of consumption. The closest equivalent, the logistic
-function of the score, is taken as the predicted value and compared with the observed
-labels in equal-sized groups, and by the slope of the unbinned labels on it.
+observed fraction of consumed pairs in ranges of BPR score (Reviewer 1, comment 3).
+BPR scores are ranking statistics; the model does not output a probability of
+consumption, so the score itself is binned. For the response letter only, the slope of
+the unbinned labels on the logistic function of the score is also computed.
 """
 
 import numpy as np
@@ -13,7 +13,7 @@ import pandas as pd
 from scipy.special import expit
 from sklearn.metrics import average_precision_score, roc_auc_score
 
-N_GROUPS = 20  # ventiles
+SCORE_EDGES = [-6, -4, -2, 0, 2, 4, 6, 8]  # ranges of two score units; open-ended below -6 and from 8
 
 
 def per_isolate(y: np.ndarray, s: np.ndarray, isolate: np.ndarray) -> pd.DataFrame:
@@ -42,17 +42,20 @@ def unbinned_slope(y: np.ndarray, p: np.ndarray) -> dict:
             "n_pairs": int(len(y))}
 
 
-def quantile_groups(y: np.ndarray, p: np.ndarray, n_groups: int = N_GROUPS) -> pd.DataFrame:
-    """Pairs sorted by predicted value and cut into `n_groups` equal-sized groups: mean predicted
-    value and observed fraction consumed of each group, with a Wilson 95% interval."""
+def score_ranges(y: np.ndarray, s: np.ndarray, edges: list = SCORE_EDGES) -> pd.DataFrame:
+    """Observed fraction consumed among the pairs whose score lies in each range [low, high),
+    with a Wilson 95% interval. The first and last ranges are open-ended."""
+    bounds = [-np.inf, *edges, np.inf]
     rows = []
-    for k, idx in enumerate(np.array_split(np.argsort(p, kind="stable"), n_groups)):
-        n, obs, z = len(idx), float(y[idx].mean()), 1.96
+    for low, high in zip(bounds[:-1], bounds[1:]):
+        sel = (s >= low) & (s < high)
+        n, obs, z = int(sel.sum()), float(y[sel].mean()), 1.96
         centre = (obs + z * z / (2 * n)) / (1 + z * z / n)
         half = z * np.sqrt(obs * (1 - obs) / n + z * z / (4 * n * n)) / (1 + z * z / n)
-        rows.append({"group": k + 1, "predicted_low": float(p[idx].min()), "predicted_high": float(p[idx].max()),
-                     "n": n, "mean_predicted": float(p[idx].mean()), "observed": obs,
-                     "ci_low": centre - half, "ci_high": centre + half})
+        label = f"< {high:g}" if np.isinf(low) else f"≥ {low:g}" if np.isinf(high) else f"{low:g} to {high:g}"
+        rows.append({"score_range": label.replace("-", "−"), "score_low": low, "score_high": high, "n": n,
+                     "n_consumed": int(y[sel].sum()), "observed": obs, "ci_low": centre - half,
+                     "ci_high": centre + half})
     return pd.DataFrame(rows)
 
 

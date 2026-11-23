@@ -9,12 +9,12 @@ value (the isolate's prevalence of consumed pairs) for
   * the 12 held-out isolates of Supplementary Fig. 3 (SI Table 2 values).
 Comment 5 (what BPR buys): learning-free baselines on the Fig. 1b hold-out splits
 (compound popularity, and genus prevalence with popularity as fallback).
-Comment 3 (calibration curve): the plot the reviewer describes. The predicted value of each
-Fig. 1b hold-out pair (BPR, 32 dimensions) is the logistic function of its score; pairs are
-cut into ventiles of predicted value, and the observed fraction consumed is plotted against
-the mean predicted value, with the slope of the unbinned labels on the predicted values.
+Comment 3 (calibration curve): the Fig. 1b hold-out pairs (BPR, 32 dimensions) are grouped
+into ranges of BPR score, and the observed fraction of consumed pairs is plotted for each
+range. BPR does not output probabilities, so the score itself is on the x axis. The slope of
+the unbinned labels on the logistic function of the score is computed for the response letter.
 
-Writes CSV/JSON summaries and Supplementary Figs. 6 (PR-AUC) and 7 (calibration curve).
+Writes CSV/JSON summaries and Supplementary Figs. 6 (PR-AUC) and 7 (consumption by BPR score).
 
 Usage:
     python scripts/revision_r1_pr_calibration.py --lambda0-dir <manuscript_figures/msystems_revision/lambda0>
@@ -40,8 +40,8 @@ from sklearn.metrics import precision_recall_curve, average_precision_score
 from core.types import AssertionType
 from loaders.loaders import prepare_training_data, load_exometabolite
 import scripts.revision_fig1b_benchmark as fig1b
-from scripts.revision_r1_metrics import (per_isolate, predicted_values, unbinned_slope, quantile_groups,
-                                         baseline_scores, N_GROUPS)
+from scripts.revision_r1_metrics import (per_isolate, predicted_values, unbinned_slope, score_ranges,
+                                         baseline_scores)
 
 logger = logging.getLogger(__name__)
 
@@ -110,14 +110,16 @@ def fig1b_baselines(td, labels, scores: pd.DataFrame, repeats: list[int]) -> pd.
 
 # ----------------------------------------------------------------------------- calibration
 def calibration(scores: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Unbinned slope per repeat, and ventiles of predicted value over the five repeats pooled."""
+    """Fraction consumed per range of BPR score (five repeats pooled), and the unbinned slope of the
+    label on the logistic function of the score, per repeat."""
     bpr = scores[(scores.model == BPR) & (scores.dim == DIM)]
     y = (bpr.label == "consumed").to_numpy(int)
-    p = predicted_values(bpr.score.to_numpy(float))
+    s = bpr.score.to_numpy(float)
+    p = predicted_values(s)
     repeat = bpr.repeat.to_numpy()
     slopes = pd.DataFrame([{"repeat": r, **unbinned_slope(y[repeat == r], p[repeat == r])}
                            for r in sorted(np.unique(repeat))])
-    return slopes, quantile_groups(y, p)
+    return slopes, score_ranges(y, s)
 
 
 # ----------------------------------------------------------------------------- Fig. 3 and Fig. S3
@@ -271,20 +273,17 @@ def plot_figS6(by_dim, base_summary, scores, fig3_rows, s3, out_stem: Path):
     plt.close(fig)
 
 
-def plot_figS7(groups: pd.DataFrame, slopes: pd.DataFrame, out_stem: Path):
-    fig, ax = plt.subplots(figsize=(7.2, 6.4))
-    ax.plot([0, 1], [0, 1], color=GREY, linestyle="--", linewidth=1.5, label="calibrated model (slope = 1)")
-    ax.errorbar(groups.mean_predicted, groups.observed,
-                yerr=[groups.observed - groups.ci_low, groups.ci_high - groups.observed],
-                color=STYLE[BPR]["color"], marker="*", markersize=11, linewidth=1.8, capsize=3,
-                label=f"BPR, {N_GROUPS} equal-sized groups of withheld pairs (ventiles)\n"
-                      f"slope of the un-binned labels = {slopes.slope.mean():.2f}")
-    ax.set_xlim(-0.02, 1.02)
-    ax.set_ylim(-0.02, 1.02)
-    ax.set_aspect("equal")
-    ax.set_xlabel("Predicted value (logistic function of the BPR score; group mean)", fontsize=12.5)
-    ax.set_ylabel("Observed fraction consumed", fontsize=12.5)
-    ax.legend(frameon=False, fontsize=10.5, loc="upper left")
+def plot_figS7(ranges: pd.DataFrame, out_stem: Path):
+    fig, ax = plt.subplots(figsize=(8.8, 5.2))
+    x = np.arange(len(ranges))
+    ax.bar(x, ranges.observed, width=0.8, color=STYLE[BPR]["color"], edgecolor="white", linewidth=1)
+    ax.errorbar(x, ranges.observed, yerr=[ranges.observed - ranges.ci_low, ranges.ci_high - ranges.observed],
+                fmt="none", ecolor=DARK, elinewidth=1.3, capsize=3)
+    ax.set_xticks(x)
+    ax.set_xticklabels(ranges.score_range, fontsize=10.5)
+    ax.set_ylim(0, 1)
+    ax.set_xlabel("BPR score", fontsize=13)
+    ax.set_ylabel("Observed fraction consumed", fontsize=13)
     ax.spines[["top", "right"]].set_visible(False)
     ax.grid(axis="y", color="#e6e6e6", linewidth=0.8)
     ax.set_axisbelow(True)
@@ -314,9 +313,9 @@ def main(lambda0_dir: Path):
     base_summary = summarise_by_repeat(base, ["baseline"])
     base_summary.to_csv(out / "fig1b_baselines.csv", index=False, float_format="%.6f")
 
-    slopes, groups = calibration(scores)
+    slopes, ranges = calibration(scores)
     slopes.to_csv(out / "calibration_slope_by_repeat.csv", index=False, float_format="%.6f")
-    groups.to_csv(out / "calibration_ventiles.csv", index=False, float_format="%.6f")
+    ranges.to_csv(out / "consumption_by_score_range.csv", index=False, float_format="%.6f")
 
     fig3_rows, fig3_summary = fig3_pr(lambda0_dir / "r1" / "fig3_pr" / "fig3_holdout_results.csv",
                                       lambda0_dir / "fig3" / "fig3_holdout_results.csv")
@@ -336,7 +335,7 @@ def main(lambda0_dir: Path):
     }
     (out / "r1_pr_calibration_summary.json").write_text(json.dumps(summary, indent=2))
     plot_figS6(by_dim, base_summary, scores, fig3_rows, s3, out / "figS6_pr_auc")
-    plot_figS7(groups, slopes, out / "figS7_calibration")
+    plot_figS7(ranges, out / "figS7_score_ranges")
     logger.info(f"Saved {out}")
 
 
