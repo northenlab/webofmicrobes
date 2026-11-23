@@ -1,22 +1,19 @@
 # revision_r1_metrics.py
 """Metrics shared by the Reviewer 1 analyses (mSystems revision).
 
-Per-isolate ROC-AUC and PR-AUC (average precision), and calibration of BPR scores:
-BPR scores are ranking statistics, so probabilities are obtained with a monotone
-map (Platt scaling, i.e. logistic regression of the label on the score, or isotonic
-regression) fitted by cross-fitting over isolates, so that no isolate's pairs are
-used to fit the map that is applied to them.
+Per-isolate ROC-AUC and PR-AUC (average precision), learning-free baselines, and the
+calibration curve Reviewer 1 asked for. BPR scores are ranking statistics; the model
+does not output a probability of consumption. The closest equivalent, the logistic
+function of the score, is taken as the predicted value and compared with the observed
+labels in equal-sized groups, and by the slope of the unbinned labels on it.
 """
 
 import numpy as np
 import pandas as pd
 from scipy.special import expit
-from sklearn.isotonic import IsotonicRegression
-from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score
 
-N_FOLDS = 5
-N_BINS = 10
+N_GROUPS = 20  # ventiles
 
 
 def per_isolate(y: np.ndarray, s: np.ndarray, isolate: np.ndarray) -> pd.DataFrame:
@@ -32,62 +29,29 @@ def per_isolate(y: np.ndarray, s: np.ndarray, isolate: np.ndarray) -> pd.DataFra
     return pd.DataFrame(rows)
 
 
-def crossfit_probabilities(y: np.ndarray, s: np.ndarray, isolate: np.ndarray, seed: int = 0,
-                           method: str = "platt") -> np.ndarray:
-    """Out-of-fold P(consumed | score): the map is fitted on the pairs of the other folds of isolates."""
-    rng = np.random.default_rng(seed)
-    isolates = pd.unique(isolate)
-    fold_of = dict(zip(isolates, rng.permutation(len(isolates)) % N_FOLDS))
-    fold = np.array([fold_of[m] for m in isolate])
-    p = np.empty(len(y), dtype=float)
-    for k in range(N_FOLDS):
-        train, test = fold != k, fold == k
-        if method == "platt":
-            lr = LogisticRegression(C=1e6, max_iter=1000).fit(s[train, None], y[train])
-            p[test] = lr.predict_proba(s[test, None])[:, 1]
-        elif method == "isotonic":
-            iso = IsotonicRegression(y_min=0, y_max=1, out_of_bounds="clip").fit(s[train], y[train])
-            p[test] = iso.predict(s[test])
-        else:
-            raise ValueError(method)
-    return p
-
-
-def naive_probabilities(s: np.ndarray) -> np.ndarray:
-    """The logistic function of the raw score, as if the BPR score were a log-odds."""
+def predicted_values(s: np.ndarray) -> np.ndarray:
+    """The logistic function of the BPR score: the score read as if it were a log-odds of consumption."""
     return expit(s)
 
 
-def calibration_stats(y: np.ndarray, p: np.ndarray, n_bins: int = N_BINS) -> dict:
-    """Unbinned slope/intercept of the label on the prediction (1 and 0 when calibrated), the
-    logistic calibration slope, Brier score and expected calibration error over equal-width bins."""
-    ols = LinearRegression().fit(p[:, None], y)
-    eps = 1e-6
-    logit = np.log(np.clip(p, eps, 1 - eps) / (1 - np.clip(p, eps, 1 - eps)))
-    logistic = LogisticRegression(C=1e6, max_iter=1000).fit(logit[:, None], y)
-    bins = reliability(y, p, n_bins)
-    ece = float((bins.n * (bins.observed - bins.mean_predicted).abs()).sum() / len(y))
-    return {"ols_slope": float(ols.coef_[0]), "ols_intercept": float(ols.intercept_),
-            "logistic_slope": float(logistic.coef_[0, 0]), "brier": float(np.mean((p - y) ** 2)),
-            "ece": ece, "prevalence": float(y.mean()), "n_pairs": int(len(y))}
+def unbinned_slope(y: np.ndarray, p: np.ndarray) -> dict:
+    """Least-squares slope and intercept of the unbinned 0/1 label on the predicted value
+    (1 and 0 for a calibrated model)."""
+    slope, intercept = np.polyfit(p, y, 1)
+    return {"slope": float(slope), "intercept": float(intercept), "prevalence": float(y.mean()),
+            "n_pairs": int(len(y))}
 
 
-def reliability(y: np.ndarray, p: np.ndarray, n_bins: int = N_BINS) -> pd.DataFrame:
-    """Observed fraction consumed per equal-width bin of predicted probability, with Wilson 95% CI."""
-    edges = np.linspace(0, 1, n_bins + 1)
-    b = np.clip(np.digitize(p, edges[1:-1]), 0, n_bins - 1)
+def quantile_groups(y: np.ndarray, p: np.ndarray, n_groups: int = N_GROUPS) -> pd.DataFrame:
+    """Pairs sorted by predicted value and cut into `n_groups` equal-sized groups: mean predicted
+    value and observed fraction consumed of each group, with a Wilson 95% interval."""
     rows = []
-    for k in range(n_bins):
-        sel = b == k
-        n = int(sel.sum())
-        if not n:
-            continue
-        obs = float(y[sel].mean())
-        z = 1.96
+    for k, idx in enumerate(np.array_split(np.argsort(p, kind="stable"), n_groups)):
+        n, obs, z = len(idx), float(y[idx].mean()), 1.96
         centre = (obs + z * z / (2 * n)) / (1 + z * z / n)
         half = z * np.sqrt(obs * (1 - obs) / n + z * z / (4 * n * n)) / (1 + z * z / n)
-        rows.append({"bin": k, "bin_low": edges[k], "bin_high": edges[k + 1], "n": n,
-                     "mean_predicted": float(p[sel].mean()), "observed": obs,
+        rows.append({"group": k + 1, "predicted_low": float(p[idx].min()), "predicted_high": float(p[idx].max()),
+                     "n": n, "mean_predicted": float(p[idx].mean()), "observed": obs,
                      "ci_low": centre - half, "ci_high": centre + half})
     return pd.DataFrame(rows)
 
