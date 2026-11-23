@@ -18,8 +18,9 @@ from pathlib import Path
 
 DOCS = Path.home() / "Downloads/revisions"
 BACKUPS = Path.home() / "Downloads/revisions_backups"
-LINE_PDF = Path.home() / ("Downloads/1st-revision/original_submission/"
-                          "Original Maintext Submission ONLY FOR LINE NUMBERS.pdf")
+# Word's PDF export (2026-11-23) of the original submission's .docx, which has line numbering switched on; it
+# reproduces every line range that was measured from the journal's PDF before that file was lost
+LINE_PDF = BACKUPS / "Original Maintext Submission ONLY FOR LINE NUMBERS (Word export).pdf"
 
 # line ranges in the line-numbered original PDF, as measured by LineNumbers on 2026-11-16
 RECORDED_LINES = {
